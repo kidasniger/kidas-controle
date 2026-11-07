@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -64,7 +65,7 @@ fun CommentsScreen(viewModel: CommentsViewModel, unansweredCountChanged: (Int) -
                         Text("Commentaires de ta Page Facebook", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     IconButton(onClick = { viewModel.refresh() }, enabled = !state.loading) {
-                        Icon(androidx.compose.material.icons.Icons.Default.Refresh, contentDescription = "Actualiser")
+                        Text("↻")
                     }
                 }
                 state.updatedAt?.let {
@@ -100,7 +101,7 @@ fun CommentsScreen(viewModel: CommentsViewModel, unansweredCountChanged: (Int) -
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(androidx.compose.material.icons.Icons.Default.ChatBubbleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(38.dp))
+                            Text("💬", style = MaterialTheme.typography.headlineLarge)
                             Text("Aucune donnée. Lance Surveiller depuis l'accueil.", style = MaterialTheme.typography.bodyLarge)
                             Button(onClick = { viewModel.runSurveiller() }, enabled = !state.loading) {
                                 Text(if (state.loading) "Lancement…" else "Lancer Surveiller")
