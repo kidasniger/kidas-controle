@@ -119,7 +119,7 @@ class MainActivity : FragmentActivity() {
                                 finishAndRemoveTask(); return@LockScreen
                             }
                             requestDeviceCredential(cipher) { ok, result ->
-                                if (ok && result != null) unlockWith(result) { lockError = it; unlocked = true }
+                                if (ok && result != null) unlockWith(result) { unlocked = true; lockError = null }
                                 else finishAndRemoveTask()
                             }
                         },
