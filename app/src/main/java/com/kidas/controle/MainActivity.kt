@@ -45,19 +45,20 @@ class MainActivity : FragmentActivity() {
         vault = TokenVault(applicationContext)
         tokenRepository = SecureTokenRepository(vault)
 
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         setContent {
-            KiDasTheme {
-                var showSettings by rememberSaveable { mutableStateOf(false) }
+            val prefs = remember { getSharedPreferences("kidas_preferences", MODE_PRIVATE) }
+            var themeMode by remember { mutableStateOf(
+                runCatching { com.kidas.controle.ui.theme.KiDasThemeMode.valueOf(
+                    prefs.getString("theme_mode", "DARK") ?: "DARK"
+                ) }.getOrDefault(com.kidas.controle.ui.theme.KiDasThemeMode.DARK)
+            ) }
+            com.kidas.controle.ui.theme.KiDasTheme(mode = themeMode) {
                 var unlocked by rememberSaveable { mutableStateOf(!vault.hasCredential()) }
                 var welcome by rememberSaveable { mutableStateOf(!vault.hasCredential()) }
                 var lockError by remember { mutableStateOf<String?>(null) }
-                val updateState by updateManager.state.collectAsState()
-
-                SideEffect {
-                    if (showSettings) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
-                LaunchedEffect(Unit) { updateManager.checkForUpdates() }
 
                 when {
                     welcome -> WelcomeSetupScreen(
@@ -136,25 +137,16 @@ class MainActivity : FragmentActivity() {
                         showDeviceCredential = android.os.Build.VERSION.SDK_INT < 30,
                         error = lockError
                     )
-                    showSettings -> UpdateSettingsScreen(updateManager) { showSettings = false }
-                    else -> Scaffold { padding ->
-                        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                            Text("KI DAS", style = MaterialTheme.typography.headlineLarge)
-                            Text("Bienvenue dans KI DAS Contrôle", style = MaterialTheme.typography.titleMedium)
-                            if (updateState is UpdateState.UpdateAvailable) {
-                                val available = updateState as UpdateState.UpdateAvailable
-                                Card(Modifier.fillMaxWidth()) {
-                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("Mise à jour disponible", style = MaterialTheme.typography.titleMedium)
-                                        Text("Version ${available.release.tagName} prête à être consultée.")
-                                        Button(onClick = { showSettings = true }) { Text("Voir la mise à jour") }
-                                    }
-                                }
-                            } else if (updateState is UpdateState.Checking) Text("Vérification des mises à jour en arrière-plan…")
-                            Spacer(Modifier.weight(1f))
-                            Button(onClick = { showSettings = true }, modifier = Modifier.fillMaxWidth()) { Text("Paramètres") }
-                        }
+                    else -> {
+                        LaunchedEffect(Unit) { updateManager.checkForUpdates() }
+                        com.kidas.controle.ui.nav.KiDasNavigation(
+                            manager = updateManager,
+                            themeMode = themeMode,
+                            onThemeModeChange = {
+                                themeMode = it
+                                prefs.edit().putString("theme_mode", it.name).apply()
+                            }
+                        )
                     }
                 }
             }
