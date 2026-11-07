@@ -86,7 +86,7 @@ fun BotScreen(credentials: SecureTokenRepository) {
     fun toggle(name: String, enabled: Boolean) = perform { data ->
         when (name) {
             "GLM_LIVE" -> {
-                data.setVar(name, enabled.toString())
+                data.setVar(name, if (enabled) "on" else "off")
                 data.updateJSON("glm/config.json", buildJsonObject {}, { old ->
                     JsonObject(old.jsonObject.toMutableMap().apply { put("actif", JsonPrimitive(enabled)) })
                 }, "Activation GLM")
@@ -143,8 +143,8 @@ fun BotScreen(credentials: SecureTokenRepository) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Button(enabled = !busy, onClick = {
                         perform { data ->
-                            data.setVar("GLM_LIVE", "true")
-                            data.setVar("AUTO_REPONSES", "true")
+                            data.setVar("GLM_LIVE", "on")
+                            data.setVar("AUTO_REPONSES", "on")
                             data.updateJSON("glm/config.json", buildJsonObject {}, { old ->
                                 JsonObject(old.jsonObject.toMutableMap().apply { put("actif", JsonPrimitive(true)) })
                             }, "Activation GLM")
@@ -171,8 +171,8 @@ fun BotScreen(credentials: SecureTokenRepository) {
                                 if (released && hold.value >= .99f) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     perform { data ->
-                                        data.setVar("GLM_LIVE", "false")
-                                        data.setVar("AUTO_REPONSES", "false")
+                                        data.setVar("GLM_LIVE", "off")
+                                        data.setVar("AUTO_REPONSES", "off")
                                         data.updateJSON("glm/config.json", buildJsonObject {}, { config ->
                                             JsonObject(config.jsonObject.toMutableMap().apply { put("actif", JsonPrimitive(false)) })
                                         }, "Arrêt d’urgence GLM")
