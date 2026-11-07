@@ -1,4 +1,4 @@
-name: Compiler l'APK
+name: Tests, build and publish Android release
 
 on:
   push:
@@ -8,47 +8,92 @@ on:
 permissions:
   contents: write
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
+concurrency:
+  group: kidas-controle-release-${{ github.ref }}
+  cancel-in-progress: true
 
-      - uses: actions/setup-java@v4
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Installer le SDK Android
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0"
-
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      - name: Clé de signature
+      - name: Install Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Run unit tests
+        run: gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Verify signing secrets
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          test -n "$KEYSTORE_B64" || { echo "Secret KEYSTORE_B64 manquant."; exit 1; }
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          test -n "$KEYSTORE_B64" || { echo "::error::Secret KEYSTORE_B64 manquant"; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo "::error::Secret KEYSTORE_PASSWORD manquant"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          test -s "$RUNNER_TEMP/release.jks"
 
-      - name: Compiler
+      - name: Calculate unique version
+        id: version
+        run: |
+          VERSION_CODE="${{ github.run_number }}"
+          VERSION_NAME="1.0.$VERSION_CODE"
+          TAG="v$VERSION_NAME"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Le tag $TAG existe déjà"; exit 1
+          fi
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed APK
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: kidas
-          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: gradle --no-daemon assembleRelease
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          gradle --no-daemon assembleRelease \
+            -PversionCode=${{ steps.version.outputs.code }} \
+            -PversionName=${{ steps.version.outputs.name }}
 
-      - name: Publier l'APK
+      - name: Prepare APK and SHA-256
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/release/app-release.apk "release/kidas-controle-${{ steps.version.outputs.name }}.apk"
+          cd release
+          sha256sum *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub Release and tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk kidas-controle.apk
-          gh release create "v${{ github.run_number }}" kidas-controle.apk \
-            --title "Version ${{ github.run_number }}" \
-            --notes "APK signé. Installer par-dessus la version précédente."
+          gh release create "${{ steps.version.outputs.tag }}" release/* \
+            --title "KI DAS ${{ steps.version.outputs.name }}" \
+            --notes "Mise à jour automatique de KI DAS Contrôle. Consultez les changements du commit associé."
+
+      - name: Build summary
+        run: |
+          echo "## Publication terminée" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version : ${{ steps.version.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag : ${{ steps.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- APK signé et SHA-256 publiés." >> "$GITHUB_STEP_SUMMARY"
