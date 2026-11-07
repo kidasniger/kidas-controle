@@ -322,7 +322,11 @@ private fun MetricChartCard(title: String, values: List<ChartPoint>, modifier: M
 @Composable
 fun Sparkline(values: List<ChartPoint>, modifier: Modifier = Modifier) {
     var selected by remember(values) { mutableIntStateOf(values.lastIndex) }
-    val progress by animateFloatAsState(1f, tween(800, easing = FastOutSlowInEasing), label = "line-progress")
+    val progress = remember(values) { Animatable(0f) }
+    LaunchedEffect(values) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(800, easing = FastOutSlowInEasing))
+    }
     val pulseTransition = rememberInfiniteTransition(label = "chart-point")
     val pulse by pulseTransition.animateFloat(5f, 8f, infiniteRepeatable(tween(850), repeatMode = androidx.compose.animation.core.RepeatMode.Reverse), label = "point-pulse")
     val lineColor = MaterialTheme.colorScheme.primary
@@ -359,7 +363,7 @@ fun Sparkline(values: List<ChartPoint>, modifier: Modifier = Modifier) {
                     bottom - ((point.value - min) / (max - min).coerceAtLeast(1f)) * (bottom - top)
                 )
             }
-            val visibleCount = (points.size * progress).toInt().coerceAtLeast(1).coerceAtMost(points.size)
+            val visibleCount = (points.size * progress.value).toInt().coerceAtLeast(1).coerceAtMost(points.size)
             val path = Path().apply {
                 moveTo(points.first().x, points.first().y)
                 points.take(visibleCount).drop(1).forEach { lineTo(it.x, it.y) }
@@ -395,7 +399,11 @@ fun BarChart(values: List<ChartPoint>, modifier: Modifier = Modifier) {
     ) {
         values.forEach { point ->
             val target = (point.value / maxValue).coerceIn(0f, 1f)
-            val animated by animateFloatAsState(target, androidx.compose.animation.core.spring(dampingRatio = .62f, stiffness = 150f), label = "bar-height")
+            val height = remember(point.day) { Animatable(0f) }
+            LaunchedEffect(point.value) {
+                height.animateTo(target, androidx.compose.animation.core.spring(dampingRatio = .62f, stiffness = 150f))
+            }
+            val animated = height.value
             Column(
                 Modifier.weight(1f).fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally,
