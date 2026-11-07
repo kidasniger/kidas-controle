@@ -74,8 +74,8 @@ class TokenVault(private val context: Context) {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             builder.setUserAuthenticationParameters(
-                60, KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
-            )
+                0, KeyProperties.AUTH_BIOMETRIC_STRONG
+            ).setInvalidatedByBiometricEnrollment(false)
         } else {
             @Suppress("DEPRECATION")
             builder.setUserAuthenticationValidityDurationSeconds(60)
