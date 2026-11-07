@@ -64,7 +64,7 @@ fun LockScreen(
             ) {
                 Text("Déverrouiller")
             }
-            if (error != null && (error.contains("invalidée", true) || error.contains("indisponible", true))) {
+            if (error != null && (error.contains("invalidée", true) || error.contains("indisponible", true) || error.contains("clé Android", true))) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = onResetSecurity, modifier = Modifier.fillMaxWidth()) {
                     Text("Réinitialiser la sécurité")
