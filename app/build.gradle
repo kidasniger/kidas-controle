@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+def run = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'com.kidas.controle'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.kidas.controle'
+        minSdk 26
+        targetSdk 34
+        versionCode run
+        versionName "1.0." + run
+    }
+
+    signingConfigs {
+        release {
+            if (System.getenv('KEYSTORE_PATH')) {
+                storeFile file(System.getenv('KEYSTORE_PATH'))
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
