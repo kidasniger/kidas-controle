@@ -162,10 +162,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun unlockWith(cipher: javax.crypto.Cipher, onError: (String) -> Unit) {
+    private fun unlockWith(cipher: javax.crypto.Cipher, onUnlocked: () -> Unit) {
         lifecycleScope.launch {
             runCatching { tokenRepository.acceptAuthenticated(cipher) }
-                .onSuccess { /* l’état Compose est basculé par le callback appelant */ }
+                .onSuccess { onUnlocked() }
                 .onFailure { finishAndRemoveTask() }
         }
     }
