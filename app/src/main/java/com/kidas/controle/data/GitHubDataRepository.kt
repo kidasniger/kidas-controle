@@ -26,9 +26,19 @@ class GitHubDataRepository(
         if (response.code == 404) return null
         if (!response.isSuccessful) throw GitHubApiException(response.code, path, response.body)
         val obj = json.parseToJsonElement(response.body).jsonObject
-        val encoded = obj["content"]?.jsonPrimitive?.contentOrNull ?: return null
-        val decoded = android.util.Base64.decode(encoded.replace("\n", "").replace("\r", ""), android.util.Base64.DEFAULT)
-        return GitHubFile(chemin, decoded.toString(Charsets.UTF_8), obj["sha"]?.jsonPrimitive?.content ?: "", obj["size"]?.jsonPrimitive?.longOrNull)
+        val sha = obj["sha"]?.jsonPrimitive?.content ?: ""
+        val size = obj["size"]?.jsonPrimitive?.longOrNull
+        val encoded = obj["content"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+        // GitHub peut omettre le contenu Base64 pour les fichiers volumineux.
+        val content = if (encoded.isNotEmpty()) {
+            android.util.Base64.decode(encoded.replace("\\n", "").replace("\\r", ""), android.util.Base64.DEFAULT)
+                .toString(Charsets.UTF_8)
+        } else {
+            val raw = api.request("GET", path, accept = "application/vnd.github.raw+json")
+            if (!raw.isSuccessful) throw GitHubApiException(raw.code, path, raw.body)
+            raw.body
+        }
+        return GitHubFile(chemin, content, sha, size)
     }
 
     suspend fun updateJSON(
