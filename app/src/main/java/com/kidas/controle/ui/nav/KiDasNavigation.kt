@@ -23,9 +23,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.kidas.controle.ui.components.*
+import com.kidas.controle.security.SecureTokenRepository
+import com.kidas.controle.ui.home.HomeScreen
+import com.kidas.controle.ui.home.HomeStatsScreen
+import com.kidas.controle.ui.home.HomeViewModel
 import com.kidas.controle.ui.settings.UpdateSettingsScreen
 import com.kidas.controle.ui.theme.KiDasThemeMode
 import com.kidas.controle.updater.AppUpdateManager
@@ -45,6 +51,7 @@ private val tabs = listOf(
 @Composable
 fun KiDasNavigation(
     manager: AppUpdateManager,
+    tokenRepository: SecureTokenRepository,
     themeMode: KiDasThemeMode,
     onThemeModeChange: (KiDasThemeMode) -> Unit,
     unansweredCount: Int = 0
@@ -138,7 +145,26 @@ fun KiDasNavigation(
                     slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(duration))
             }
         ) {
-            composable("home") { HomeScreen(manager, onSettings = { navController.navigate("settings") }) }
+            composable("home") {
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                            HomeViewModel(tokenRepository) as T
+                    }
+                )
+                HomeScreen(homeViewModel) { route -> navController.navigate(route) }
+            }
+            composable("stats") {
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                            HomeViewModel(tokenRepository) as T
+                    }
+                )
+                HomeStatsScreen(homeViewModel) { navController.popBackStack() }
+            }
             composable("publish") { FeaturePlaceholder("Publier", "Prépare et programme tes publications.") }
             composable("reviews") { FeaturePlaceholder("Avis", "Retrouve les commentaires à traiter.") }
             composable("media") { FeaturePlaceholder("Médias", "Bibliothèque des images et vidéos.") }
