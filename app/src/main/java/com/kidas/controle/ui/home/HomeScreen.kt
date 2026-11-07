@@ -24,7 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.Assignment
-import androidx.compose.material.icons.outlined.Facebook
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -134,7 +134,7 @@ fun HomeScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 CounterCard("Abonnés", state.followers, Icons.Outlined.Groups, Modifier.weight(1f), 0) { onNavigate("stats") }
-                                CounterCard("J’aime la Page", state.pageLikes, Icons.Outlined.Facebook, Modifier.weight(1f), 1) { onNavigate("stats") }
+                                CounterCard("J’aime la Page", state.pageLikes, Icons.Outlined.ThumbUp, Modifier.weight(1f), 1) { onNavigate("stats") }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 CounterCard("Commentaires sans réponse", state.unansweredComments.toLong(), Icons.Outlined.Forum, Modifier.weight(1f), 2) { onNavigate("reviews") }
@@ -205,6 +205,7 @@ fun StatusRing(state: BotStatus, detail: String, onManage: () -> Unit) {
         BotStatus.IDLE -> Color(0xFFE6A23C)
         BotStatus.STOPPED -> MaterialTheme.colorScheme.error
     }
+    val surfaceColor = MaterialTheme.colorScheme.surface
     val transition = rememberInfiniteTransition(label = "bot-pulse")
     val pulse by transition.animateFloat(
         initialValue = 0.72f,
@@ -219,7 +220,7 @@ fun StatusRing(state: BotStatus, detail: String, onManage: () -> Unit) {
                     drawCircle(color.copy(alpha = .12f * pulse), radius = size.minDimension * .49f)
                     drawCircle(color.copy(alpha = .25f * pulse), radius = size.minDimension * .36f)
                     drawCircle(color, radius = size.minDimension * .22f)
-                    drawCircle(MaterialTheme.colorScheme.surface, radius = size.minDimension * .10f)
+                    drawCircle(surfaceColor, radius = size.minDimension * .10f)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
