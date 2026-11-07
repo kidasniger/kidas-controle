@@ -43,6 +43,8 @@ class SecureTokenRepository(private val vault: TokenVault) : GitHubTokenProvider
     }
 
     suspend fun lock() = mutex.withLock { session = null; pending = null }
+    suspend fun credentialExpiry(): Long? = mutex.withLock { session?.expiresAt }
+
     suspend fun repositories(): Pair<String, String>? = mutex.withLock {
         session?.let { it.dataRepository to it.managerRepository }
     }
