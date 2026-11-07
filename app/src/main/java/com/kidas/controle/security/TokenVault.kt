@@ -24,6 +24,12 @@ class TokenVault(private val context: Context) {
     )
 
     fun hasCredential(): Boolean = prefs.contains("ciphertext") && prefs.contains("iv")
+
+    /** Explicit recovery path for a permanently invalidated Android Keystore key. */
+    fun resetAfterUserConfirmation() {
+        prefs.edit().clear().commit()
+        if (store.containsAlias(alias)) store.deleteEntry(alias)
+    }
     fun canUseDeviceAuthentication(): Boolean = runCatching {
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         keyguard.isDeviceSecure
