@@ -147,6 +147,7 @@ class MainActivity : FragmentActivity() {
                             LaunchedEffect(Unit) { updateManager.checkForUpdates() }
                             com.kidas.controle.ui.nav.KiDasNavigation(
                                 manager = updateManager,
+                                tokenRepository = tokenRepository,
                                 themeMode = themeMode,
                                 onThemeModeChange = {
                                     themeMode = it
