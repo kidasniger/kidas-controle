@@ -108,7 +108,7 @@ class HomeViewModel(private val credentials: SecureTokenRepository) : ViewModel(
                         followersHistory = stats?.charts?.get("page_follows") ?: old.followersHistory,
                         dailyFollowers = stats?.charts?.get("page_daily_follows_unique") ?: old.dailyFollowers,
                         executions = runs ?: old.executions,
-                        tokenDaysRemaining = expiry?.let { it?.let { time -> Duration.between(Instant.now(), Instant.ofEpochMilli(time)).toDays() } },
+                        tokenDaysRemaining = expiry?.let { time -> Duration.between(Instant.now(), Instant.ofEpochMilli(time)).toDays() },
                         workflowVeilleEnabled = bot?.third ?: old.workflowVeilleEnabled,
                         lastUpdated = DateTimeFormatter.ofPattern("HH:mm", Locale.FRANCE).format(java.time.LocalTime.now()),
                         error = listOfNotNull(
