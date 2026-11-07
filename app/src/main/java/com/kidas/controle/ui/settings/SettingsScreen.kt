@@ -21,6 +21,7 @@ import java.util.*
 fun SettingsScreen(credentials: SecureTokenRepository, themeMode: KiDasThemeMode, onThemeModeChange: (KiDasThemeMode)->Unit, version: String) {
     val scope = rememberCoroutineScope()
     var visible by remember { mutableStateOf(false) }
+    var revealedToken by remember { mutableStateOf<String?>(null) }
     var repos by remember { mutableStateOf<Pair<String,String>?>(null) }
     var expiry by remember { mutableStateOf<Long?>(null) }
     var datePicker by remember { mutableStateOf(false) }
@@ -36,8 +37,8 @@ fun SettingsScreen(credentials: SecureTokenRepository, themeMode: KiDasThemeMode
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Sécurité GitHub", style = MaterialTheme.typography.titleMedium)
-                OutlinedTextField(value = if (visible) "Jeton enregistré dans le coffre sécurisé" else "••••••••••••••••••••", onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Jeton GitHub") }, visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation())
-                TextButton(onClick = { visible = !visible }) { Text(if (visible) "Masquer" else "Afficher") }
+                OutlinedTextField(value = if (visible) (revealedToken ?: "Jeton indisponible") else "••••••••••••••••••••", onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(), label = { Text("Jeton GitHub") }, visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation())
+                TextButton(onClick = { visible = !visible; if (visible) scope.launch { revealedToken = runCatching { credentials.revealToken() }.getOrNull() } else revealedToken = null }) { Text(if (visible) "Masquer" else "Afficher") }
                 Text("Dépôt de données : ${repos?.first ?: "—"}")
                 Text("Dépôt manager : ${repos?.second ?: "—"}")
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -84,7 +85,7 @@ fun SettingsScreen(credentials: SecureTokenRepository, themeMode: KiDasThemeMode
     if (datePicker) {
         val picker = rememberDatePickerState(initialSelectedDateMillis = expiry ?: System.currentTimeMillis())
         DatePickerDialog(onDismissRequest = { datePicker = false }, confirmButton = {
-            TextButton(onClick = { expiry = picker.selectedDateMillis; datePicker = false; message = "Date sélectionnée. Pour modifier l’expiration chiffrée, une nouvelle authentification est nécessaire." }) { Text("Valider") }
+            TextButton(onClick = { expiry = picker.selectedDateMillis?.let { it + 86_399_999L }; scope.launch { runCatching { credentials.updateCredentialExpiry(expiry) }.onSuccess { message = "Expiration enregistrée ✓" }.onFailure { error = it.message } }; datePicker = false }) { Text("Valider") }
         }, dismissButton = { TextButton(onClick = { datePicker = false }) { Text("Annuler") } }) { DatePicker(state = picker) }
     }
     if (forgetConfirm) AlertDialog(onDismissRequest = { forgetConfirm = false }, title = { Text("Oublier le jeton ?") }, text = { Text("Le coffre local sera effacé. Tu devras reconfigurer l’application avec un nouveau jeton.") }, confirmButton = {
