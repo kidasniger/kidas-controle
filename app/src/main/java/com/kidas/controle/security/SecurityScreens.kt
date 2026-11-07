@@ -12,7 +12,8 @@ fun LockScreen(
     onUnlock: () -> Unit,
     onUseDeviceCredential: () -> Unit,
     showDeviceCredential: Boolean,
-    error: String? = null
+    error: String? = null,
+    onResetSecurity: () -> Unit = {}
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -62,6 +63,17 @@ fun LockScreen(
                 )
             ) {
                 Text("Déverrouiller")
+            }
+            if (error != null && (error.contains("invalidée", true) || error.contains("indisponible", true))) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onResetSecurity, modifier = Modifier.fillMaxWidth()) {
+                    Text("Réinitialiser la sécurité")
+                }
+                Text(
+                    "Cette action efface uniquement le coffre local. Tu devras saisir à nouveau ton jeton GitHub.",
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
             if (showDeviceCredential) {
                 TextButton(
