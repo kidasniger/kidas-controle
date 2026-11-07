@@ -6,8 +6,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.concurrent.TimeUnit
 
 /** Token provider is injected; credentials are never persisted by this client. */
@@ -19,21 +19,29 @@ class GitHubApiException(
     val httpCode: Int,
     val path: String,
     detail: String? = null
-) : IOException(detail ?: frenchMessage(httpCode, path)) {
+) : IOException(buildMessage(httpCode, path, detail)) {
     companion object {
-        private fun frenchMessage(code: Int, path: String): String = when (code) {
-            0 -> "Réseau indisponible"
-            401 -> "Jeton invalide ou expiré"
-            403, 404 -> {
-                val right = when {
-                    path.contains("/contents") -> "Contents"
-                    path.contains("/actions") || path.contains("/workflows") -> "Actions"
-                    path.contains("/variables") -> "Variables"
-                    else -> "accès au dépôt"
+        private fun buildMessage(code: Int, path: String, detail: String?): String {
+            val translated = when (code) {
+                0 -> "Réseau indisponible"
+                401 -> "Jeton invalide ou expiré"
+                403, 404 -> {
+                    val right = when {
+                        path.contains("/actions/variables") -> "Variables"
+                        path.contains("/actions/") || path.contains("/workflows") -> "Actions"
+                        path.contains("/contents") -> "Contents"
+                        else -> "accès au dépôt"
+                    }
+                    "Droit manquant : $right"
                 }
-                "Droit manquant : $right"
+                else -> if (code == 408 || code == 504) "Réessaie" else "Erreur GitHub ($code)"
             }
-            else -> if (code == 408 || code == 504) "Réessaie" else "Erreur GitHub ($code)"
+            val apiMessage = runCatching {
+                detail?.takeIf { it.trimStart().startsWith("{") }
+                    ?.let { org.json.JSONObject(it).optString("message") }
+                    ?.takeIf { it.isNotBlank() }
+            }.getOrNull()
+            return if (apiMessage != null && code !in setOf(401, 403, 404, 408, 504)) "$translated : $apiMessage" else translated
         }
     }
 }
@@ -78,7 +86,7 @@ class GitHubApiClient(
                 val bytes = response.body?.bytes() ?: ByteArray(0)
                 GitHubResponse(response.code, bytes.toString(Charsets.UTF_8), bytes)
             }
-        } catch (e: java.net.SocketTimeoutException) {
+        } catch (e: InterruptedIOException) {
             throw GitHubApiException(408, path, "Réessaie")
         } catch (e: IOException) {
             throw GitHubApiException(0, path, "Réseau indisponible")
