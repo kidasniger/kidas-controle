@@ -34,12 +34,18 @@ private data class QueueCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PublishScreen(credentials: SecureTokenRepository) {
+fun PublishScreen(credentials: SecureTokenRepository, initialMedia: String? = null, onInitialMediaConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var message by rememberSaveable { mutableStateOf("") }
-    var selectedMedia by rememberSaveable { mutableStateOf("") }
+    var selectedMedia by rememberSaveable { mutableStateOf(initialMedia.orEmpty()) }
+    LaunchedEffect(initialMedia) {
+        if (!initialMedia.isNullOrBlank()) {
+            selectedMedia = initialMedia
+            onInitialMediaConsumed()
+        }
+    }
     var mediaItems by remember { mutableStateOf<List<Pair<String, Long>>>(emptyList()) }
     var queueItems by remember { mutableStateOf<List<QueueCard>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
