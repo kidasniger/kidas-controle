@@ -110,7 +110,7 @@ class MainActivity : FragmentActivity() {
                                 lockError = "Impossible de préparer le déverrouillage."; return@LockScreen
                             }
                             authenticate("Déverrouiller KI DAS", cipher) { success, result ->
-                                if (success && result != null) unlockWith(result) { lockError = it; unlocked = true }
+                                if (success && result != null) unlockWith(result) { unlocked = true; lockError = null }
                                 else finishAndRemoveTask()
                             }
                         },
