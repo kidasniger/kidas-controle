@@ -14,16 +14,66 @@ fun LockScreen(
     showDeviceCredential: Boolean,
     error: String? = null
 ) {
-    Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center) {
-        Text("KI DAS", style = MaterialTheme.typography.displaySmall)
-        Text("Contrôle sécurisé", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(16.dp))
-        Text("Authentifie-toi avec ton empreinte ou le verrouillage de ton téléphone.")
-        if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth()) { Text("Déverrouiller") }
-        if (showDeviceCredential) TextButton(onClick = onUseDeviceCredential, modifier = Modifier.fillMaxWidth()) {
-            Text("Utiliser le code du téléphone")
+    val colors = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = colors.background,
+        contentColor = colors.onBackground
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "KI DAS",
+                style = MaterialTheme.typography.displaySmall,
+                color = colors.onBackground
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Contrôle sécurisé",
+                style = MaterialTheme.typography.titleLarge,
+                color = colors.onBackground
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Authentifie-toi avec ton empreinte ou le verrouillage de ton téléphone.",
+                color = colors.onBackground,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            if (error != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = error,
+                    color = colors.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onUnlock,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary
+                )
+            ) {
+                Text("Déverrouiller")
+            }
+            if (showDeviceCredential) {
+                TextButton(
+                    onClick = onUseDeviceCredential,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = colors.primary
+                    )
+                ) {
+                    Text("Utiliser le code du téléphone")
+                }
+            }
         }
     }
 }
@@ -35,43 +85,110 @@ fun WelcomeSetupScreen(
     onSave: (String, String, String, String) -> Unit,
     onUseDeviceCredential: (String, String, String, String) -> Unit
 ) {
+    val colors = MaterialTheme.colorScheme
     var token by remember { mutableStateOf("") }
     var dataRepo by remember { mutableStateOf("kidasniger/facebook-data") }
     var managerRepo by remember { mutableStateOf("kidasniger/facebook-manager") }
     var expiry by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Bienvenue sur KI DAS Contrôle 👋", style = MaterialTheme.typography.headlineMedium)
-        Text("Colle de nouveau ton jeton : l’ancien jeton ne peut pas être récupéré après la migration.")
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Droits requis sur le jeton GitHub", style = MaterialTheme.typography.titleMedium)
-                Text("Contents : lecture et écriture")
-                Text("Actions : lecture et écriture")
-                Text("Variables : lecture et écriture")
-                Text("Metadata : lecture seule")
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = colors.background,
+        contentColor = colors.onBackground
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "Bienvenue sur KI DAS Contrôle 👋",
+                style = MaterialTheme.typography.headlineMedium,
+                color = colors.onBackground
+            )
+            Text(
+                "Colle de nouveau ton jeton : l’ancien jeton ne peut pas être récupéré après la migration.",
+                color = colors.onBackground
+            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = colors.surface,
+                    contentColor = colors.onSurface
+                )
+            ) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("Droits requis sur le jeton GitHub", style = MaterialTheme.typography.titleMedium)
+                    Text("Contents : lecture et écriture")
+                    Text("Actions : lecture et écriture")
+                    Text("Variables : lecture et écriture")
+                    Text("Metadata : lecture seule")
+                }
             }
-        }
-        if (!deviceSecure) Text(
-            "Aucun verrouillage détecté. Configure un code PIN, un schéma ou un mot de passe dans Android. Le jeton ne peut pas être enregistré.",
-            color = MaterialTheme.colorScheme.error
-        )
-        if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
-        OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(),
-            label = { Text("Jeton GitHub") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-        OutlinedTextField(dataRepo, { dataRepo = it }, Modifier.fillMaxWidth(), label = { Text("Dépôt de données") }, singleLine = true)
-        OutlinedTextField(managerRepo, { managerRepo = it }, Modifier.fillMaxWidth(), label = { Text("Dépôt manager") }, singleLine = true)
-        OutlinedTextField(expiry, { expiry = it }, Modifier.fillMaxWidth(),
-            label = { Text("Expiration (facultatif, AAAA-MM-JJ)") }, singleLine = true)
-        Button(
-            onClick = { val value = token; token = ""; onSave(value, dataRepo, managerRepo, expiry) },
-            enabled = deviceSecure && token.isNotBlank() && dataRepo.contains("/") && managerRepo.contains("/"),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Sécuriser avec empreinte") }
-        if (deviceSecure && android.os.Build.VERSION.SDK_INT < 30) {
-            OutlinedButton(
-                onClick = { val value = token; token = ""; onUseDeviceCredential(value, dataRepo, managerRepo, expiry) },
+            if (!deviceSecure) {
+                Text(
+                    "Aucun verrouillage détecté. Configure un code PIN, un schéma ou un mot de passe dans Android. Le jeton ne peut pas être enregistré.",
+                    color = colors.error
+                )
+            }
+            if (error != null) Text(error, color = colors.error)
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Jeton GitHub") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = dataRepo,
+                onValueChange = { dataRepo = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Dépôt de données") },
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = managerRepo,
+                onValueChange = { managerRepo = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Dépôt manager") },
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = expiry,
+                onValueChange = { expiry = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Expiration (facultatif, AAAA-MM-JJ)") },
+                singleLine = true
+            )
+            Button(
+                onClick = {
+                    val value = token
+                    token = ""
+                    onSave(value, dataRepo, managerRepo, expiry)
+                },
+                enabled = deviceSecure && token.isNotBlank() &&
+                    dataRepo.contains("/") && managerRepo.contains("/"),
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Sécuriser avec le code du téléphone") }
+            ) {
+                Text("Sécuriser avec empreinte")
+            }
+            if (deviceSecure && android.os.Build.VERSION.SDK_INT < 30) {
+                OutlinedButton(
+                    onClick = {
+                        val value = token
+                        token = ""
+                        onUseDeviceCredential(value, dataRepo, managerRepo, expiry)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Sécuriser avec le code du téléphone")
+                }
+            }
         }
     }
 }
