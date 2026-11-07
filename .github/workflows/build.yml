@@ -68,8 +68,8 @@ jobs:
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: kidas
-          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           gradle --no-daemon assembleRelease \
             -PversionCode=${{ steps.version.outputs.code }} \
@@ -89,7 +89,7 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" release/* \
             --title "KI DAS ${{ steps.version.outputs.name }}" \
-            --generate-notes
+            --notes "Mise à jour automatique de KI DAS Contrôle. Consultez les changements du commit associé."
 
       - name: Build summary
         run: |
