@@ -35,6 +35,7 @@ import com.kidas.controle.ui.home.HomeViewModel
 import com.kidas.controle.ui.publish.PublishScreen
 import com.kidas.controle.ui.comments.CommentsScreen
 import com.kidas.controle.ui.comments.CommentsViewModel
+import com.kidas.controle.ui.media.MediaScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kidas.controle.ui.settings.UpdateSettingsScreen
 import com.kidas.controle.ui.theme.KiDasThemeMode
@@ -65,6 +66,7 @@ fun KiDasNavigation(
     val currentRoute = backStack?.destination?.route ?: "home"
     val duration = if (ValueAnimator.areAnimatorsEnabled()) 260 else 0
     val snackbarHostState = remember { SnackbarHostState() }
+    var mediaForPublish by rememberSaveable { mutableStateOf<String?>(null) }
     val commentsViewModel: CommentsViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -178,9 +180,9 @@ fun KiDasNavigation(
                 )
                 HomeStatsScreen(homeViewModel) { navController.popBackStack() }
             }
-            composable("publish") { PublishScreen(tokenRepository) }
+            composable("publish") { PublishScreen(tokenRepository, mediaForPublish) { mediaForPublish = null } }
             composable("reviews") { CommentsScreen(commentsViewModel) }
-            composable("media") { FeaturePlaceholder("Médias", "Bibliothèque des images et vidéos.") }
+            composable("media") { MediaScreen(tokenRepository) { path -> mediaForPublish = path; navController.navigate("publish") } }
             composable("bot") { FeaturePlaceholder("Bot", "État et configuration de l’assistant.") }
             composable("settings") {
                 Column(
