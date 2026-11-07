@@ -1,6 +1,6 @@
 # KI DAS Contrôle
 
-Application Android (WebView) qui pilote le bot de la Page Facebook :
+Application Android native (écrans animés, sans WebView) qui pilote le bot de la Page Facebook :
 publication, commentaires, médias, workflows GitHub Actions.
 
 - Le jeton GitHub est saisi dans l'application, chiffré (AES-GCM, Android Keystore) et verrouillé par le code ou l'empreinte de l'écran.
