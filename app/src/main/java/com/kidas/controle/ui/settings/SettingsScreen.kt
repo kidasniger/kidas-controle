@@ -45,7 +45,7 @@ fun SettingsScreen(credentials: SecureTokenRepository, themeMode: KiDasThemeMode
                     Text("Expiration : $dateText", modifier = Modifier.weight(1f))
                     TextButton(onClick = { datePicker = true }) { Text("Modifier") }
                 }
-                Text("Le jeton reste chiffré dans Android Keystore. Il n’est jamais affiché en clair.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Le jeton reste chiffré dans Android Keystore et n’est affiché qu’après une demande explicite.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(enabled = !busy, onClick = {
                     scope.launch {
                         busy = true; tests = emptyList(); error = null; message = null
@@ -53,13 +53,22 @@ fun SettingsScreen(credentials: SecureTokenRepository, themeMode: KiDasThemeMode
                             val r = repos ?: throw IllegalStateException("Dépôts non configurés")
                             val api = GitHubApiClient(credentials)
                             val data = GitHubDataRepository(api, r.first, r.second)
-                            val results = mutableListOf<Pair<String,Boolean>>()
-                            results += "Lecture des données" to runCatching { data.getFile(chemin = "inbox/commentaires.json"); true }.getOrDefault(false)
-                            results += "Lecture des Actions" to runCatching { data.workflows(true); true }.getOrDefault(false)
-                            results += "Lecture des Variables" to runCatching { data.getVar("GLM_LIVE"); true }.getOrDefault(false)
+                            val failures = mutableListOf<String>()
+                            suspend fun check(label: String, requiredRight: String, action: suspend () -> Unit): Pair<String, Boolean> {
+                                val ok = runCatching { action(); true }.getOrElse {
+                                    failures += "$label — ${it.message ?: "Droit manquant : $requiredRight"}"
+                                    false
+                                }
+                                return label to ok
+                            }
+                            val results = listOf(
+                                check("Lecture des données", "Contents: read") { data.getFile(chemin = "inbox/commentaires.json") },
+                                check("Lecture des Actions", "Actions: read") { data.workflows(true) },
+                                check("Lecture des Variables", "Variables: read") { data.getVar("GLM_LIVE") }
+                            )
                             tests = results
                             if (results.all { it.second }) message = "Connexion GitHub testée avec succès ✓"
-                            else error = "Un ou plusieurs tests ont échoué. Vérifie les droits Contents: read, Actions: read et Variables: read."
+                            else error = failures.joinToString("\n")
                         } catch (e: Exception) { error = e.message ?: "Test impossible" }
                         finally { busy = false }
                     }
