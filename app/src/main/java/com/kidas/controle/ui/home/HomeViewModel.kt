@@ -169,8 +169,8 @@ class HomeViewModel(private val credentials: SecureTokenRepository) : ViewModel(
                 val item = element.jsonObject
                 val message = item["message"]?.jsonPrimitive?.contentOrNull.orEmpty()
                 val author = item["from"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
-                val answered = item["page_a_repondu"]?.jsonPrimitive?.booleanOrNull == true
-                if (!answered && message.isNotBlank() && author != null && author != pageId) count++
+                val explicitlyUnanswered = item["page_a_repondu"]?.jsonPrimitive?.booleanOrNull == false
+                if (explicitlyUnanswered && message.isNotBlank() && author != null && author != pageId) count++
                 inspect(item["comments"]?.jsonObject?.get("data")?.jsonArray)
             }
         }
