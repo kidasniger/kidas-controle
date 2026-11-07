@@ -35,7 +35,10 @@ fun UpdateSettingsScreen(manager: AppUpdateManager, onBack: () -> Unit = {}) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {\n            Text("Paramètres", style = MaterialTheme.typography.headlineMedium)\n            TextButton(onClick = onBack) { Text("Retour") }\n        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Paramètres", style = MaterialTheme.typography.headlineMedium)
+            TextButton(onClick = onBack) { Text("Retour") }
+        }
         Card {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Mise à jour de l’application", style = MaterialTheme.typography.titleLarge)
