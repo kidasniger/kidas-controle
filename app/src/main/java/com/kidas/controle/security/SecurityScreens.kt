@@ -8,7 +8,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun LockScreen(onUnlock: () -> Unit, error: String? = null) {
+fun LockScreen(
+    onUnlock: () -> Unit,
+    onUseDeviceCredential: () -> Unit,
+    showDeviceCredential: Boolean,
+    error: String? = null
+) {
     Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center) {
         Text("KI DAS", style = MaterialTheme.typography.displaySmall)
         Text("Contrôle sécurisé", style = MaterialTheme.typography.titleLarge)
@@ -17,6 +22,9 @@ fun LockScreen(onUnlock: () -> Unit, error: String? = null) {
         if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(24.dp))
         Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth()) { Text("Déverrouiller") }
+        if (showDeviceCredential) TextButton(onClick = onUseDeviceCredential, modifier = Modifier.fillMaxWidth()) {
+            Text("Utiliser le code du téléphone")
+        }
     }
 }
 
@@ -24,7 +32,8 @@ fun LockScreen(onUnlock: () -> Unit, error: String? = null) {
 fun WelcomeSetupScreen(
     deviceSecure: Boolean,
     error: String? = null,
-    onSave: (String, String, String, String) -> Unit
+    onSave: (String, String, String, String) -> Unit,
+    onUseDeviceCredential: (String, String, String, String) -> Unit
 ) {
     var token by remember { mutableStateOf("") }
     var dataRepo by remember { mutableStateOf("kidasniger/facebook-data") }
@@ -57,6 +66,12 @@ fun WelcomeSetupScreen(
             onClick = { onSave(token, dataRepo, managerRepo, expiry) },
             enabled = deviceSecure && token.isNotBlank() && dataRepo.contains("/") && managerRepo.contains("/"),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Sécuriser et continuer") }
+        ) { Text("Sécuriser avec empreinte") }
+        if (deviceSecure && android.os.Build.VERSION.SDK_INT < 30) {
+            OutlinedButton(
+                onClick = { onUseDeviceCredential(token, dataRepo, managerRepo, expiry) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Sécuriser avec le code du téléphone") }
+        }
     }
 }

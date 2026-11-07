@@ -1,5 +1,7 @@
 package com.kidas.controle
 
+import android.app.KeyguardManager
+import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.WindowManager
@@ -33,6 +35,8 @@ class MainActivity : FragmentActivity() {
     private lateinit var vault: TokenVault
     private lateinit var tokenRepository: SecureTokenRepository
     private var backgroundAt: Long? = null
+    private var pendingCredentialCipher: javax.crypto.Cipher? = null
+    private var credentialCallback: ((Boolean, javax.crypto.Cipher?) -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -72,19 +76,30 @@ class MainActivity : FragmentActivity() {
                                     return@WelcomeSetupScreen
                                 }
                                 authenticate("Sécuriser le jeton", cipher) { success, authenticatedCipher ->
-                                    if (success && authenticatedCipher != null) {
-                                        lifecycleScope.launch {
-                                            runCatching {
-                                                tokenRepository.storeAuthenticated(
-                                                    authenticatedCipher, token, dataRepo, managerRepo, parsedExpiry
-                                                )
-                                            }.onSuccess {
-                                                welcome = false
-                                                unlocked = true
-                                                lockError = null
-                                            }.onFailure { lockError = "Enregistrement sécurisé impossible." }
-                                        }
-                                    } else lockError = "Authentification annulée ou échouée. Réessaie."
+                                    if (success && authenticatedCipher != null) saveCredential(
+                                        authenticatedCipher, token, dataRepo, managerRepo, parsedExpiry,
+                                        onSuccess = { welcome = false; unlocked = true; lockError = null },
+                                        onError = { lockError = it }
+                                    ) else lockError = "Authentification annulée ou échouée. Réessaie."
+                                }
+                            }
+                        },
+                        onUseDeviceCredential = { token, dataRepo, managerRepo, expiry ->
+                            val parsedExpiry = runCatching {
+                                if (expiry.isBlank()) null else SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
+                                    .parse(expiry)?.time?.plus(86_399_999L)
+                            }.getOrNull()
+                            if (expiry.isNotBlank() && parsedExpiry == null) lockError = "Date d’expiration invalide (AAAA-MM-JJ)."
+                            else {
+                                val cipher = runCatching { vault.createEncryptCipher() }.getOrElse {
+                                    lockError = "Impossible de créer la clé sécurisée."; return@WelcomeSetupScreen
+                                }
+                                requestDeviceCredential(cipher) { ok, authCipher ->
+                                    if (ok && authCipher != null) saveCredential(
+                                        authCipher, token, dataRepo, managerRepo, parsedExpiry,
+                                        onSuccess = { welcome = false; unlocked = true; lockError = null },
+                                        onError = { lockError = it }
+                                    ) else lockError = "Vérification du code annulée ou échouée."
                                 }
                             }
                         }
@@ -92,27 +107,29 @@ class MainActivity : FragmentActivity() {
                     !unlocked -> LockScreen(
                         onUnlock = {
                             val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
-                                lockError = "Impossible de préparer le déverrouillage."
-                                return@LockScreen
+                                lockError = "Impossible de préparer le déverrouillage."; return@LockScreen
                             }
                             authenticate("Déverrouiller KI DAS", cipher) { success, result ->
-                                if (success && result != null) {
-                                    lifecycleScope.launch {
-                                        runCatching { tokenRepository.acceptAuthenticated(result) }
-                                            .onSuccess { unlocked = true; lockError = null }
-                                            .onFailure { finishAndRemoveTask() }
-                                    }
-                                } else finishAndRemoveTask()
+                                if (success && result != null) unlockWith(result) { lockError = it; unlocked = true }
+                                else finishAndRemoveTask()
                             }
                         },
+                        onUseDeviceCredential = {
+                            val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
+                                finishAndRemoveTask(); return@LockScreen
+                            }
+                            requestDeviceCredential(cipher) { ok, result ->
+                                if (ok && result != null) unlockWith(result) { lockError = it; unlocked = true }
+                                else finishAndRemoveTask()
+                            }
+                        },
+                        showDeviceCredential = android.os.Build.VERSION.SDK_INT < 30,
                         error = lockError
                     )
                     showSettings -> UpdateSettingsScreen(updateManager) { showSettings = false }
                     else -> Scaffold { padding ->
-                        Column(
-                            Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
+                        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)) {
                             Text("KI DAS", style = MaterialTheme.typography.headlineLarge)
                             Text("Bienvenue dans KI DAS Contrôle", style = MaterialTheme.typography.titleMedium)
                             if (updateState is UpdateState.UpdateAvailable) {
@@ -124,13 +141,9 @@ class MainActivity : FragmentActivity() {
                                         Button(onClick = { showSettings = true }) { Text("Voir la mise à jour") }
                                     }
                                 }
-                            } else if (updateState is UpdateState.Checking) {
-                                Text("Vérification des mises à jour en arrière-plan…")
-                            }
+                            } else if (updateState is UpdateState.Checking) Text("Vérification des mises à jour en arrière-plan…")
                             Spacer(Modifier.weight(1f))
-                            Button(onClick = { showSettings = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Paramètres")
-                            }
+                            Button(onClick = { showSettings = true }, modifier = Modifier.fillMaxWidth()) { Text("Paramètres") }
                         }
                     }
                 }
@@ -138,38 +151,77 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun authenticate(title: String, cipher: javax.crypto.Cipher, callback: (Boolean, javax.crypto.Cipher?) -> Unit) {
-        val authenticators = if (android.os.Build.VERSION.SDK_INT >= 30) {
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        } else BiometricManager.Authenticators.BIOMETRIC_STRONG
+    private fun saveCredential(
+        cipher: javax.crypto.Cipher, token: String, dataRepo: String, managerRepo: String, expiry: Long?,
+        onSuccess: () -> Unit, onError: (String) -> Unit
+    ) {
+        lifecycleScope.launch {
+            runCatching { tokenRepository.storeAuthenticated(cipher, token, dataRepo, managerRepo, expiry) }
+                .onSuccess { onSuccess() }
+                .onFailure { onError("Enregistrement sécurisé impossible. Vérifie l’authentification et réessaie.") }
+        }
+    }
 
+    private fun unlockWith(cipher: javax.crypto.Cipher, onError: (String) -> Unit) {
+        lifecycleScope.launch {
+            runCatching { tokenRepository.acceptAuthenticated(cipher) }
+                .onSuccess { /* l’état Compose est basculé par le callback appelant */ }
+                .onFailure { finishAndRemoveTask() }
+        }
+    }
+
+    private fun authenticate(title: String, cipher: javax.crypto.Cipher, callback: (Boolean, javax.crypto.Cipher?) -> Unit) {
+        val authenticators = if (android.os.Build.VERSION.SDK_INT >= 30)
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        else BiometricManager.Authenticators.BIOMETRIC_STRONG
         if (BiometricManager.from(this).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
-            callback(false, null)
-            return
+            callback(false, null); return
         }
         val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this),
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     callback(true, result.cryptoObject?.cipher)
                 }
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    callback(false, null)
-                }
-                override fun onAuthenticationFailed() { /* L’utilisateur peut réessayer. */ }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) { callback(false, null) }
+                override fun onAuthenticationFailed() { }
             })
-        val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(title)
+        val info = BiometricPrompt.PromptInfo.Builder().setTitle(title)
             .setSubtitle("Authentification requise pour protéger votre compte GitHub")
-            .setAllowedAuthenticators(authenticators)
-            .build()
+            .setAllowedAuthenticators(authenticators).build()
         prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
+    }
+
+    @Suppress("DEPRECATION")
+    private fun requestDeviceCredential(cipher: javax.crypto.Cipher, callback: (Boolean, javax.crypto.Cipher?) -> Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            callback(false, null); return
+        }
+        val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        val intent: Intent = keyguard.createConfirmDeviceCredentialIntent(
+            "Déverrouiller KI DAS", "Confirme le code ou schéma de ton téléphone"
+        ) ?: run { callback(false, null); return }
+        pendingCredentialCipher = cipher
+        credentialCallback = callback
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_DEVICE_CREDENTIAL)
+    }
+
+    @Deprecated("Legacy device credential confirmation for Android 8–10")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_DEVICE_CREDENTIAL) {
+            val callback = credentialCallback
+            val cipher = pendingCredentialCipher
+            credentialCallback = null
+            pendingCredentialCipher = null
+            callback?.invoke(resultCode == RESULT_OK, if (resultCode == RESULT_OK) cipher else null)
+        }
     }
 
     override fun onStop() {
         if (!isChangingConfigurations) backgroundAt = SystemClock.elapsedRealtime()
         super.onStop()
     }
-
     override fun onStart() {
         super.onStart()
         val elapsed = backgroundAt?.let { SystemClock.elapsedRealtime() - it }
@@ -179,7 +231,6 @@ class MainActivity : FragmentActivity() {
         }
         backgroundAt = null
     }
-
     override fun onResume() {
         super.onResume()
         if (::updateManager.isInitialized) {
@@ -187,4 +238,5 @@ class MainActivity : FragmentActivity() {
             if (installing != null) updateManager.refreshAfterInstaller(installing.version)
         }
     }
+    companion object { private const val REQUEST_DEVICE_CREDENTIAL = 901 }
 }
