@@ -189,7 +189,7 @@ fun KiDasNavigation(
             composable("bot") { BotScreen(tokenRepository) }
             composable("settings") {
                 Column(Modifier.fillMaxSize()) {
-                    SettingsScreen(tokenRepository, themeMode, onThemeModeChange, "1.0")
+                    SettingsScreen(tokenRepository, themeMode, onThemeModeChange, manager.installedVersion())
                     UpdateSettingsScreen(manager)
                 }
             }
