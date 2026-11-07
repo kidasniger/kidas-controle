@@ -124,7 +124,7 @@ class MainActivity : FragmentActivity() {
                         !unlocked -> LockScreen(
                             onUnlock = {
                                 val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
-                                    lockError = when (it) { is java.security.UnrecoverableKeyException, is android.security.keystore.KeyPermanentlyInvalidatedException -> "La clé de sécurité Android a été invalidée. Une nouvelle configuration sécurisée est nécessaire."; else -> "Le verrouillage sécurisé Android est temporairement indisponible. Réessaie." }; return@LockScreen
+                                    lockError = when (it) { is java.security.UnrecoverableKeyException, is android.security.keystore.KeyPermanentlyInvalidatedException -> "La clé de sécurité Android a été invalidée. Une nouvelle configuration sécurisée est nécessaire."; else -> "Impossible d’ouvrir la clé Android (${it.javaClass.simpleName}). Vérifie le verrouillage de ton téléphone ou réinitialise le coffre sécurisé." }; return@LockScreen
                                 }
                                 authenticate("Déverrouiller KI DAS", cipher) { success, result ->
                                     if (success && result != null) unlockWith(result) { unlocked = true; lockError = null }
@@ -141,7 +141,17 @@ class MainActivity : FragmentActivity() {
                                 }
                             },
                             showDeviceCredential = android.os.Build.VERSION.SDK_INT < 30,
-                            error = lockError
+                            error = lockError,
+                            onResetSecurity = {
+                                runCatching { vault.resetAfterUserConfirmation() }
+                                    .onSuccess {
+                                        lifecycleScope.launch { tokenRepository.lock() }
+                                        welcome = true
+                                        unlocked = false
+                                        lockError = "Coffre réinitialisé. Saisis à nouveau ton jeton GitHub pour continuer."
+                                    }
+                                    .onFailure { lockError = "Impossible de réinitialiser le coffre Android : ${it.javaClass.simpleName}" }
+                            }
                         )
                         else -> {
                             LaunchedEffect(Unit) { updateManager.checkForUpdates() }
