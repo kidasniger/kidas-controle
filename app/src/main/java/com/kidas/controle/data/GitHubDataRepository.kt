@@ -95,10 +95,12 @@ class GitHubDataRepository(
     suspend fun uploadMedia(fileName: String, bytes: ByteArray, timestamp: Long = System.currentTimeMillis()): GitHubFile {
         require(bytes.size.toLong() <= 50L * 1024 * 1024) { "Fichier supérieur à 50 Mo" }
         val safeName = fileName.substringAfterLast('/').replace(Regex("[^a-zA-Z0-9._-]"), "_").ifBlank { "media" }
-        val path = "media/$timestamp-$safeName"
-        val apiPath = repoPath(dataRepo, path)
         var last: Throwable? = null
         repeat(5) { attempt ->
+            // Un chemin neuf à chaque tentative évite de retomber sur le même conflit SHA.
+            val unique = timestamp + attempt * 1000L + kotlin.random.Random.nextLong(0, 999)
+            val path = "media/$unique-$safeName"
+            val apiPath = repoPath(dataRepo, path)
             val payload = buildJsonObject {
                 put("message", "Upload média $path")
                 put("content", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP))
@@ -112,7 +114,7 @@ class GitHubDataRepository(
             last = GitHubApiException(response.code, apiPath, response.body)
             if (attempt < 4) delay(700L * (attempt + 1) + kotlin.random.Random.nextLong(0, 501))
         }
-        throw last ?: GitHubApiException(409, apiPath)
+        throw last ?: GitHubApiException(409, "media")
     }
 
     suspend fun deleteFile(chemin: String, sha: String) {
