@@ -468,6 +468,31 @@ private fun ExecutionRow(execution: HomeExecution) {
     }
 }
 
+
+@Composable
+fun HomeStatsScreen(viewModel: HomeViewModel, onBack: () -> Unit) {
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(viewModel) { viewModel.refresh() }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("Retour") }
+            Text("Statistiques", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        if (state.loading) {
+            repeat(4) { Shimmer(Modifier.fillMaxWidth(), 150.dp) }
+        } else {
+            MetricChartCard("Interactions", state.interactions, Modifier.fillMaxWidth())
+            MetricChartCard("Vues du contenu", state.views, Modifier.fillMaxWidth())
+            MetricChartCard("Visites de la Page", state.visits, Modifier.fillMaxWidth())
+            MetricChartCard("Abonnés", state.followersHistory, Modifier.fillMaxWidth())
+            MetricChartCard("Nouveaux abonnés par jour", state.dailyFollowers, Modifier.fillMaxWidth(), bars = true)
+        }
+    }
+}
+
 private fun indexAt(x: Float, width: Int, count: Int): Int =
     ((x / width.coerceAtLeast(1)) * count).roundToInt().coerceIn(0, count - 1)
 
