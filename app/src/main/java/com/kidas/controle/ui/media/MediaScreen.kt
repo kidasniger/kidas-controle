@@ -179,7 +179,6 @@ fun MediaScreen(credentials: SecureTokenRepository, onUseMedia: (String) -> Unit
                 icon = { Text("＋") },
                 text = { Text("Envoyer des médias") },
                 expanded = true,
-                enabled = !sending
             )
         }
     ) { padding ->
