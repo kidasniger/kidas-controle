@@ -139,8 +139,13 @@ class CommentsViewModel(private val credentials: SecureTokenRepository) : ViewMo
                     },
                     "Mise en file réponse commentaire"
                 )
-                data.dispatch("repondre.yml")
+                val dispatchError = runCatching { data.dispatch("repondre.yml") }.exceptionOrNull()
                 refresh()
+                if (dispatchError != null) {
+                    mutableState.value = mutableState.value.copy(
+                        error = "Réponse mise en file. Le workflow n’a pas démarré : ${dispatchError.message ?: "réessaie plus tard"}"
+                    )
+                }
             } catch (error: Throwable) {
                 mutableState.value = mutableState.value.copy(error = error.message ?: "Impossible d’envoyer la réponse")
             } finally {
