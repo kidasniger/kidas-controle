@@ -75,12 +75,17 @@ class MainActivity : FragmentActivity() {
                                     lockError = "Impossible de créer la clé sécurisée. Vérifie le verrouillage Android."
                                     return@WelcomeSetupScreen
                                 }
+                                runCatching { tokenRepository.prepareCredential(token, dataRepo, managerRepo, parsedExpiry) }
+                                    .onFailure { lockError = "Jeton ou dépôt invalide."; return@WelcomeSetupScreen }
                                 authenticate("Sécuriser le jeton", cipher) { success, authenticatedCipher ->
                                     if (success && authenticatedCipher != null) saveCredential(
-                                        authenticatedCipher, token, dataRepo, managerRepo, parsedExpiry,
+                                        authenticatedCipher,
                                         onSuccess = { welcome = false; unlocked = true; lockError = null },
                                         onError = { lockError = it }
-                                    ) else lockError = "Authentification annulée ou échouée. Réessaie."
+                                    ) else {
+                                        lifecycleScope.launch { tokenRepository.discardPending() }
+                                        lockError = "Authentification annulée ou échouée. Réessaie."
+                                    }
                                 }
                             }
                         },
@@ -94,12 +99,17 @@ class MainActivity : FragmentActivity() {
                                 val cipher = runCatching { vault.createEncryptCipher() }.getOrElse {
                                     lockError = "Impossible de créer la clé sécurisée."; return@WelcomeSetupScreen
                                 }
+                                runCatching { tokenRepository.prepareCredential(token, dataRepo, managerRepo, parsedExpiry) }
+                                    .onFailure { lockError = "Jeton ou dépôt invalide."; return@WelcomeSetupScreen }
                                 requestDeviceCredential(cipher) { ok, authCipher ->
                                     if (ok && authCipher != null) saveCredential(
-                                        authCipher, token, dataRepo, managerRepo, parsedExpiry,
+                                        authCipher,
                                         onSuccess = { welcome = false; unlocked = true; lockError = null },
                                         onError = { lockError = it }
-                                    ) else lockError = "Vérification du code annulée ou échouée."
+                                    ) else {
+                                        lifecycleScope.launch { tokenRepository.discardPending() }
+                                        lockError = "Vérification du code annulée ou échouée."
+                                    }
                                 }
                             }
                         }
@@ -152,13 +162,15 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun saveCredential(
-        cipher: javax.crypto.Cipher, token: String, dataRepo: String, managerRepo: String, expiry: Long?,
-        onSuccess: () -> Unit, onError: (String) -> Unit
+        cipher: javax.crypto.Cipher, onSuccess: () -> Unit, onError: (String) -> Unit
     ) {
         lifecycleScope.launch {
-            runCatching { tokenRepository.storeAuthenticated(cipher, token, dataRepo, managerRepo, expiry) }
+            runCatching { tokenRepository.storePreparedAuthenticated(cipher) }
                 .onSuccess { onSuccess() }
-                .onFailure { onError("Enregistrement sécurisé impossible. Vérifie l’authentification et réessaie.") }
+                .onFailure {
+                    tokenRepository.discardPending()
+                    onError("Enregistrement sécurisé impossible. Vérifie l’authentification et réessaie.")
+                }
         }
     }
 

@@ -4,25 +4,35 @@ import com.kidas.controle.data.GitHubTokenProvider
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Sole runtime owner of the decrypted GitHub token. Never expose it to UI state or logs. */
+/** Sole runtime owner of plaintext credentials; Compose never owns a persisted token state. */
 class SecureTokenRepository(private val vault: TokenVault) : GitHubTokenProvider {
     private val mutex = Mutex()
     @Volatile private var session: TokenVault.VaultPayload? = null
+    @Volatile private var pending: TokenVault.VaultPayload? = null
+
+    fun prepareCredential(
+        token: String, dataRepository: String, managerRepository: String, expiresAt: Long?
+    ) {
+        require(token.isNotBlank()) { "Colle de nouveau ton jeton" }
+        require(dataRepository.contains("/") && managerRepository.contains("/")) { "Nom de dépôt invalide" }
+        pending = TokenVault.VaultPayload(
+            token.trim(), dataRepository.trim(), managerRepository.trim(), expiresAt
+        )
+    }
+
+    suspend fun storePreparedAuthenticated(cipher: javax.crypto.Cipher) = mutex.withLock {
+        val payload = pending ?: throw IllegalStateException("Aucun jeton à enregistrer")
+        vault.saveAuthenticated(cipher, payload)
+        session = payload
+        pending = null
+    }
+
+    suspend fun discardPending() = mutex.withLock { pending = null }
 
     suspend fun acceptAuthenticated(cipher: javax.crypto.Cipher) = mutex.withLock {
         session = vault.readAuthenticated(cipher)
     }
-    suspend fun storeAuthenticated(
-        cipher: javax.crypto.Cipher, token: String, dataRepository: String,
-        managerRepository: String, expiresAt: Long?
-    ) = mutex.withLock {
-        require(token.isNotBlank()) { "Colle de nouveau ton jeton" }
-        vault.saveAuthenticated(cipher, TokenVault.VaultPayload(
-            token.trim(), dataRepository.trim(), managerRepository.trim(), expiresAt
-        ))
-        session = null
-        session = vault.readAuthenticated(vault.createDecryptCipher()) // only after fresh user authentication
-    }
+
     override suspend fun getToken(): String = mutex.withLock {
         val current = session ?: throw IllegalStateException("Déverrouille l’application pour continuer")
         if (current.expiresAt != null && current.expiresAt <= System.currentTimeMillis()) {
@@ -31,7 +41,8 @@ class SecureTokenRepository(private val vault: TokenVault) : GitHubTokenProvider
         }
         current.token
     }
-    suspend fun lock() = mutex.withLock { session = null }
+
+    suspend fun lock() = mutex.withLock { session = null; pending = null }
     suspend fun repositories(): Pair<String, String>? = mutex.withLock {
         session?.let { it.dataRepository to it.managerRepository }
     }

@@ -63,13 +63,13 @@ fun WelcomeSetupScreen(
         OutlinedTextField(expiry, { expiry = it }, Modifier.fillMaxWidth(),
             label = { Text("Expiration (facultatif, AAAA-MM-JJ)") }, singleLine = true)
         Button(
-            onClick = { onSave(token, dataRepo, managerRepo, expiry) },
+            onClick = { val value = token; token = ""; onSave(value, dataRepo, managerRepo, expiry) },
             enabled = deviceSecure && token.isNotBlank() && dataRepo.contains("/") && managerRepo.contains("/"),
             modifier = Modifier.fillMaxWidth()
         ) { Text("Sécuriser avec empreinte") }
         if (deviceSecure && android.os.Build.VERSION.SDK_INT < 30) {
             OutlinedButton(
-                onClick = { onUseDeviceCredential(token, dataRepo, managerRepo, expiry) },
+                onClick = { val value = token; token = ""; onUseDeviceCredential(value, dataRepo, managerRepo, expiry) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Sécuriser avec le code du téléphone") }
         }
