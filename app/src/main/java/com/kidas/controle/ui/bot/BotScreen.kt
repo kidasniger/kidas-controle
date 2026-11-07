@@ -24,6 +24,7 @@ import com.kidas.controle.data.GitHubDataRepository
 import com.kidas.controle.security.SecureTokenRepository
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun BotScreen(credentials: SecureTokenRepository) {
@@ -163,7 +164,7 @@ fun BotScreen(credentials: SecureTokenRepository) {
                             detectTapGestures(onPress = {
                                 if (busy) return@detectTapGestures
                                 hold.snapTo(0f)
-                                val animation = launch { hold.animateTo(1f, tween(1000)) }
+                                val animation = scope.launch { hold.animateTo(1f, tween(1000)) }
                                 val released = tryAwaitRelease()
                                 animation.cancel()
                                 if (released && hold.value >= .99f) {
