@@ -172,6 +172,9 @@ fun BotScreen(credentials: SecureTokenRepository) {
                                     perform { data ->
                                         data.setVar("GLM_LIVE", "false")
                                         data.setVar("AUTO_REPONSES", "false")
+                                        data.updateJSON("glm/config.json", buildJsonObject {}, { config ->
+                                            JsonObject(config.jsonObject.toMutableMap().apply { put("actif", JsonPrimitive(false)) })
+                                        }, "Arrêt d’urgence GLM")
                                         data.glmLiveRuns().forEach { run ->
                                             run.jsonObject["id"]?.jsonPrimitive?.longOrNull?.let { data.cancelRun(it) }
                                         }
