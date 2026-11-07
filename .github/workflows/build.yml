@@ -89,7 +89,7 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" release/* \
             --title "KI DAS ${{ steps.version.outputs.name }}" \
-            --notes "Mise à jour automatique de KI DAS Contrôle. Consultez les changements du commit associé."
+            --generate-notes
 
       - name: Build summary
         run: |
