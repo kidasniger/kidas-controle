@@ -24,6 +24,8 @@ class TokenVault(private val context: Context) {
     )
 
     fun hasCredential(): Boolean = prefs.contains("ciphertext") && prefs.contains("iv")
+    fun storedExpiry(): Long? = prefs.getLong("credential_expiry", Long.MIN_VALUE).takeIf { it != Long.MIN_VALUE }
+    fun updateStoredExpiry(value: Long?) { prefs.edit().apply { if (value == null) remove("credential_expiry") else putLong("credential_expiry", value) }.apply() }
 
     /** Explicit recovery path for a permanently invalidated Android Keystore key. */
     fun resetAfterUserConfirmation() {
@@ -49,6 +51,7 @@ class TokenVault(private val context: Context) {
             prefs.edit()
                 .putString("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
                 .putString("ciphertext", Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                .putLong("credential_expiry", payload.expiresAt ?: Long.MIN_VALUE)
                 .apply()
         } finally { plain.fill(0) }
     }
