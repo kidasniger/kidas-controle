@@ -66,6 +66,7 @@ import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.floor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -304,7 +305,14 @@ private fun MetricChartCard(title: String, values: List<ChartPoint>, modifier: M
     val deltaColor = if (delta >= 0) Color(0xFF20B879) else MaterialTheme.colorScheme.error
     KiCard(modifier) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (values.isEmpty()) "Aucune donnée" else "${values.size} jour(s) renseigné(s) sur 7",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Surface(color = deltaColor.copy(alpha = .12f), shape = RoundedCornerShape(50)) {
                 Text(deltaText, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = deltaColor, style = MaterialTheme.typography.labelSmall)
             }
@@ -364,24 +372,37 @@ fun Sparkline(values: List<ChartPoint>, modifier: Modifier = Modifier) {
                     bottom - ((point.value - min) / (max - min).coerceAtLeast(1f)) * (bottom - top)
                 )
             }
-            val visibleCount = (points.size * progress.value).toInt().coerceAtLeast(1).coerceAtMost(points.size)
+            val segmentPosition = (progress.value * (points.size - 1)).coerceIn(0f, (points.size - 1).toFloat())
+            val completedSegments = floor(segmentPosition).toInt().coerceIn(0, points.lastIndex)
+            val segmentFraction = (segmentPosition - completedSegments).coerceIn(0f, 1f)
+            val animatedEnd = if (completedSegments >= points.lastIndex) {
+                points.last()
+            } else {
+                Offset(
+                    points[completedSegments].x + (points[completedSegments + 1].x - points[completedSegments].x) * segmentFraction,
+                    points[completedSegments].y + (points[completedSegments + 1].y - points[completedSegments].y) * segmentFraction
+                )
+            }
             val path = Path().apply {
                 moveTo(points.first().x, points.first().y)
-                points.take(visibleCount).drop(1).forEach { lineTo(it.x, it.y) }
+                for (index in 1..completedSegments) lineTo(points[index].x, points[index].y)
+                if (completedSegments < points.lastIndex) lineTo(animatedEnd.x, animatedEnd.y)
             }
-            if (visibleCount > 1) {
+            if (progress.value > 0f) {
                 val fill = Path().apply {
                     addPath(path)
-                    lineTo(points[visibleCount - 1].x, bottom)
+                    lineTo(animatedEnd.x, bottom)
                     lineTo(points.first().x, bottom)
                     close()
                 }
                 drawPath(fill, Brush.verticalGradient(listOf(lineColor.copy(alpha = .25f), lineColor.copy(alpha = 0f)), top, bottom))
-                drawPath(path, lineColor, style = Stroke(width = 2.6.dp.toPx(), cap = StrokeCap.Round))
+                drawPath(path, lineColor, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+                drawCircle(lineColor.copy(alpha = .16f), radius = pulse * 1.9f, center = animatedEnd)
+                drawCircle(lineColor, radius = 4.5.dp.toPx(), center = animatedEnd)
             }
             val point = points[selected.coerceIn(0, points.lastIndex)]
-            drawCircle(lineColor.copy(alpha = .18f), radius = pulse * 1.8f, center = point)
-            drawCircle(lineColor, radius = 4.dp.toPx(), center = point)
+            drawCircle(lineColor.copy(alpha = .22f), radius = 7.dp.toPx(), center = point)
+            drawCircle(lineColor, radius = 3.dp.toPx(), center = point)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(values.first().day, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -505,7 +526,7 @@ fun HomeStatsScreen(viewModel: HomeViewModel, onBack: () -> Unit) {
 }
 
 private fun indexAt(x: Float, width: Int, count: Int): Int =
-    ((x / width.coerceAtLeast(1)) * count).roundToInt().coerceIn(0, count - 1)
+    ((x / width.coerceAtLeast(1)) * (count - 1).coerceAtLeast(0)).roundToInt().coerceIn(0, count - 1)
 
 private fun formatMetric(value: Float): String =
     NumberFormat.getIntegerInstance(Locale.FRANCE).format(value.roundToInt())
