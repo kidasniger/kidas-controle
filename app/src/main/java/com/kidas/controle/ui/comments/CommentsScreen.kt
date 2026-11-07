@@ -34,7 +34,6 @@ fun CommentsScreen(viewModel: CommentsViewModel, unansweredCountChanged: (Int) -
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    LaunchedEffect(Unit) { viewModel.refresh() }
     LaunchedEffect(state.unansweredCount) { unansweredCountChanged(state.unansweredCount) }
     LaunchedEffect(expandedId) {
         if (expandedId != null) {
