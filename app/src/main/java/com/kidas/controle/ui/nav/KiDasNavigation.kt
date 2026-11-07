@@ -33,6 +33,9 @@ import com.kidas.controle.ui.home.HomeScreen
 import com.kidas.controle.ui.home.HomeStatsScreen
 import com.kidas.controle.ui.home.HomeViewModel
 import com.kidas.controle.ui.publish.PublishScreen
+import com.kidas.controle.ui.comments.CommentsScreen
+import com.kidas.controle.ui.comments.CommentsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kidas.controle.ui.settings.UpdateSettingsScreen
 import com.kidas.controle.ui.theme.KiDasThemeMode
 import com.kidas.controle.updater.AppUpdateManager
@@ -62,6 +65,15 @@ fun KiDasNavigation(
     val currentRoute = backStack?.destination?.route ?: "home"
     val duration = if (ValueAnimator.areAnimatorsEnabled()) 260 else 0
     val snackbarHostState = remember { SnackbarHostState() }
+    val commentsViewModel: CommentsViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                CommentsViewModel(tokenRepository) as T
+        }
+    )
+    val commentsState by commentsViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { commentsViewModel.refresh() }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -87,9 +99,9 @@ fun KiDasNavigation(
                         icon = {
                             BadgedBox(
                                 badge = {
-                                    if (tab.route == "reviews" && unansweredCount > 0) {
+                                    if (tab.route == "reviews" && commentsState.unansweredCount > 0) {
                                         Badge {
-                                            Text(if (unansweredCount > 99) "99+" else unansweredCount.toString())
+                                            Text(if (commentsState.unansweredCount > 99) "99+" else commentsState.unansweredCount.toString())
                                         }
                                     }
                                 }
@@ -167,7 +179,7 @@ fun KiDasNavigation(
                 HomeStatsScreen(homeViewModel) { navController.popBackStack() }
             }
             composable("publish") { PublishScreen(tokenRepository) }
-            composable("reviews") { FeaturePlaceholder("Avis", "Retrouve les commentaires à traiter.") }
+            composable("reviews") { CommentsScreen(commentsViewModel) }
             composable("media") { FeaturePlaceholder("Médias", "Bibliothèque des images et vidéos.") }
             composable("bot") { FeaturePlaceholder("Bot", "État et configuration de l’assistant.") }
             composable("settings") {
