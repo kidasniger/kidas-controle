@@ -44,7 +44,7 @@ fun PublishScreen(credentials: SecureTokenRepository) {
     var queueItems by remember { mutableStateOf<List<QueueCard>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
-    var uploadProgress by remember { mutableFloatStateOf(0f) }
+    var uploading by remember { mutableStateOf(false) }
     var sent by remember { mutableStateOf(false) }
     var immediate by rememberSaveable { mutableStateOf(true) }
     var scheduledAt by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -100,22 +100,19 @@ fun PublishScreen(credentials: SecureTokenRepository) {
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) scope.launch {
-            sending = true
-            uploadProgress = 0.1f
+            uploading = true
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     ?: error("Impossible de lire ce fichier")
-                uploadProgress = 0.35f
                 val name = uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast(':') ?: "media"
                 val data = repos.data()
                 val uploaded = data.uploadMedia(name, bytes)
-                uploadProgress = 1f
                 selectedMedia = uploaded.path
                 snackbar.showSnackbar("Média envoyé avec succès")
                 refresh()
             } catch (e: Exception) {
                 snackbar.showSnackbar("Envoi impossible : ${e.message ?: "erreur inconnue"}")
-            } finally { sending = false }
+            } finally { uploading = false }
         }
     }
 
@@ -172,10 +169,10 @@ fun PublishScreen(credentials: SecureTokenRepository) {
                                 }
                             }
                         }
-                        OutlinedButton(onClick = { picker.launch(arrayOf("image/*", "video/*")) }, enabled = !sending, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (sending) "Envoi du média…" else "Envoyer un fichier")
+                        OutlinedButton(onClick = { picker.launch(arrayOf("image/*", "video/*")) }, enabled = !uploading, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (uploading) "Envoi du média…" else "Envoyer un fichier")
                         }
-                        if (sending) LinearProgressIndicator(progress = { uploadProgress }, modifier = Modifier.fillMaxWidth())
+                        if (uploading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Text("Programmer", modifier = Modifier.weight(1f))
                             Switch(checked = scheduledAt != null, onCheckedChange = { if (it) showDate = true else scheduledAt = null })
@@ -255,7 +252,7 @@ fun PublishScreen(credentials: SecureTokenRepository) {
                         else -> MaterialTheme.colorScheme.secondary
                     }, label = "status-color"
                 )
-                ElevatedCard {
+                ElevatedCard(modifier = Modifier.animateItem()) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Text(card.type, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
