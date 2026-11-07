@@ -4,7 +4,6 @@ import android.app.KeyguardManager
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
-import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -16,14 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.kidas.controle.security.LockScreen
 import com.kidas.controle.security.SecureTokenRepository
 import com.kidas.controle.security.TokenVault
 import com.kidas.controle.security.WelcomeSetupScreen
-import com.kidas.controle.ui.settings.UpdateSettingsScreen
-import com.kidas.controle.ui.theme.KiDasTheme
+import com.kidas.controle.ui.theme.KiDasThemeMode
 import com.kidas.controle.updater.AppUpdateManager
 import com.kidas.controle.updater.UpdateState
 import kotlinx.coroutines.launch
@@ -50,103 +47,113 @@ class MainActivity : FragmentActivity() {
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         setContent {
             val prefs = remember { getSharedPreferences("kidas_preferences", MODE_PRIVATE) }
-            var themeMode by remember { mutableStateOf(
-                runCatching { com.kidas.controle.ui.theme.KiDasThemeMode.valueOf(
-                    prefs.getString("theme_mode", "DARK") ?: "DARK"
-                ) }.getOrDefault(com.kidas.controle.ui.theme.KiDasThemeMode.DARK)
-            ) }
+            var themeMode by remember {
+                mutableStateOf(
+                    runCatching {
+                        KiDasThemeMode.valueOf(prefs.getString("theme_mode", "DARK") ?: "DARK")
+                    }.getOrDefault(KiDasThemeMode.DARK)
+                )
+            }
             com.kidas.controle.ui.theme.KiDasTheme(mode = themeMode) {
-                var unlocked by rememberSaveable { mutableStateOf(!vault.hasCredential()) }
-                var welcome by rememberSaveable { mutableStateOf(!vault.hasCredential()) }
-                var lockError by remember { mutableStateOf<String?>(null) }
+                // Surface fournit une couleur de contenu lisible à tous les écrans,
+                // y compris le verrouillage et l'assistant de première configuration.
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground
+                ) {
+                    var unlocked by rememberSaveable { mutableStateOf(!vault.hasCredential()) }
+                    var welcome by rememberSaveable { mutableStateOf(!vault.hasCredential()) }
+                    var lockError by remember { mutableStateOf<String?>(null) }
 
-                when {
-                    welcome -> WelcomeSetupScreen(
-                        deviceSecure = vault.canUseDeviceAuthentication(),
-                        error = lockError,
-                        onSave = { token, dataRepo, managerRepo, expiry ->
-                            val parsedExpiry = runCatching {
-                                if (expiry.isBlank()) null else SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
-                                    .parse(expiry)?.time?.plus(86_399_999L)
-                            }.getOrNull()
-                            if (expiry.isNotBlank() && parsedExpiry == null) {
-                                lockError = "Date d’expiration invalide (AAAA-MM-JJ)."
-                            } else {
-                                val cipher = runCatching { vault.createEncryptCipher() }.getOrElse {
-                                    lockError = "Impossible de créer la clé sécurisée. Vérifie le verrouillage Android."
-                                    return@WelcomeSetupScreen
-                                }
-                                runCatching { tokenRepository.prepareCredential(token, dataRepo, managerRepo, parsedExpiry) }
-                                    .onFailure { lockError = "Jeton ou dépôt invalide."; return@WelcomeSetupScreen }
-                                authenticate("Sécuriser le jeton", cipher) { success, authenticatedCipher ->
-                                    if (success && authenticatedCipher != null) saveCredential(
-                                        authenticatedCipher,
-                                        onSuccess = { welcome = false; unlocked = true; lockError = null },
-                                        onError = { lockError = it }
-                                    ) else {
-                                        lifecycleScope.launch { tokenRepository.discardPending() }
-                                        lockError = "Authentification annulée ou échouée. Réessaie."
+                    when {
+                        welcome -> WelcomeSetupScreen(
+                            deviceSecure = vault.canUseDeviceAuthentication(),
+                            error = lockError,
+                            onSave = { token, dataRepo, managerRepo, expiry ->
+                                val parsedExpiry = runCatching {
+                                    if (expiry.isBlank()) null else SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
+                                        .parse(expiry)?.time?.plus(86_399_999L)
+                                }.getOrNull()
+                                if (expiry.isNotBlank() && parsedExpiry == null) {
+                                    lockError = "Date d’expiration invalide (AAAA-MM-JJ)."
+                                } else {
+                                    val cipher = runCatching { vault.createEncryptCipher() }.getOrElse {
+                                        lockError = "Impossible de créer la clé sécurisée. Vérifie le verrouillage Android."
+                                        return@WelcomeSetupScreen
+                                    }
+                                    runCatching { tokenRepository.prepareCredential(token, dataRepo, managerRepo, parsedExpiry) }
+                                        .onFailure { lockError = "Jeton ou dépôt invalide."; return@WelcomeSetupScreen }
+                                    authenticate("Sécuriser le jeton", cipher) { success, authenticatedCipher ->
+                                        if (success && authenticatedCipher != null) saveCredential(
+                                            authenticatedCipher,
+                                            onSuccess = { welcome = false; unlocked = true; lockError = null },
+                                            onError = { lockError = it }
+                                        ) else {
+                                            lifecycleScope.launch { tokenRepository.discardPending() }
+                                            lockError = "Authentification annulée ou échouée. Réessaie."
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        onUseDeviceCredential = { token, dataRepo, managerRepo, expiry ->
-                            val parsedExpiry = runCatching {
-                                if (expiry.isBlank()) null else SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
-                                    .parse(expiry)?.time?.plus(86_399_999L)
-                            }.getOrNull()
-                            if (expiry.isNotBlank() && parsedExpiry == null) lockError = "Date d’expiration invalide (AAAA-MM-JJ)."
-                            else {
-                                val cipher = runCatching { vault.createEncryptCipher() }.getOrElse {
-                                    lockError = "Impossible de créer la clé sécurisée."; return@WelcomeSetupScreen
-                                }
-                                runCatching { tokenRepository.prepareCredential(token, dataRepo, managerRepo, parsedExpiry) }
-                                    .onFailure { lockError = "Jeton ou dépôt invalide."; return@WelcomeSetupScreen }
-                                requestDeviceCredential(cipher) { ok, authCipher ->
-                                    if (ok && authCipher != null) saveCredential(
-                                        authCipher,
-                                        onSuccess = { welcome = false; unlocked = true; lockError = null },
-                                        onError = { lockError = it }
-                                    ) else {
-                                        lifecycleScope.launch { tokenRepository.discardPending() }
-                                        lockError = "Vérification du code annulée ou échouée."
+                            },
+                            onUseDeviceCredential = { token, dataRepo, managerRepo, expiry ->
+                                val parsedExpiry = runCatching {
+                                    if (expiry.isBlank()) null else SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
+                                        .parse(expiry)?.time?.plus(86_399_999L)
+                                }.getOrNull()
+                                if (expiry.isNotBlank() && parsedExpiry == null) lockError = "Date d’expiration invalide (AAAA-MM-JJ)."
+                                else {
+                                    val cipher = runCatching { vault.createEncryptCipher() }.getOrElse {
+                                        lockError = "Impossible de créer la clé sécurisée."; return@WelcomeSetupScreen
+                                    }
+                                    runCatching { tokenRepository.prepareCredential(token, dataRepo, managerRepo, parsedExpiry) }
+                                        .onFailure { lockError = "Jeton ou dépôt invalide."; return@WelcomeSetupScreen }
+                                    requestDeviceCredential(cipher) { ok, authCipher ->
+                                        if (ok && authCipher != null) saveCredential(
+                                            authCipher,
+                                            onSuccess = { welcome = false; unlocked = true; lockError = null },
+                                            onError = { lockError = it }
+                                        ) else {
+                                            lifecycleScope.launch { tokenRepository.discardPending() }
+                                            lockError = "Vérification du code annulée ou échouée."
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    )
-                    !unlocked -> LockScreen(
-                        onUnlock = {
-                            val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
-                                lockError = "Impossible de préparer le déverrouillage."; return@LockScreen
-                            }
-                            authenticate("Déverrouiller KI DAS", cipher) { success, result ->
-                                if (success && result != null) unlockWith(result) { unlocked = true; lockError = null }
-                                else finishAndRemoveTask()
-                            }
-                        },
-                        onUseDeviceCredential = {
-                            val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
-                                finishAndRemoveTask(); return@LockScreen
-                            }
-                            requestDeviceCredential(cipher) { ok, result ->
-                                if (ok && result != null) unlockWith(result) { unlocked = true; lockError = null }
-                                else finishAndRemoveTask()
-                            }
-                        },
-                        showDeviceCredential = android.os.Build.VERSION.SDK_INT < 30,
-                        error = lockError
-                    )
-                    else -> {
-                        LaunchedEffect(Unit) { updateManager.checkForUpdates() }
-                        com.kidas.controle.ui.nav.KiDasNavigation(
-                            manager = updateManager,
-                            themeMode = themeMode,
-                            onThemeModeChange = {
-                                themeMode = it
-                                prefs.edit().putString("theme_mode", it.name).apply()
                             }
                         )
+                        !unlocked -> LockScreen(
+                            onUnlock = {
+                                val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
+                                    lockError = "Impossible de préparer le déverrouillage."; return@LockScreen
+                                }
+                                authenticate("Déverrouiller KI DAS", cipher) { success, result ->
+                                    if (success && result != null) unlockWith(result) { unlocked = true; lockError = null }
+                                    else finishAndRemoveTask()
+                                }
+                            },
+                            onUseDeviceCredential = {
+                                val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
+                                    finishAndRemoveTask(); return@LockScreen
+                                }
+                                requestDeviceCredential(cipher) { ok, result ->
+                                    if (ok && result != null) unlockWith(result) { unlocked = true; lockError = null }
+                                    else finishAndRemoveTask()
+                                }
+                            },
+                            showDeviceCredential = android.os.Build.VERSION.SDK_INT < 30,
+                            error = lockError
+                        )
+                        else -> {
+                            LaunchedEffect(Unit) { updateManager.checkForUpdates() }
+                            com.kidas.controle.ui.nav.KiDasNavigation(
+                                manager = updateManager,
+                                themeMode = themeMode,
+                                onThemeModeChange = {
+                                    themeMode = it
+                                    prefs.edit().putString("theme_mode", it.name).apply()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -226,6 +233,7 @@ class MainActivity : FragmentActivity() {
         if (!isChangingConfigurations) backgroundAt = SystemClock.elapsedRealtime()
         super.onStop()
     }
+
     override fun onStart() {
         super.onStart()
         val elapsed = backgroundAt?.let { SystemClock.elapsedRealtime() - it }
@@ -235,6 +243,7 @@ class MainActivity : FragmentActivity() {
         }
         backgroundAt = null
     }
+
     override fun onResume() {
         super.onResume()
         if (::updateManager.isInitialized) {
@@ -242,5 +251,6 @@ class MainActivity : FragmentActivity() {
             if (installing != null) updateManager.refreshAfterInstaller(installing.version)
         }
     }
+
     companion object { private const val REQUEST_DEVICE_CREDENTIAL = 901 }
 }
