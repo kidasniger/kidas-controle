@@ -80,12 +80,17 @@ class AppUpdateManager(private val context: Context) {
         val destination = File(directory, APK_FILE)
         val partial = File(directory, "$APK_FILE.part")
         try {
+            val expectedHash = release.sha256 ?: release.checksumUrl?.let { fetchChecksum(it, release.apkName) }
+            if (release.checksumUrl != null && expectedHash == null) {
+                error("L'empreinte SHA-256 publiée est illisible.")
+            }
             if (destination.isFile && destination.length() > 0L &&
                 (release.apkSize <= 0L || destination.length() == release.apkSize) &&
-                (release.sha256 == null || sha256(destination).equals(release.sha256, true))) {
+                (expectedHash == null || sha256(destination).equals(expectedHash, true))) {
                 return@withContext UpdateState.Downloaded(destination.absolutePath, release.tagName)
                     .also { mutableState.value = it }
             }
+            destination.delete()
             partial.delete()
             val request = Request.Builder().url(release.apkUrl)
                 .header("User-Agent", "KiDas-Controle-Android").build()
@@ -113,8 +118,6 @@ class AppUpdateManager(private val context: Context) {
             }
             if (!partial.isFile || partial.length() == 0L) error("Le fichier téléchargé est vide.")
             if (release.apkSize > 0L && partial.length() != release.apkSize) error("Téléchargement incomplet : taille du fichier incorrecte.")
-            val expectedHash = release.sha256 ?: release.checksumUrl?.let { fetchChecksum(it, release.apkName) }
-            if (release.checksumUrl != null && expectedHash == null) error("L'empreinte SHA-256 publiée est illisible.")
             if (expectedHash != null && !sha256(partial).equals(expectedHash, true)) {
                 error("L'empreinte SHA-256 ne correspond pas. Le fichier a été rejeté.")
             }
