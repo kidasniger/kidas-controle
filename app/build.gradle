@@ -6,6 +6,8 @@ plugins {
 }
 
 def run = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+def releaseCode = (project.findProperty('versionCode') ?: run).toString().toInteger()
+def releaseName = (project.findProperty('versionName') ?: "1.0." + releaseCode).toString()
 
 android {
     namespace 'com.kidas.controle'
@@ -15,8 +17,9 @@ android {
         applicationId 'com.kidas.controle'
         minSdk 26
         targetSdk 34
-        versionCode run
-        versionName "1.0." + run
+        versionCode releaseCode
+        versionName releaseName
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
     signingConfigs {
@@ -42,13 +45,9 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = '17'
-    }
+    kotlinOptions { jvmTarget = '17' }
 
-    buildFeatures {
-        compose true
-    }
+    buildFeatures { compose true }
 
     lint {
         checkReleaseBuilds false
@@ -73,5 +72,6 @@ dependencies {
     implementation 'androidx.activity:activity-compose:1.10.1'
     implementation 'androidx.core:core-splashscreen:1.0.1'
 
+    testImplementation 'junit:junit:4.13.2'
     debugImplementation 'androidx.compose.ui:ui-tooling'
 }

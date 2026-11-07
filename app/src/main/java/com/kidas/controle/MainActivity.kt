@@ -3,38 +3,31 @@ package com.kidas.controle
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.kidas.controle.ui.settings.UpdateSettingsScreen
 import com.kidas.controle.ui.theme.KiDasTheme
+import com.kidas.controle.updater.AppUpdateManager
+import com.kidas.controle.updater.UpdateState
 
 class MainActivity : ComponentActivity() {
+    private lateinit var updateManager: AppUpdateManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        updateManager = AppUpdateManager(applicationContext)
 
         setContent {
             KiDasTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "KI DAS",
-                            style = MaterialTheme.typography.headlineLarge
-                        )
-                    }
-                }
+                UpdateSettingsScreen(manager = updateManager)
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::updateManager.isInitialized) {
+            val installing = updateManager.state.value as? UpdateState.Installing
+            if (installing != null) updateManager.refreshAfterInstaller(installing.version)
         }
     }
 }

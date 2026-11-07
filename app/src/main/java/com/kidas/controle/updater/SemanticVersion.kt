@@ -5,7 +5,7 @@ package com.kidas.controle.updater
  * Build metadata is ignored, as required by SemVer 2.0.0.
  */
 object SemanticVersion {
-    private val pattern = Regex("""^[vV]?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?$""")
+    private val pattern = Regex("""^[vV]?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$""")
 
     fun compare(left: String, right: String): Int {
         val a = parse(left)
@@ -21,8 +21,10 @@ object SemanticVersion {
         for (i in 0 until count) {
             if (i >= a.pre.size) return -1
             if (i >= b.pre.size) return 1
-            val x = a.pre[i]; val y = b.pre[i]
-            val xn = x.toLongOrNull(); val yn = y.toLongOrNull()
+            val x = a.pre[i]
+            val y = b.pre[i]
+            val xn = x.toLongOrNull()
+            val yn = y.toLongOrNull()
             val c = when {
                 xn != null && yn != null -> xn.compareTo(yn)
                 xn != null -> -1
@@ -37,6 +39,7 @@ object SemanticVersion {
     fun isNewer(remote: String, installed: String): Boolean = compare(remote, installed) > 0
 
     private data class Parsed(val core: List<Long>, val pre: List<String>)
+
     private fun parse(raw: String): Parsed {
         val match = pattern.matchEntire(raw.trim())
             ?: throw IllegalArgumentException("Version sémantique invalide : $raw")

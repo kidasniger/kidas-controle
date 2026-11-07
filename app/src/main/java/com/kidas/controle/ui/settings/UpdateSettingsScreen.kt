@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kidas.controle.updater.AppUpdateManager
 import com.kidas.controle.updater.UpdateState
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -16,6 +17,7 @@ import java.util.TimeZone
 @Composable
 fun UpdateSettingsScreen(manager: AppUpdateManager) {
     val state by manager.state.collectAsState()
+    val scope = rememberCoroutineScope()
     var promptedVersion by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { manager.checkForUpdates() }
 
@@ -25,12 +27,8 @@ fun UpdateSettingsScreen(manager: AppUpdateManager) {
             onDismissRequest = { promptedVersion = available.release.tagName },
             title = { Text("Nouvelle version disponible 🎉") },
             text = { Text("KI DAS ${available.release.tagName} est disponible. Consultez les nouveautés dans Paramètres.") },
-            confirmButton = {
-                TextButton(onClick = { promptedVersion = available.release.tagName }) { Text("Voir") }
-            },
-            dismissButton = {
-                TextButton(onClick = { promptedVersion = available.release.tagName }) { Text("Plus tard") }
-            }
+            confirmButton = { TextButton(onClick = { promptedVersion = available.release.tagName }) { Text("Voir") } },
+            dismissButton = { TextButton(onClick = { promptedVersion = available.release.tagName }) { Text("Plus tard") } }
         )
     }
 
@@ -58,11 +56,9 @@ fun UpdateSettingsScreen(manager: AppUpdateManager) {
                             Text(current.release.body)
                         }
                         Button(
-                            onClick = { /* launched below */ },
-                            enabled = false,
+                            onClick = { scope.launch { manager.download(current.release) } },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Préparation…") }
-                        LaunchedEffect(current.release.tagName) { manager.download(current.release) }
+                        ) { Text("Télécharger et installer") }
                     }
                     is UpdateState.UpToDate -> Text("Votre application est à jour ✓")
                     is UpdateState.Error -> Text(current.message, color = MaterialTheme.colorScheme.error)
@@ -84,7 +80,7 @@ fun UpdateSettingsScreen(manager: AppUpdateManager) {
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = { manager.checkForUpdates() },
+                        onClick = { scope.launch { manager.checkForUpdates() } },
                         enabled = state !is UpdateState.Checking && state !is UpdateState.Downloading,
                         modifier = Modifier.weight(1f)
                     ) { Text("Vérifier les mises à jour") }

@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit
 
 class AppUpdateManager(private val context: Context) {
     companion object {
-        // Dépôt de l'application cible, jamais celui de MusicPro.
         const val GITHUB_OWNER = "kidasniger"
         const val GITHUB_REPO = "kidas-controle"
         private const val RELEASE_API = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
@@ -38,7 +37,7 @@ class AppUpdateManager(private val context: Context) {
     val state: StateFlow<UpdateState> = mutableState.asStateFlow()
 
     fun installedVersion(): String = try {
-        val info = if (Build.VERSION.SDK_INT >=  TIRAMISU) {
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
         } else {
             @Suppress("DEPRECATION")
@@ -55,8 +54,7 @@ class AppUpdateManager(private val context: Context) {
                 .header("X-GitHub-Api-Version", "2022-11-28")
                 .header("User-Agent", "KiDas-Controle-Android")
                 .build()
-            val response = client.newCall(request).execute()
-            val json = response.use {
+            val json = client.newCall(request).execute().use {
                 if (!it.isSuccessful) error(if (it.code == 404) "Aucune release publiée pour le moment." else "GitHub a répondu HTTP ${it.code}.")
                 requireNotNull(it.body).string()
             }
@@ -116,6 +114,7 @@ class AppUpdateManager(private val context: Context) {
             if (!partial.isFile || partial.length() == 0L) error("Le fichier téléchargé est vide.")
             if (release.apkSize > 0L && partial.length() != release.apkSize) error("Téléchargement incomplet : taille du fichier incorrecte.")
             val expectedHash = release.sha256 ?: release.checksumUrl?.let { fetchChecksum(it, release.apkName) }
+            if (release.checksumUrl != null && expectedHash == null) error("L'empreinte SHA-256 publiée est illisible.")
             if (expectedHash != null && !sha256(partial).equals(expectedHash, true)) {
                 error("L'empreinte SHA-256 ne correspond pas. Le fichier a été rejeté.")
             }
@@ -126,6 +125,7 @@ class AppUpdateManager(private val context: Context) {
             UpdateState.Downloaded(destination.absolutePath, release.tagName).also { mutableState.value = it }
         } catch (e: Exception) {
             partial.delete()
+            destination.delete()
             UpdateState.Error(e.message ?: "Le téléchargement a échoué.")
                 .also { mutableState.value = it }
         }
@@ -168,7 +168,7 @@ class AppUpdateManager(private val context: Context) {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(settings)
-                mutableState.value = UpdateState.Error("Autorisez l'installation pour KI DAS, puis relancez l'installation.")
+                mutableState.value = UpdateState.Downloaded(apk.absolutePath, version)
                 return
             }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apk)
@@ -196,6 +196,4 @@ class AppUpdateManager(private val context: Context) {
     private fun cleanupIncomplete() {
         File(context.cacheDir, "updates").listFiles()?.filter { it.name.endsWith(".part") }?.forEach(File::delete)
     }
-
-    private companion object AndroidVersions { const val TIRAMISU = 33 }
 }
