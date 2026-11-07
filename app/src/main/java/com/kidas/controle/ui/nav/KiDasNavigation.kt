@@ -32,6 +32,7 @@ import com.kidas.controle.security.SecureTokenRepository
 import com.kidas.controle.ui.home.HomeScreen
 import com.kidas.controle.ui.home.HomeStatsScreen
 import com.kidas.controle.ui.home.HomeViewModel
+import com.kidas.controle.ui.publish.PublishScreen
 import com.kidas.controle.ui.settings.UpdateSettingsScreen
 import com.kidas.controle.ui.theme.KiDasThemeMode
 import com.kidas.controle.updater.AppUpdateManager
@@ -165,7 +166,7 @@ fun KiDasNavigation(
                 )
                 HomeStatsScreen(homeViewModel) { navController.popBackStack() }
             }
-            composable("publish") { FeaturePlaceholder("Publier", "Prépare et programme tes publications.") }
+            composable("publish") { PublishScreen(tokenRepository) }
             composable("reviews") { FeaturePlaceholder("Avis", "Retrouve les commentaires à traiter.") }
             composable("media") { FeaturePlaceholder("Médias", "Bibliothèque des images et vidéos.") }
             composable("bot") { FeaturePlaceholder("Bot", "État et configuration de l’assistant.") }
