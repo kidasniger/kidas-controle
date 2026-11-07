@@ -15,11 +15,10 @@ import java.util.Locale
 import java.util.TimeZone
 
 @Composable
-fun UpdateSettingsScreen(manager: AppUpdateManager) {
+fun UpdateSettingsScreen(manager: AppUpdateManager, onBack: () -> Unit = {}) {
     val state by manager.state.collectAsState()
     val scope = rememberCoroutineScope()
     var promptedVersion by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { manager.checkForUpdates() }
 
     val available = state as? UpdateState.UpdateAvailable
     if (available != null && promptedVersion != available.release.tagName) {
@@ -36,7 +35,7 @@ fun UpdateSettingsScreen(manager: AppUpdateManager) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Paramètres", style = MaterialTheme.typography.headlineMedium)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {\n            Text("Paramètres", style = MaterialTheme.typography.headlineMedium)\n            TextButton(onClick = onBack) { Text("Retour") }\n        }
         Card {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Mise à jour de l’application", style = MaterialTheme.typography.titleLarge)
