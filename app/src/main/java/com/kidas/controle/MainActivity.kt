@@ -124,7 +124,7 @@ class MainActivity : FragmentActivity() {
                         !unlocked -> LockScreen(
                             onUnlock = {
                                 val cipher = runCatching { vault.createDecryptCipher() }.getOrElse {
-                                    lockError = "Impossible de préparer le déverrouillage."; return@LockScreen
+                                    lockError = when (it) { is java.security.UnrecoverableKeyException, is android.security.keystore.KeyPermanentlyInvalidatedException -> "La clé de sécurité Android a été invalidée. Une nouvelle configuration sécurisée est nécessaire."; else -> "Le verrouillage sécurisé Android est temporairement indisponible. Réessaie." }; return@LockScreen
                                 }
                                 authenticate("Déverrouiller KI DAS", cipher) { success, result ->
                                     if (success && result != null) unlockWith(result) { unlocked = true; lockError = null }
@@ -184,7 +184,7 @@ class MainActivity : FragmentActivity() {
 
     private fun authenticate(title: String, cipher: javax.crypto.Cipher, callback: (Boolean, javax.crypto.Cipher?) -> Unit) {
         val authenticators = if (android.os.Build.VERSION.SDK_INT >= 30)
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
         else BiometricManager.Authenticators.BIOMETRIC_STRONG
         if (BiometricManager.from(this).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
             callback(false, null); return
