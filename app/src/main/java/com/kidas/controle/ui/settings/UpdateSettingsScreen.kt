@@ -1,8 +1,6 @@
 package com.kidas.controle.ui.settings
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -31,8 +29,11 @@ fun UpdateSettingsScreen(manager: AppUpdateManager, onBack: () -> Unit = {}) {
         )
     }
 
+    // Le défilement est assuré par l'écran Réglages parent.
+    // Ne pas imbriquer un second verticalScroll : cela provoquait des contraintes
+    // de hauteur infinie sur certains appareils Compose.
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
