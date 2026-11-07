@@ -39,6 +39,8 @@ import com.kidas.controle.ui.comments.CommentsViewModel
 import com.kidas.controle.ui.media.MediaScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kidas.controle.ui.settings.UpdateSettingsScreen
+import com.kidas.controle.ui.settings.SettingsScreen
+import com.kidas.controle.ui.bot.BotScreen
 import com.kidas.controle.ui.theme.KiDasThemeMode
 import com.kidas.controle.updater.AppUpdateManager
 import com.kidas.controle.updater.UpdateState
@@ -184,38 +186,11 @@ fun KiDasNavigation(
             composable("publish") { PublishScreen(tokenRepository, mediaForPublish) { mediaForPublish = null } }
             composable("reviews") { CommentsScreen(commentsViewModel) }
             composable("media") { MediaScreen(tokenRepository) { path -> mediaForPublish = path; navController.navigate("publish") } }
-            composable("bot") { FeaturePlaceholder("Bot", "État et configuration de l’assistant.") }
+            composable("bot") { BotScreen(tokenRepository) }
             composable("settings") {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Réglages", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            "Personnalisation de l’application",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    KiCard {
-                        Text("Apparence", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(12.dp))
-                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                            listOf(
-                                KiDasThemeMode.DARK to "Sombre",
-                                KiDasThemeMode.LIGHT to "Clair",
-                                KiDasThemeMode.SYSTEM to "Système"
-                            ).forEachIndexed { index, pair ->
-                                SegmentedButton(
-                                    selected = themeMode == pair.first,
-                                    onClick = { onThemeModeChange(pair.first) },
-                                    shape = SegmentedButtonDefaults.itemShape(index, 3)
-                                ) { Text(pair.second, maxLines = 1) }
-                            }
-                        }
-                    }
-                    UpdateSettingsScreen(manager) { navController.popBackStack() }
+                Column(Modifier.fillMaxSize()) {
+                    SettingsScreen(tokenRepository, themeMode, onThemeModeChange, "1.0")
+                    UpdateSettingsScreen(manager)
                 }
             }
         }
