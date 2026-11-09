@@ -109,6 +109,25 @@ final class SettingsScreen extends Screen {
         info.addView(tv);
         add(info);
 
+        LinearLayout up = section("Mise à jour de l'application");
+        up.addView(Ui.tv(host, "Version installée : " + Updater.versionName(host) + " (" + Updater.versionCode(host) + ")", 14, Ui.INK, false));
+        up.addView(switchRow("Vérifier au démarrage", "Cherche une nouvelle version à chaque ouverture", !"0".equals(host.store.get("upd_auto")), v -> {
+            if (v) host.store.del("upd_auto"); else host.store.set("upd_auto", "0");
+        }), Ui.lp(Ui.MATCH, Ui.WRAP, 0, 6, 0, 0));
+        final TextView upMsg = Ui.tv(host, "", 13.5f, Ui.MUTED, false);
+        final Ui.Btn chk = Ui.btn(host, "Rechercher une mise à jour", R.drawable.ic_refresh, 0);
+        chk.setOnClickListener(v -> doActR(chk, () -> Updater.check(host), inf -> {
+            if (inf.available) {
+                upMsg.setText("Version " + inf.name + " disponible.");
+                new UpdateDialog(host, inf).show();
+            } else {
+                upMsg.setText("Tu as déjà la dernière version.");
+            }
+        }));
+        up.addView(chk, Ui.lp(Ui.MATCH, Ui.WRAP, 0, 10, 0, 0));
+        up.addView(upMsg, Ui.lp(Ui.WRAP, Ui.WRAP, 0, 8, 0, 0));
+        add(up);
+
         LinearLayout sec = section("Sécurité");
         final Ui.Btn out = Ui.btn(host, "Oublier le jeton sur ce téléphone", R.drawable.ic_trash, 2);
         out.setOnClickListener(v -> confirm("Effacer le jeton de ce téléphone ?", () -> {

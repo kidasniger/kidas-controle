@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      notes:
+        description: "Notes de version (sinon : message du dernier commit)"
+        required: false
+        default: ""
+      obligatoire:
+        description: "Mise à jour obligatoire"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -47,11 +56,16 @@ jobs:
       - name: Publier l'APK
         env:
           GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ github.event.inputs.notes }}
+          OBLIGATOIRE: ${{ github.event.inputs.obligatoire }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk kidas-controle.apk
-          gh release create "v${{ github.run_number }}" kidas-controle.apk \
-            --title "Version ${{ github.run_number }}" \
-            --notes "APK signé. Installer par-dessus la version précédente."
+          sha256sum kidas-controle.apk | cut -d' ' -f1 > kidas-controle.apk.sha256
+          if [ -z "$NOTES" ]; then NOTES="$(git log -1 --pretty=%B)"; fi
+          if [ "$OBLIGATOIRE" = "true" ]; then NOTES="[obligatoire] $NOTES"; fi
+          gh release create "v${{ github.run_number }}" kidas-controle.apk kidas-controle.apk.sha256 \
+            --title "Version 1.0.${{ github.run_number }}" \
+            --notes "$NOTES"
 
       - uses: actions/upload-artifact@v4
         with:

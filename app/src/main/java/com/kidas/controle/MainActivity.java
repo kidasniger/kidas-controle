@@ -121,6 +121,9 @@ public class MainActivity extends Activity {
 
     void go(int t) { show(t); }
 
+    /** À appeler avant d'ouvrir une appli système : évite le re-verrouillage au retour. */
+    void markExternal() { external = true; }
+
     void refresh() {
         Api.wf = null;
         show(tab < 0 ? HOME : tab);
@@ -255,6 +258,7 @@ public class MainActivity extends Activity {
         locked = false;
         outer.setVisibility(View.VISIBLE);
         if (cur == null) show(HOME);
+        Updater.autoCheck(this);
     }
 
     @Override
