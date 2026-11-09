@@ -47,6 +47,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        try {
+            requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        } catch (Exception ignored) { /* barre de titre déjà gérée par le thème */ }
+        if (getActionBar() != null) getActionBar().hide();
         Ui.init(this);
         store = new SecureStore(this);
         Api.loadCfg(store);
