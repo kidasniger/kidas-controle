@@ -24,12 +24,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
-    static final int HOME = 0, STATS = 1, PUBLISH = 2, COMMENTS = 3, MEDIA = 4, BOT = 5, SETTINGS = 6;
+    static final int HOME = 0, STATS = 1, PUBLISH = 2, COMMENTS = 3, MESSAGES = 4, MEDIA = 5, BOT = 6, SETTINGS = 7;
     private static final int REQ_FILE = 1, REQ_UNLOCK = 2;
     private static final long LOCK_AFTER_MS = 60000L;
-    private static final String[] NAMES = {"Accueil", "Stats", "Publier", "Avis", "Médias", "Bot"};
+    private static final String[] NAMES = {"Accueil", "Stats", "Publier", "Avis", "Messages", "Médias", "Bot"};
     private static final int[] ICONS = {R.drawable.ic_home, R.drawable.ic_stats, R.drawable.ic_pen,
-            R.drawable.ic_chat, R.drawable.ic_image, R.drawable.ic_bot};
+            R.drawable.ic_chat, R.drawable.ic_messenger, R.drawable.ic_image, R.drawable.ic_bot};
 
     interface Picked { void got(List<Uri> uris); }
 
@@ -117,6 +117,7 @@ public class MainActivity extends Activity {
             case STATS: return new StatsScreen(this);
             case PUBLISH: return new PublishScreen(this);
             case COMMENTS: return new CommentsScreen(this);
+            case MESSAGES: return new MessagesScreen(this);
             case MEDIA: return new MediaScreen(this);
             case BOT: return new BotScreen(this);
             default: return new HomeScreen(this);
@@ -134,6 +135,8 @@ public class MainActivity extends Activity {
     }
 
     void badge(int n) { nav.setBadge(COMMENTS, n); }
+
+    void badgeMessages(int n) { nav.setBadge(MESSAGES, n); }
 
     private void show(int t) {
         int dir = t == tab ? 0 : (t > tab ? 1 : -1);

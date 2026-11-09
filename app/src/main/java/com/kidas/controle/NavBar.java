@@ -56,7 +56,8 @@ final class NavBar extends FrameLayout {
             ic.setImageResource(res[i]);
             ic.setColorFilter(Ui.MUTED, PorterDuff.Mode.SRC_IN);
             col.addView(ic, new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(22)));
-            TextView lb = Ui.tv(c, names[i], 11, Ui.MUTED, true);
+            TextView lb = Ui.tv(c, names[i], n > 6 ? 10f : 11f, Ui.MUTED, true);
+            lb.setSingleLine(true);
             col.addView(lb, Ui.lp(Ui.WRAP, Ui.WRAP, 0, 3, 0, 0));
             item.addView(col, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
             TextView bd = Ui.tv(c, "", 10, 0xFFFFFFFF, true);

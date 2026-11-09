@@ -235,7 +235,7 @@ final class PublishScreen extends Screen {
 
     /* ---------- files d'attente ---------- */
 
-    private static final String[] LABELS = {"Post texte", "Post média / programmé", "Réponse", "Action"};
+    private static final String[] LABELS = {"Post texte", "Post média / programmé", "Réponse", "Action", "Message Messenger"};
 
     private static class Item {
         JSONObject e;

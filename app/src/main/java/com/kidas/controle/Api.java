@@ -42,7 +42,7 @@ final class Api {
     static final ExecutorService EX = Executors.newCachedThreadPool();
     static final ExecutorService EXT = Executors.newFixedThreadPool(3);
     static final Handler MAIN = new Handler(Looper.getMainLooper());
-    static final String[] QUEUES = {"queue", "avance", "replies", "actions"};
+    static final String[] QUEUES = {"queue", "avance", "replies", "actions", "messages"};
 
     interface Job<T> { T run() throws Exception; }
     interface Ok<T> { void ok(T v); }
@@ -549,8 +549,8 @@ final class Api {
         JSONObject st, cm;
         JSONArray runs = new JSONArray();
         Bot bot;
-        final int[] pending = new int[4];
-        final int[] total = new int[4];
+        final int[] pending = new int[QUEUES.length];
+        final int[] total = new int[QUEUES.length];
         final List<Exception> errs = new ArrayList<>();
     }
 
@@ -682,6 +682,59 @@ final class Api {
             }
         }
         return out;
+    }
+
+    /* ---------- messages (Messenger) ---------- */
+
+    /** Messenger n'autorise la réponse que 24 h après le dernier message de la personne. */
+    static final long FENETRE_MS = 24L * 3600L * 1000L;
+    static final int MESSAGE_MAX = 1000;
+
+    /** Conversations de inbox/messages.json, la plus récente d'abord. */
+    static List<JSONObject> conversations(JSONObject inbox) {
+        List<JSONObject> out = new ArrayList<>();
+        JSONArray a = inbox == null ? null : inbox.optJSONArray("conversations");
+        for (int i = 0; a != null && i < a.length(); i++) {
+            JSONObject c = a.optJSONObject(i);
+            if (c != null) out.add(c);
+        }
+        java.util.Collections.sort(out, (x, y) -> y.optString("updated_time").compareTo(x.optString("updated_time")));
+        return out;
+    }
+
+    /** Vrai quand le dernier message vient de la personne (la Page n'a pas encore répondu). */
+    static boolean needsReply(JSONObject conv) {
+        JSONArray m = conv.optJSONArray("messages");
+        return m != null && m.length() > 0 && !conv.optBoolean("repondu", true);
+    }
+
+    static boolean windowOpen(JSONObject conv) {
+        long t = Ui.iso(conv.optString("last_user_time", ""));
+        return t > 0 && System.currentTimeMillis() - t < FENETRE_MS;
+    }
+
+    /** Dernier élément de posts/messages.json pour cette conversation, ou null. */
+    static JSONObject lastQueued(JSONArray queue, String convId) {
+        JSONObject r = null;
+        for (int i = 0; queue != null && i < queue.length(); i++) {
+            JSONObject e = queue.optJSONObject(i);
+            if (e != null && convId.equals(e.optString("conversation_id"))) r = e;
+        }
+        return r;
+    }
+
+    /** Met une réponse Messenger en file : le bot l'envoie à son prochain cycle (environ 1 minute). */
+    static void queueMessage(final String convId, final String recipientId, final String text) throws Exception {
+        updateJson("posts/messages.json", true, cur -> {
+            JSONObject e = new JSONObject();
+            put(e, "conversation_id", convId);
+            put(e, "recipient_id", recipientId);
+            put(e, "message", text);
+            put(e, "status", "pending");
+            put(e, "created", Ui.isoNow());
+            ((JSONArray) cur).put(e);
+            return cur;
+        }, "Message (appli de contrôle)");
     }
 
     static String pageId(JSONObject st, JSONObject cm) {
