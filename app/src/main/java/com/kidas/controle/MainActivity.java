@@ -8,7 +8,6 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.ColorDrawable;
 import android.graphics.PorterDuff;
 import android.net.Uri;
 import android.os.Bundle;
@@ -30,6 +29,7 @@ import java.util.List;
 public class MainActivity extends Activity {
     static final int HOME = 0, STATS = 1, PUBLISH = 2, COMMENTS = 3, MESSAGES = 4, MEDIA = 5, BOT = 6, SETTINGS = 7, RULES = 8;
     private static final int REQ_FILE = 1, REQ_UNLOCK = 2;
+    private static final long LOCK_AFTER_MS = 60000L;
 
     /* onglets visibles : Accueil, Bot, bouton +, Réponses, Stats */
     private static final int FAB_IDX = 2;
@@ -254,7 +254,7 @@ public class MainActivity extends Activity {
         box.setPadding(Ui.dp(18), Ui.dp(10), Ui.dp(18), Ui.dp(26));
         View handle = new View(this);
         handle.setBackground(Ui.round(Ui.SOFT, 99));
-        box.addView(handle, Ui.lp(Ui.dp(40), Ui.dp(4), 0, 6, 0, 0, Gravity.CENTER_HORIZONTAL));
+        box.addView(handle, Ui.lp(Ui.dp(40), Ui.dp(4), 0, 6, 0, 0));
         TextView t = Ui.tv(this, "Actions rapides", 16, Ui.INK, true);
         t.setPadding(0, Ui.dp(12), 0, Ui.dp(4));
         box.addView(t);
@@ -271,7 +271,7 @@ public class MainActivity extends Activity {
         d.setContentView(box);
         Window w = d.getWindow();
         if (w != null) {
-            w.setBackgroundDrawable(new ColorDrawable(0x00000000));
+            w.setBackgroundDrawableResource(android.R.color.transparent);
             w.setLayout(Ui.MATCH, Ui.WRAP);
             w.setGravity(Gravity.BOTTOM);
         }
