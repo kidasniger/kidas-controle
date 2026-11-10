@@ -45,17 +45,14 @@ final class StatsScreen extends Screen {
         host.badge(un.size());
 
         /* grand chiffre */
-        LinearLayout hero = new LinearLayout(host);
-        hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setBackground(Ui.gradient(0xFF1D3FA6, 0xFF6D3FD1, 20));
-        hero.setPadding(Ui.dp(20), Ui.dp(18), Ui.dp(20), Ui.dp(18));
-        hero.addView(Ui.tv(host, "ABONNÉS", 12, 0xCCFFFFFF, true));
-        TextView big = Ui.tv(host, "-", 46, 0xFFFFFFFF, true);
+        LinearLayout hero = Ui.hero(host);
+        hero.addView(Ui.tv(host, "ABONNÉS", 12, Ui.HSUB, true));
+        TextView big = Ui.tv(host, "-", 46, Ui.BG, true);
         hero.addView(big);
         if (page.has("followers_count")) Ui.countUp(big, page.optDouble("followers_count"));
         String sub = page.has("fan_count") ? Ui.nf(page.optDouble("fan_count")) + " J'aime sur la Page" : "";
         if (d.st != null && !d.st.optString("date").isEmpty()) sub += (sub.isEmpty() ? "" : " · ") + "mis à jour " + Ui.rel(d.st.optString("date"));
-        if (!sub.isEmpty()) hero.addView(Ui.tv(host, sub, 13, 0xCCFFFFFF, false));
+        if (!sub.isEmpty()) hero.addView(Ui.tv(host, sub, 13, Ui.HSUB, false));
         add(hero);
 
         /* tuiles */
@@ -151,10 +148,10 @@ final class StatsScreen extends Screen {
         for (int k = 0; k < chips.size(); k++) {
             TextView t = chips.get(k);
             boolean on = k == i;
-            t.setTextColor(on ? 0xFF06112B : Ui.MUTED);
+            t.setTextColor(on ? Ui.BG : Ui.MUTED);
             t.setBackground(Ui.round(on ? Ui.ACCENT : Ui.SOFT, 99));
         }
-        int[] palette = {Ui.ACCENT, Ui.ACCENT2, Ui.OK, Ui.WARN, 0xFF38BDF8};
+        int[] palette = {Ui.ACCENT, Ui.MUTED, Ui.ACCENT, Ui.MUTED, Ui.MUTED};
         int color = palette[i % palette.length];
         float last = m.vals[m.vals.length - 1];
         Ui.countUp(bigVal, last);
@@ -193,7 +190,7 @@ final class StatsScreen extends Screen {
         LinearLayout c = section(pick.name + " par jour");
         BarChartView bc = new BarChartView(host);
         c.addView(bc, new LinearLayout.LayoutParams(Ui.MATCH, Ui.dp(190)));
-        bc.setData(pick.vals, pick.labs, Ui.ACCENT2);
+        bc.setData(pick.vals, pick.labs, Ui.ACCENT);
         return c;
     }
 
@@ -217,9 +214,9 @@ final class StatsScreen extends Screen {
         int tot = Api.sum(d.total), pend = Api.sum(d.pending);
         float files = tot == 0 ? 1f : (tot - pend) / (float) tot;
 
-        row.addView(ring("Réponses données", answered, Ui.OK), new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
-        row.addView(ring("Exécutions réussies", success, Ui.ACCENT), new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
-        row.addView(ring("Files traitées", files, Ui.ACCENT2), new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
+        row.addView(ring("Réponses données", answered, Ui.ACCENT), new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
+        row.addView(ring("Exécutions réussies", success, Ui.MUTED), new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
+        row.addView(ring("Files traitées", files, Ui.ACCENT), new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
         c.addView(row);
         return c;
     }

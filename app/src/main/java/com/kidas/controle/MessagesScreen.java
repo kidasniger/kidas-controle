@@ -64,7 +64,7 @@ final class MessagesScreen extends Screen {
         for (int i = 0; i < 2; i++) {
             final boolean allMode = i == 1;
             boolean on = showAll == allMode;
-            TextView t = Ui.tv(host, names[i], 14, on ? 0xFF06112B : Ui.MUTED, true);
+            TextView t = Ui.tv(host, names[i], 14, on ? Ui.BG : Ui.MUTED, true);
             t.setGravity(Gravity.CENTER);
             t.setPadding(0, Ui.dp(10), 0, Ui.dp(10));
             t.setBackground(Ui.round(on ? Ui.ACCENT : 0x00000000, 11));

@@ -10,11 +10,12 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** Barre de navigation basse avec pastille qui glisse. */
+/** Barre de navigation basse à 5 slots : 4 onglets + bouton central surélevé. */
 final class NavBar extends FrameLayout {
     interface OnTab { void tab(int i); }
 
     private final int n;
+    private final int fabIndex;
     private final View pill;
     private final ImageView[] icons;
     private final TextView[] labels;
@@ -22,16 +23,17 @@ final class NavBar extends FrameLayout {
     private int sel = -1;
     private int itemW = 0;
 
-    NavBar(Context c, String[] names, int[] res, final OnTab cb) {
+    NavBar(Context c, String[] names, int[] res, int fabIndex, final Runnable fabAction, final OnTab cb) {
         super(c);
         n = names.length;
+        this.fabIndex = fabIndex;
         icons = new ImageView[n];
         labels = new TextView[n];
         badges = new TextView[n];
         setBackgroundColor(Ui.CARD);
 
         pill = new View(c);
-        pill.setBackground(Ui.round(Ui.SOFT, 16));
+        pill.setBackground(Ui.round(Ui.ACCENT, 16));
         pill.setAlpha(0f);
         addView(pill, new FrameLayout.LayoutParams(Ui.dp(40), Ui.dp(46)));
 
@@ -42,39 +44,59 @@ final class NavBar extends FrameLayout {
         for (int i = 0; i < n; i++) {
             final int idx = i;
             FrameLayout item = new FrameLayout(c);
-            item.setClickable(true);
-            item.setOnClickListener(v -> {
-                if (idx != sel) {
-                    select(idx);
-                    cb.tab(idx);
-                }
-            });
-            LinearLayout col = new LinearLayout(c);
-            col.setOrientation(LinearLayout.VERTICAL);
-            col.setGravity(Gravity.CENTER);
-            ImageView ic = new ImageView(c);
-            ic.setImageResource(res[i]);
-            ic.setColorFilter(Ui.MUTED, PorterDuff.Mode.SRC_IN);
-            col.addView(ic, new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(22)));
-            TextView lb = Ui.tv(c, names[i], n > 6 ? 10f : 11f, Ui.MUTED, true);
-            lb.setSingleLine(true);
-            col.addView(lb, Ui.lp(Ui.WRAP, Ui.WRAP, 0, 3, 0, 0));
-            item.addView(col, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
-            TextView bd = Ui.tv(c, "", 10, 0xFFFFFFFF, true);
-            bd.setGravity(Gravity.CENTER);
-            bd.setBackground(Ui.round(Ui.BAD, 99));
-            bd.setMinWidth(Ui.dp(16));
-            bd.setMinHeight(Ui.dp(16));
-            bd.setPadding(Ui.dp(4), 0, Ui.dp(4), 0);
-            bd.setVisibility(View.GONE);
-            FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-            bp.leftMargin = Ui.dp(26);
-            bp.topMargin = Ui.dp(6);
-            item.addView(bd, bp);
+            if (i == fabIndex) {
+                /* bouton central surélevé */
+                FrameLayout fl = new FrameLayout(c);
+                ImageView plus = new ImageView(c);
+                plus.setImageResource(R.drawable.ic_plus);
+                plus.setColorFilter(Ui.BG, PorterDuff.Mode.SRC_IN);
+                plus.setBackground(Ui.round(Ui.ACCENT, 99));
+                plus.setPadding(Ui.dp(15), Ui.dp(15), Ui.dp(15), Ui.dp(15));
+                plus.setElevation(Ui.dp(8));
+                plus.setClickable(true);
+                plus.setFocusable(true);
+                Ui.press(plus);
+                plus.setOnClickListener(v -> { if (fabAction != null) fabAction.run(); });
+                fl.addView(plus, new FrameLayout.LayoutParams(Ui.dp(54), Ui.dp(54), Gravity.CENTER));
+                FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+                fp.topMargin = -Ui.dp(14);
+                item.addView(fl, fp);
+            } else {
+                item.setClickable(true);
+                item.setOnClickListener(v -> {
+                    if (idx != sel) {
+                        select(idx);
+                        cb.tab(idx);
+                    }
+                });
+                LinearLayout col = new LinearLayout(c);
+                col.setOrientation(LinearLayout.VERTICAL);
+                col.setGravity(Gravity.CENTER);
+                ImageView ic = new ImageView(c);
+                ic.setImageResource(res[i]);
+                ic.setColorFilter(Ui.MUTED, PorterDuff.Mode.SRC_IN);
+                ic.setPadding(0, Ui.dp(4), 0, 0);
+                col.addView(ic, new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(22)));
+                TextView lb = Ui.tv(c, names[i], n > 5 ? 10f : 11f, Ui.MUTED, true);
+                lb.setSingleLine(true);
+                col.addView(lb, Ui.lp(Ui.WRAP, Ui.WRAP, 0, 3, 0, 0));
+                item.addView(col, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+                TextView bd = Ui.tv(c, "", 10, Ui.BG, true);
+                bd.setGravity(Gravity.CENTER);
+                bd.setBackground(Ui.round(Ui.INK, 99));
+                bd.setMinWidth(Ui.dp(16));
+                bd.setMinHeight(Ui.dp(16));
+                bd.setPadding(Ui.dp(4), 0, Ui.dp(4), 0);
+                bd.setVisibility(View.GONE);
+                FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+                bp.leftMargin = Ui.dp(26);
+                bp.topMargin = Ui.dp(8);
+                item.addView(bd, bp);
+                icons[i] = ic;
+                labels[i] = lb;
+                badges[i] = bd;
+            }
             row.addView(item, new LinearLayout.LayoutParams(0, Ui.MATCH, 1f));
-            icons[i] = ic;
-            labels[i] = lb;
-            badges[i] = bd;
         }
         View line = new View(c);
         line.setBackgroundColor(Ui.LINE);
@@ -96,11 +118,13 @@ final class NavBar extends FrameLayout {
         int old = sel;
         sel = i;
         for (int k = 0; k < n; k++) {
+            if (icons[k] == null) continue;
             boolean on = k == i;
-            int col = on ? Ui.ACCENT : Ui.MUTED;
-            icons[k].setColorFilter(col, PorterDuff.Mode.SRC_IN);
-            labels[k].setTextColor(col);
-            icons[k].animate().scaleX(on ? 1.15f : 1f).scaleY(on ? 1.15f : 1f).setDuration(220).start();
+            int ic = on ? Ui.BG : Ui.MUTED;
+            int tx = on ? Ui.INK : Ui.MUTED;
+            icons[k].setColorFilter(ic, PorterDuff.Mode.SRC_IN);
+            labels[k].setTextColor(tx);
+            icons[k].animate().scaleX(on ? 1.12f : 1f).scaleY(on ? 1.12f : 1f).setDuration(220).start();
         }
         if (i < 0) {
             pill.animate().alpha(0f).setDuration(180).start();
@@ -117,7 +141,7 @@ final class NavBar extends FrameLayout {
     }
 
     void setBadge(int i, int count) {
-        if (i < 0 || i >= n) return;
+        if (i < 0 || i >= n || badges[i] == null) return;
         TextView b = badges[i];
         if (count <= 0) {
             b.setVisibility(View.GONE);

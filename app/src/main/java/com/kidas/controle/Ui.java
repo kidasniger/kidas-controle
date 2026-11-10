@@ -23,15 +23,35 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/** Palette, fabriques de vues, animations et formats. */
+/** Palette monochrome clair/sombre, fabriques de vues, animations et formats. */
 final class Ui {
     static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT;
     static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
 
-    static final int BG = 0xFF0A0F1E, CARD = 0xFF121A2F, SOFT = 0xFF1A2646, INK = 0xFFE8ECF8,
-            MUTED = 0xFF8F9BB8, LINE = 0xFF222C48, ACCENT = 0xFF5B95FF, ACCENT2 = 0xFFA78BFA,
-            OK = 0xFF4ADE80, OKBG = 0xFF12351F, WARN = 0xFFFBBF24, WARNBG = 0xFF3A2C0B,
-            BAD = 0xFFF87171, BADBG = 0xFF3D1616;
+    /* ---------- palette : uniquement blanc en clair, noir en sombre ---------- */
+    static boolean DARK = true;
+    static int BG, CARD, SOFT, INK, MUTED, LINE, ACCENT, ACCENT2,
+            OK, OKBG, WARN, WARNBG, BAD, BADBG, HSUB, FADED;
+
+    static void theme(boolean dark) {
+        DARK = dark;
+        if (dark) {
+            BG = 0xFF0A0A0B; CARD = 0xFF151517; SOFT = 0xFF1F1F22;
+            INK = 0xFFF4F4F5; MUTED = 0xFFA2A2A8; LINE = 0xFF26262A;
+        } else {
+            BG = 0xFFFFFFFF; CARD = 0xFFF5F5F6; SOFT = 0xFFEBEBEC;
+            INK = 0xFF121212; MUTED = 0xFF6B6B70; LINE = 0xFFE6E6E8;
+        }
+        /* accent = noir en clair, blanc en sombre ; statuts en nuances de gris */
+        ACCENT = INK; ACCENT2 = MUTED;
+        OK = INK; OKBG = SOFT; WARN = MUTED; WARNBG = SOFT; BAD = INK; BADBG = SOFT;
+        HSUB = alpha(BG, 0.62f);
+        FADED = alpha(INK, 0.55f);
+    }
+
+    static int alpha(int color, float a) {
+        return (color & 0x00FFFFFF) | (Math.round(a * 255f) << 24);
+    }
 
     private static float density = 1f;
 
@@ -98,6 +118,15 @@ final class Ui {
         return l;
     }
 
+    /** Carte inversée (héro) : fond noir en clair, blanc en sombre. */
+    static LinearLayout hero(Context c) {
+        LinearLayout l = vbox(c);
+        l.setBackground(round(INK, 22));
+        int p = dp(18);
+        l.setPadding(p, p, p, p);
+        return l;
+    }
+
     static TextView h2(Context c, String t) {
         TextView v = tv(c, t.toUpperCase(Locale.FRANCE), 12, MUTED, true);
         v.setLetterSpacing(0.08f);
@@ -136,13 +165,13 @@ final class Ui {
         return e;
     }
 
-    /** kind : 0 neutre, 1 ok, 2 attention, 3 erreur, 4 en cours. */
+    /** kind : 0 neutre, 1 ok, 2 attention, 3 erreur, 4 en cours — tout en nuances de gris. */
     static TextView chip(Context c, String t, int kind) {
         int fg = MUTED, bg = LINE;
-        if (kind == 1) { fg = OK; bg = OKBG; }
-        else if (kind == 2) { fg = WARN; bg = WARNBG; }
-        else if (kind == 3) { fg = BAD; bg = BADBG; }
-        else if (kind == 4) { fg = ACCENT; bg = SOFT; }
+        if (kind == 1) { fg = INK; bg = SOFT; }
+        else if (kind == 2) { fg = INK; bg = SOFT; }
+        else if (kind == 3) { fg = BG; bg = INK; }
+        else if (kind == 4) { fg = MUTED; bg = SOFT; }
         TextView v = tv(c, t, 12, fg, true);
         v.setBackground(round(bg, 99));
         v.setPadding(dp(10), dp(3), dp(10), dp(3));
@@ -158,7 +187,7 @@ final class Ui {
     /** Tuile chiffre : l'icône, le libellé et la valeur (TextView dans le tag). */
     static LinearLayout kpi(Context c, int iconRes, int tint, String label) {
         LinearLayout k = vbox(c);
-        k.setBackground(roundS(SOFT, LINE, 16));
+        k.setBackground(roundS(CARD, LINE, 16));
         k.setPadding(dp(14), dp(12), dp(14), dp(12));
         LinearLayout top = hbox(c);
         top.addView(icon(c, iconRes, tint, 16));
@@ -185,7 +214,7 @@ final class Ui {
 
     /* ---------- bouton ---------- */
 
-    /** kind : 0 neutre, 1 principal, 2 danger, 3 ok. */
+    /** kind : 0 neutre, 1 principal (noir/blanc inversé), 2 danger, 3 ok. */
     static final class Btn extends LinearLayout {
         final ImageView icon;
         final TextView label;
@@ -198,7 +227,7 @@ final class Ui {
             setOrientation(HORIZONTAL);
             setGravity(Gravity.CENTER);
             int fg = INK, bg = SOFT, st = LINE;
-            if (kind == 1) { bg = ACCENT; fg = 0xFF06112B; st = ACCENT; }
+            if (kind == 1) { bg = ACCENT; fg = BG; st = ACCENT; }
             else if (kind == 2) { bg = BADBG; fg = BAD; st = BADBG; }
             else if (kind == 3) { bg = OKBG; fg = OK; st = OKBG; }
             setBackground(roundS(bg, st, 12));

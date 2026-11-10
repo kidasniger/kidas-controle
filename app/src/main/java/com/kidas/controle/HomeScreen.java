@@ -36,22 +36,21 @@ final class HomeScreen extends Screen {
                 }
             }
         }
-        /* bot */
+        /* héro bot */
         if (d.bot != null) {
             final Api.Bot bs = d.bot;
-            LinearLayout hero = Ui.card(host);
+            LinearLayout hero = Ui.hero(host);
             LinearLayout r = Ui.hbox(host);
             PulseDot dot = new PulseDot(host);
             String t, s;
-            int col;
-            if ("on".equals(bs.state)) { col = Ui.OK; t = "Le bot est en marche"; s = "Une session GLM Live tourne."; }
-            else if ("wait".equals(bs.state)) { col = Ui.WARN; t = "Actif, en attente de session"; s = "La veille lance une session dans les 10 minutes."; }
-            else { col = Ui.BAD; t = "Le bot est arrêté"; s = bs.hardOff ? "Variable GLM_LIVE = off." : "Désactivé dans glm/config.json."; }
-            dot.set(col, !"off".equals(bs.state));
+            if ("on".equals(bs.state)) { t = "Le bot est en marche"; s = "Une session GLM Live tourne."; }
+            else if ("wait".equals(bs.state)) { t = "Actif, en attente de session"; s = "La veille lance une session dans les 10 minutes."; }
+            else { t = "Le bot est arrêté"; s = bs.hardOff ? "Variable GLM_LIVE = off." : "Désactivé dans glm/config.json."; }
+            dot.set("off".equals(bs.state) ? Ui.HSUB : Ui.BG, !"off".equals(bs.state));
             r.addView(dot);
             LinearLayout tx = Ui.vbox(host);
-            tx.addView(Ui.tv(host, t, 18, Ui.INK, true));
-            tx.addView(Ui.tv(host, s, 13, Ui.MUTED, false));
+            tx.addView(Ui.tv(host, t, 18, Ui.BG, true));
+            tx.addView(Ui.tv(host, s, 13, Ui.HSUB, false));
             r.addView(tx, new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
             Ui.Btn g = Ui.btn(host, "Gérer", 0, 0);
             g.setMinimumHeight(Ui.dp(38));
@@ -70,9 +69,9 @@ final class HomeScreen extends Screen {
         List<Api.Cmt> un = Api.unanswered(Api.flatComments(d.cm), pid);
         host.badge(un.size());
         LinearLayout k1 = Ui.kpi(host, R.drawable.ic_users, Ui.ACCENT, "Abonnés");
-        LinearLayout k2 = Ui.kpi(host, R.drawable.ic_heart, Ui.ACCENT2, "J'aime la Page");
-        LinearLayout k3 = Ui.kpi(host, R.drawable.ic_chat, Ui.WARN, "Sans réponse");
-        LinearLayout k4 = Ui.kpi(host, R.drawable.ic_clock, Ui.OK, "En attente");
+        LinearLayout k2 = Ui.kpi(host, R.drawable.ic_heart, Ui.MUTED, "J'aime la Page");
+        LinearLayout k3 = Ui.kpi(host, R.drawable.ic_chat, Ui.MUTED, "Sans réponse");
+        LinearLayout k4 = Ui.kpi(host, R.drawable.ic_clock, Ui.ACCENT, "En attente");
         fill(k1, page.has("followers_count") ? page.optDouble("followers_count") : -1);
         fill(k2, page.has("fan_count") ? page.optDouble("fan_count") : -1);
         fill(k3, d.cm == null ? -1 : un.size());

@@ -24,6 +24,29 @@ final class SettingsScreen extends Screen {
     @Override
     void build() {
         expiry = Api.exp;
+
+        LinearLayout app = section("Apparence");
+        LinearLayout seg = new LinearLayout(host);
+        seg.setOrientation(LinearLayout.HORIZONTAL);
+        seg.setBackground(Ui.roundS(Ui.CARD, Ui.LINE, 14));
+        seg.setPadding(Ui.dp(4), Ui.dp(4), Ui.dp(4), Ui.dp(4));
+        String[] modes = {"Clair", "Sombre"};
+        for (int i = 0; i < 2; i++) {
+            final boolean dark = i == 1;
+            boolean on = Ui.DARK == dark;
+            TextView t = Ui.tv(host, modes[i], 14, on ? Ui.BG : Ui.MUTED, true);
+            t.setGravity(android.view.Gravity.CENTER);
+            t.setPadding(0, Ui.dp(10), 0, Ui.dp(10));
+            t.setBackground(Ui.round(on ? Ui.ACCENT : 0x00000000, 11));
+            t.setOnClickListener(v -> {
+                if (Ui.DARK != dark) host.switchTheme(dark);
+            });
+            seg.addView(t, new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
+        }
+        app.addView(seg);
+        app.addView(Ui.tv(host, "Clair : fond blanc, texte noir. Sombre : fond noir, texte blanc. Aucune autre couleur.", 12.5f, Ui.MUTED, false), Ui.lp(Ui.MATCH, Ui.WRAP, 0, 10, 0, 0));
+        add(app);
+
         LinearLayout c = section("Connexion GitHub");
         c.addView(Ui.label(host, "Jeton (chiffré dans le coffre du téléphone)"));
         final EditText tok = Ui.edit(host, "github_pat_...", Api.tok, 1);

@@ -62,13 +62,13 @@ final class ToggleView extends View {
     protected void onDraw(Canvas canvas) {
         float w = getWidth(), h = getHeight();
         float tt = Math.max(0f, Math.min(1f, t));
-        paint.setColor((Integer) ev.evaluate(tt, 0xFF2A3556, Ui.OK));
+        paint.setColor((Integer) ev.evaluate(tt, Ui.SOFT, Ui.OK));
         rect.set(0, 0, w, h);
         canvas.drawRoundRect(rect, h / 2f, h / 2f, paint);
         float pad = Ui.dp(3);
         float r = h / 2f - pad;
         float x = pad + r + t * (w - 2 * (pad + r));
-        paint.setColor(0xFFFFFFFF);
+        paint.setColor(Ui.BG);
         canvas.drawCircle(x, h / 2f, r, paint);
     }
 }

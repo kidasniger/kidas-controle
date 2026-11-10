@@ -116,19 +116,18 @@ final class BotScreen extends Screen {
     }
 
     private View heroCard(final Api.Bot bs, final Data d) {
-        LinearLayout card = Ui.card(host);
+        LinearLayout card = Ui.hero(host);
         LinearLayout r = Ui.hbox(host);
         PulseDot dot = new PulseDot(host);
         String t;
-        int col;
-        if ("on".equals(bs.state)) { col = Ui.OK; t = "En marche"; }
-        else if ("wait".equals(bs.state)) { col = Ui.WARN; t = "Actif, en attente de session"; }
-        else { col = Ui.BAD; t = "Arrêté"; }
-        dot.set(col, !"off".equals(bs.state));
+        if ("on".equals(bs.state)) { t = "En marche"; }
+        else if ("wait".equals(bs.state)) { t = "Actif, en attente de session"; }
+        else { t = "Arrêté"; }
+        dot.set("off".equals(bs.state) ? Ui.HSUB : Ui.BG, !"off".equals(bs.state));
         r.addView(dot);
         LinearLayout tx = Ui.vbox(host);
-        tx.addView(Ui.tv(host, t, 19, Ui.INK, true));
-        tx.addView(Ui.tv(host, bs.running > 0 ? bs.running + " session(s) GLM Live en cours" : "Aucune session en cours", 13, Ui.MUTED, false));
+        tx.addView(Ui.tv(host, t, 19, Ui.BG, true));
+        tx.addView(Ui.tv(host, bs.running > 0 ? bs.running + " session(s) GLM Live en cours" : "Aucune session en cours", 13, Ui.HSUB, false));
         r.addView(tx, new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
         card.addView(r);
 
