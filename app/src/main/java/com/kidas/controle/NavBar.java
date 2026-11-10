@@ -21,7 +21,7 @@ final class NavBar extends FrameLayout {
     private final TextView[] labels;
     private final TextView[] badges;
     private int sel = -1;
-    private int itemW = 0;
+    private int lastW = -1;
 
     NavBar(Context c, String[] names, int[] res, int fabIndex, final Runnable fabAction, final OnTab cb) {
         super(c);
@@ -31,6 +31,9 @@ final class NavBar extends FrameLayout {
         labels = new TextView[n];
         badges = new TextView[n];
         setBackgroundColor(Ui.CARD);
+        /* le bouton + dépasse de la barre : aucun parent ne doit le rogner */
+        setClipChildren(false);
+        setClipToPadding(false);
 
         pill = new View(c);
         pill.setBackground(Ui.round(Ui.ACCENT, 16));
@@ -39,13 +42,17 @@ final class NavBar extends FrameLayout {
 
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setClipChildren(false);
+        row.setClipToPadding(false);
         addView(row, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
 
         for (int i = 0; i < n; i++) {
             final int idx = i;
             FrameLayout item = new FrameLayout(c);
+            item.setClipChildren(false);
+            item.setClipToPadding(false);
             if (i == fabIndex) {
-                /* bouton central surélevé */
+                /* bouton central surélevé, centré dans son slot */
                 FrameLayout fl = new FrameLayout(c);
                 ImageView plus = new ImageView(c);
                 plus.setImageResource(R.drawable.ic_plus);
@@ -58,7 +65,8 @@ final class NavBar extends FrameLayout {
                 Ui.press(plus);
                 plus.setOnClickListener(v -> { if (fabAction != null) fabAction.run(); });
                 fl.addView(plus, new FrameLayout.LayoutParams(Ui.dp(54), Ui.dp(54), Gravity.CENTER));
-                FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+                FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP,
+                        Gravity.CENTER_HORIZONTAL | Gravity.TOP);
                 fp.topMargin = -Ui.dp(14);
                 item.addView(fl, fp);
             } else {
@@ -103,10 +111,14 @@ final class NavBar extends FrameLayout {
         addView(line, new FrameLayout.LayoutParams(Ui.MATCH, 1));
     }
 
+    /** Géométrie de la pilule recalculée à chaque passage de layout : jamais périmée. */
     @Override
-    protected void onSizeChanged(int w, int h, int ow, int oh) {
-        super.onSizeChanged(w, h, ow, oh);
-        itemW = w / n;
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        super.onLayout(changed, l, t, r, b);
+        int w = r - l;
+        if (w <= 0 || w == lastW) return;
+        lastW = w;
+        int itemW = w / n;
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(Math.max(1, itemW - Ui.dp(14)), Ui.dp(46));
         p.topMargin = Ui.dp(8);
         pill.setLayoutParams(p);
@@ -121,7 +133,7 @@ final class NavBar extends FrameLayout {
             if (icons[k] == null) continue;
             boolean on = k == i;
             int ic = on ? Ui.BG : Ui.MUTED;
-            int tx = on ? Ui.INK : Ui.MUTED;
+            int tx = on ? Ui.BG : Ui.MUTED; /* libellé blanc sur la pilule noire */
             icons[k].setColorFilter(ic, PorterDuff.Mode.SRC_IN);
             labels[k].setTextColor(tx);
             icons[k].animate().scaleX(on ? 1.12f : 1f).scaleY(on ? 1.12f : 1f).setDuration(220).start();
@@ -130,7 +142,7 @@ final class NavBar extends FrameLayout {
             pill.animate().alpha(0f).setDuration(180).start();
             return;
         }
-        float x = i * itemW + Ui.dp(7);
+        float x = i * Math.max(1, getWidth() / n) + Ui.dp(7);
         if (old < 0) {
             pill.setTranslationX(x);
             pill.animate().alpha(1f).setDuration(220).start();
