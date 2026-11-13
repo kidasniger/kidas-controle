@@ -42,4 +42,11 @@ class Native {
 
   static Future<void> install(String path) =>
       ch.invokeMethod('install', {'path': path});
+
+  /// Son court de 40 ms côté natif (ToneGenerator). Silencieux en cas d'échec.
+  static Future<void> beep(String kind) async {
+    try {
+      await ch.invokeMethod('beep', {'kind': kind});
+    } catch (_) {/* pas de son si le pont est indisponible */}
+  }
 }

@@ -20,7 +20,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -29,14 +29,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Installer le SDK Android
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.50.0'
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Analyse statique
+        run: flutter analyze --no-pub --no-fatal-infos
+
+      - name: Tests
+        run: flutter test
 
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
 
       - name: Clé de signature
         env:
@@ -45,13 +53,13 @@ jobs:
           test -n "$KEYSTORE_B64" || { echo "Secret KEYSTORE_B64 manquant."; exit 1; }
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
 
-      - name: Compiler
+      - name: Compiler l'APK signé
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: kidas
           KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: gradle --no-daemon assembleRelease
+        run: flutter build apk --release
 
       - name: Publier l'APK
         env:
@@ -59,7 +67,7 @@ jobs:
           NOTES: ${{ github.event.inputs.notes }}
           OBLIGATOIRE: ${{ github.event.inputs.obligatoire }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk kidas-controle.apk
+          cp build/app/outputs/flutter-apk/app-release.apk kidas-controle.apk
           sha256sum kidas-controle.apk | cut -d' ' -f1 > kidas-controle.apk.sha256
           if [ -z "$NOTES" ]; then NOTES="$(git log -1 --pretty=%B)"; fi
           if [ "$OBLIGATOIRE" = "true" ]; then NOTES="[obligatoire] $NOTES"; fi

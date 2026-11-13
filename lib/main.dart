@@ -3,29 +3,29 @@ import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
 import 'core/api.dart';
+import 'core/fx.dart';
 import 'core/native.dart';
 import 'core/palette.dart';
 import 'core/store.dart';
 import 'core/updater.dart';
+import 'screens/bot.dart';
 import 'screens/home.dart';
-import 'screens/placeholders.dart';
+import 'screens/media.dart';
+import 'screens/messages.dart';
+import 'screens/comments.dart';
+import 'screens/publish.dart';
+import 'screens/rules.dart';
+import 'screens/settings.dart';
+import 'screens/stats.dart';
+import 'screens/welcome.dart';
 import 'ui/common.dart';
+import 'ui/shell.dart';
 import 'widgets/pill_nav.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const KidasApp());
-}
-
-/// Bus d'état partagé : badges + mode de thème.
-class Bus {
-  static final ValueNotifier<int> notifs = ValueNotifier(0);
-  static final ValueNotifier<ThemeMode> themeMode =
-      ValueNotifier(ThemeMode.system);
-
-  static ThemeMode parse(String s) =>
-      s == 'light' ? ThemeMode.light : s == 'dark' ? ThemeMode.dark : ThemeMode.system;
 }
 
 class KidasApp extends StatelessWidget {
@@ -56,6 +56,14 @@ class KidasApp extends StatelessWidget {
           .copyWith(primary: c.accent, secondary: c.accent, surface: c.card),
       splashFactory: NoSplash.splashFactory,
       dividerTheme: DividerThemeData(color: c.line, thickness: 1),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: c.card,
+        surfaceTintColor: Colors.transparent,
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: c.card,
+        dialBackgroundColor: c.soft,
+      ),
     );
   }
 }
@@ -98,6 +106,7 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
     }
     Api.loadCfg(all);
     Bus.themeMode.value = Bus.parse(all['theme_mode'] ?? 'system');
+    await Fx.init();
     if (!mounted) return;
     setState(() => _ready = true);
     await _checkLock();
@@ -140,9 +149,11 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
       _bgAt = null;
       if (bg != null &&
           _ready &&
+          !Bus.external &&
           DateTime.now().difference(bg) > const Duration(seconds: 60)) {
         _checkLock();
       }
+      Bus.external = false;
     }
   }
 
@@ -155,7 +166,9 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
     try {
       if ((await Store.get('upd_auto')) == '0') return;
       final info = await Updater.check();
-      if (info.available && mounted) _showUpdate(info);
+      if (info.available && mounted) {
+        await kUpdateFlow(context, info);
+      }
     } catch (_) {
       // silencieux
     }
@@ -169,51 +182,6 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
       kToast(context, msg == null || msg.isEmpty
           ? 'Installation interrompue.'
           : msg, bad: true);
-    }
-  }
-
-  void _showUpdate(UpdInfo info) {
-    final c = context.p;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: !info.mandatory,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: c.card,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: c.line)),
-        title: Text(info.mandatory ? 'Mise à jour obligatoire' : 'Mise à jour disponible',
-            style: T.title(c)),
-        content: Text(
-            info.notes.isEmpty
-                ? 'Version ${info.name} disponible.'
-                : 'Version ${info.name}\n\n${info.notes}',
-            style: T.body(c)),
-        actions: [
-          if (!info.mandatory)
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('Plus tard', style: TextStyle(color: c.muted))),
-          TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _doUpdate(info);
-              },
-              child: Text('Installer',
-                  style: TextStyle(
-                      color: c.accent, fontWeight: FontWeight.w800))),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _doUpdate(UpdInfo info) async {
-    try {
-      kToast(context, 'Téléchargement...');
-      final f = await Updater.download(info, null);
-      await Updater.install(f);
-    } catch (e) {
-      if (mounted) kToast(context, e.toString(), bad: true);
     }
   }
 
@@ -271,8 +239,9 @@ class _ShellState extends State<Shell> {
 
   static const _titles = [
     'Centre de contrôle',
-    'Assistant',
-    'Commentaires',
+    'Pilotage du bot',
+    '',
+    'Réponses et règles',
     'Statistiques',
   ];
 
@@ -280,11 +249,11 @@ class _ShellState extends State<Shell> {
     if (Api.tok.isEmpty) return const WelcomeScreen();
     switch (t) {
       case 1:
-        return const PlaceholderScreen('Bot', sub: 'Assistant GLM');
+        return const BotScreen();
       case 3:
-        return const PlaceholderScreen('Réponses', sub: 'Commentaires & avis');
+        return const RulesScreen();
       case 4:
-        return const PlaceholderScreen('Stats', sub: 'Statistiques');
+        return const StatsScreen();
       default:
         return HomeScreen(gen: _gen);
     }
@@ -305,20 +274,23 @@ class _ShellState extends State<Shell> {
       _sheetRow(context, Icons.messenger_outline, 'Messages', 3),
     ]);
     if (t == null || !mounted) return;
+    final screens = <int, Widget Function()>{
+      0: () => const SubPage('Publier', child: PublishScreen()),
+      1: () => const SubPage('Médias', child: MediaScreen()),
+      2: () => const SubPage('Avis (commentaires)', child: CommentsScreen()),
+      3: () => const SubPage('Messages', child: MessagesScreen()),
+    };
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => switch (t) {
-        0 => const PlaceholderScreen('Publier', sub: 'Créer une publication'),
-        1 => const PlaceholderScreen('Médias', sub: 'Bibliothèque média'),
-        2 => const PlaceholderScreen('Avis', sub: 'Commentaires'),
-        _ => const PlaceholderScreen('Messages', sub: 'Messenger'),
-      },
-    ));
+        builder: (_) => screens[t]!()));
   }
 
   Widget _sheetRow(BuildContext ctx, IconData ic, String label, int v) {
     final c = ctx.p;
     return Press(
-      onTap: () => Navigator.pop(ctx, v),
+      onTap: () {
+        Fx.tick();
+        Navigator.pop(ctx, v);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(children: [
@@ -370,12 +342,15 @@ class _ShellState extends State<Shell> {
           ]),
         ),
         bottomNavigationBar: ValueListenableBuilder<int>(
-          valueListenable: Bus.notifs,
-          builder: (_, badge, _) => PillNav(
-            sel: _tab,
-            badge: badge,
-            onTab: (i) => setState(() => _tab = i),
-            onFab: _openPlus,
+          valueListenable: Bus.avis,
+          builder: (_, a, __) => ValueListenableBuilder<int>(
+            valueListenable: Bus.msg,
+            builder: (_, m, ___) => PillNav(
+              sel: _tab,
+              badge: a + m,
+              onTab: (i) => setState(() => _tab = i),
+              onFab: _openPlus,
+            ),
           ),
         ),
       ),
@@ -403,7 +378,7 @@ class _ShellState extends State<Shell> {
               Text('KI DAS',
                   style: TextStyle(
                       fontSize: 15.5, fontWeight: FontWeight.w900,
-                      letterSpacing: .05 * 15.5, color: c.ink)),
+                      letterSpacing: .8, color: c.ink)),
               Text(_titles[_tab],
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -411,11 +386,16 @@ class _ShellState extends State<Shell> {
                       fontSize: 10.5, color: c.muted, height: 1.2)),
             ]),
           ),
-          _ibtn(c, Icons.refresh_outlined, _refresh),
+          _ibtn(c, Icons.refresh_outlined, () {
+            HapticFeedback.selectionClick();
+            _refresh();
+          }),
           const SizedBox(width: 6),
           _ibtn(c, Icons.settings_outlined, () {
+            Fx.tick();
             Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const PlaceholderScreen('Réglages', sub: 'Réglages')));
+                builder: (_) =>
+                    const SubPage('Réglages', child: SettingsScreen())));
           }),
         ]),
         const SizedBox(height: 10),

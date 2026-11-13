@@ -1,5 +1,7 @@
 package com.kidas.controle
 
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageInfo
@@ -52,9 +54,33 @@ class MainActivity : FlutterFragmentActivity() {
                 } catch (e: Exception) {
                     result.error("install", e.message ?: "Installation impossible.", null)
                 }
+                "beep" -> try {
+                    beep(call.argument<String>("kind") ?: "tick")
+                    result.success(null)
+                } catch (e: Exception) {
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
+    }
+
+    /* ---------- son court (40 ms), hors thread UI ---------- */
+
+    private fun beep(kind: String) {
+        Thread {
+            try {
+                val tg = ToneGenerator(AudioManager.STREAM_MUSIC, 50)
+                val tone = when (kind) {
+                    "ok" -> ToneGenerator.TONE_PROP_BEEP
+                    "err" -> ToneGenerator.TONE_PROP_NACK
+                    else -> ToneGenerator.TONE_PROP_BEEP2
+                }
+                tg.startTone(tone, 40)
+                Thread.sleep(250)
+                tg.release()
+            } catch (e: Exception) { /* son facultatif */ }
+        }.start()
     }
 
     /* ---------- version installée ---------- */
