@@ -65,7 +65,7 @@ class _PillNavState extends State<PillNav>
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(.38),
+              color: Colors.black.withValues(alpha: .38),
               blurRadius: 32,
               offset: const Offset(0, 12)),
         ],
@@ -132,7 +132,7 @@ class _PillNavState extends State<PillNav>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                      color: c.accent.withOpacity(.45),
+                      color: c.accent.withValues(alpha: .45),
                       blurRadius: 16,
                       offset: const Offset(0, 6)),
                 ],

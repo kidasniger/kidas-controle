@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/api.dart';
 import '../core/palette.dart';
 import '../ui/common.dart';
 

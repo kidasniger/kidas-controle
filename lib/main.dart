@@ -34,7 +34,7 @@ class KidasApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: Bus.themeMode,
-      builder: (_, mode, __) => MaterialApp(
+      builder: (_, mode, _) => MaterialApp(
         title: 'KI DAS Contrôle',
         debugShowCheckedModeBanner: false,
         themeMode: mode,
@@ -280,11 +280,11 @@ class _ShellState extends State<Shell> {
     if (Api.tok.isEmpty) return const WelcomeScreen();
     switch (t) {
       case 1:
-        return const PlaceholderScreen('Bot', 'Assistant GLM');
+        return const PlaceholderScreen('Bot', sub: 'Assistant GLM');
       case 3:
-        return const PlaceholderScreen('Réponses', 'Commentaires & avis');
+        return const PlaceholderScreen('Réponses', sub: 'Commentaires & avis');
       case 4:
-        return const PlaceholderScreen('Stats', 'Statistiques');
+        return const PlaceholderScreen('Stats', sub: 'Statistiques');
       default:
         return HomeScreen(gen: _gen);
     }
@@ -307,10 +307,10 @@ class _ShellState extends State<Shell> {
     if (t == null || !mounted) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => switch (t) {
-        0 => const PlaceholderScreen('Publier', 'Créer une publication'),
-        1 => const PlaceholderScreen('Médias', 'Bibliothèque média'),
-        2 => const PlaceholderScreen('Avis', 'Commentaires'),
-        _ => const PlaceholderScreen('Messages', 'Messenger'),
+        0 => const PlaceholderScreen('Publier', sub: 'Créer une publication'),
+        1 => const PlaceholderScreen('Médias', sub: 'Bibliothèque média'),
+        2 => const PlaceholderScreen('Avis', sub: 'Commentaires'),
+        _ => const PlaceholderScreen('Messages', sub: 'Messenger'),
       },
     ));
   }
@@ -371,7 +371,7 @@ class _ShellState extends State<Shell> {
         ),
         bottomNavigationBar: ValueListenableBuilder<int>(
           valueListenable: Bus.notifs,
-          builder: (_, badge, __) => PillNav(
+          builder: (_, badge, _) => PillNav(
             sel: _tab,
             badge: badge,
             onTab: (i) => setState(() => _tab = i),
@@ -415,7 +415,7 @@ class _ShellState extends State<Shell> {
           const SizedBox(width: 6),
           _ibtn(c, Icons.settings_outlined, () {
             Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const PlaceholderScreen('Réglages', 'Réglages')));
+                builder: (_) => const PlaceholderScreen('Réglages', sub: 'Réglages')));
           }),
         ]),
         const SizedBox(height: 10),

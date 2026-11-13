@@ -446,7 +446,7 @@ class Api {
     b.live = live;
     b.auto = auto;
     final v = wfByFile(wl, 'glm-veille.yml');
-    b.veille = v == null ? null : v.os('state');
+    b.veille = v?.os('state');
     final rr = asObj(jsonDecodeSafe(runsRaw));
     for (final r in asArr(rr['workflow_runs'])) {
       if (asObj(r).os('status') != 'completed') b.running++;

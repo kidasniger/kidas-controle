@@ -44,6 +44,6 @@ class Store {
 
   static Future<Map<String, String>> all() async {
     await _ensure();
-    return (await _s.readAll()) ?? <String, String>{};
+    return await _s.readAll();
   }
 }

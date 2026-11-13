@@ -50,7 +50,7 @@ class Updater {
   /* ---------- vérification ---------- */
 
   static Future<UpdInfo> check() async {
-    final j = asObj(jsonDecodeSafe(await _latest()));
+    final j = asObj(Api.jsonDecodeSafe(await _latest()));
     final tag = j.os('tag_name');
     final m = RegExp(r'(\d+)\s*$').firstMatch(tag);
     if (m == null || m.group(1)!.length > 9) {
@@ -67,7 +67,7 @@ class Updater {
     i.notes = body
         .replaceAll(RegExp(r'\[obligatoire\]', caseSensitive: false), '')
         .trim();
-    for (final a in j.oa('assets')) {
+    for (final a in asArr(j['assets'])) {
       final am = asObj(a);
       final n = am.os('name');
       if (n == _apkName) {

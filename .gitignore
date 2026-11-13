@@ -4,3 +4,13 @@ local.properties
 *.jks
 *.keystore
 .idea/
+
+# Flutter
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+android/local.properties
+android/.gradle/
+build/

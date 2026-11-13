@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'core/palette.dart';
+import '../core/palette.dart';
 
 /* ---------- presse : échelle + ressort + haptique ---------- */
 
@@ -279,13 +279,13 @@ void kToast(BuildContext context, String msg, {bool bad = false}) {
 
 /* ---------- feuille du bas (menu +, réponses) ---------- */
 
-Future<T?> kSheet<T>(BuildContext context,
+Future<S?> kSheet<S>(BuildContext context,
     {required String title, required List<Widget> children}) {
   final c = context.p;
-  return showModalBottomSheet<T>(
+  return showModalBottomSheet<S>(
     context: context,
     backgroundColor: c.card,
-    barrierColor: Colors.black.withOpacity(.45),
+    barrierColor: Colors.black.withValues(alpha: .45),
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (ctx) => SafeArea(

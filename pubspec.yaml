@@ -1,0 +1,32 @@
+name: kidas_controle
+description: "Application de contrôle du bot Facebook (KI DAS) — port Flutter."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # API GitHub + intégrité
+  http: ^1.2.0
+  crypto: ^3.0.3
+  # stockage chiffré (Keystore) + verrouillage biométrique
+  flutter_secure_storage: ^9.2.2
+  local_auth: ^2.3.0
+  # répertoires de cache (téléchargement des mises à jour)
+  path_provider: ^2.1.4
+  # sélection de médias (upload dans media/)
+  file_picker: ^8.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
