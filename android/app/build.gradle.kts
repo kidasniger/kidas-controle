@@ -40,7 +40,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 + ressource shrinking : activés par le plugin Flutter 3.50
+            // (ne PAS redéfinir isMinifyEnabled ici, sinon AGP 9.3 refuse
+            //  « Removing unused resources requires unused code shrinking »).
             signingConfig = if (System.getenv("KEYSTORE_PATH") != null) {
                 signingConfigs.getByName("release")
             } else {
