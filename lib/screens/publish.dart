@@ -50,11 +50,8 @@ class _PublishScreenState extends State<PublishScreen> {
   /* ---------- envoi ---------- */
 
   Future<void> _upload() async {
-    final res = await FilePicker.platform
-        .pickFiles(type: FileType.any, allowMultiple: false);
-    if (res == null || res.files.isEmpty) return;
-    final f = res.files.first;
-    if (f.path == null) return;
+    final f = await FilePicker.pickFile(type: FileType.any);
+    if (f == null || f.path == null) return;
     setState(() => _status = 'Envoi...');
     try {
       final path = await Api.upload(File(f.path!), f.name,

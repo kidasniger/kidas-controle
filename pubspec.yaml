@@ -16,12 +16,12 @@ dependencies:
   http: ^1.2.0
   crypto: ^3.0.3
   # stockage chiffré (Keystore) + verrouillage biométrique
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^11.2.0
   local_auth: ^2.3.0
   # répertoires de cache (téléchargement des mises à jour)
   path_provider: ^2.1.4
   # sélection de médias (upload dans media/)
-  file_picker: ^8.1.2
+  file_picker: ^13.3.3
 
 dev_dependencies:
   flutter_test:

@@ -49,10 +49,8 @@ class _MediaScreenState extends State<MediaScreen> {
   }
 
   Future<void> _uploadAll() async {
-    final res = await FilePicker.platform
-        .pickFiles(type: FileType.any, allowMultiple: true);
-    if (res == null || res.files.isEmpty) return;
-    final picked = res.files;
+    final picked = await FilePicker.pickFiles(type: FileType.any);
+    if (picked.isEmpty) return;
     setState(() => _status = 'Préparation...');
     var ok = 0;
     String last = '';
