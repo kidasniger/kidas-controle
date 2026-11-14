@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/fx.dart';
 import '../core/palette.dart';
+import '../core/util.dart';
 import '../ui/common.dart';
+import '../ui/forms.dart';
+import '../ui/shell.dart' show Bus, SubPage;
+import 'ai_chat.dart';
+import 'comments.dart';
+import 'messages.dart';
+import 'publish.dart';
 
-/// Accueil réel : héros état du bot + files d'attente + dernières exécutions.
-/// (Version fondation — fidélité fine à la maquette à la passe UI.)
+/// Accueil « façon page Facebook » : la barre de rédaction, les chiffres de
+/// la Page, ce qui attend une réponse et le fil de tout ce qui s'est passé
+/// (avis + messages). Aucune exécution technique ici — c'est dans l'onglet Bot.
 class HomeScreen extends StatefulWidget {
   final int gen;
   const HomeScreen({super.key, this.gen = 0});
@@ -13,18 +22,21 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  Dash? _dash;
-  bool _busy = true;
-  String? _err;
+/// Un élément du fil : un avis (commentaire) ou une conversation Messenger.
+class _FeedItem {
+  final String kind; // 'avis' ou 'msg'
+  final int ts;
+  final Cmt? cmt;
+  final Map<String, dynamic>? conv;
+  const _FeedItem(this.kind, this.ts, {this.cmt, this.conv});
+}
 
-  static const _queueNames = {
-    'queue': 'File standard',
-    'avance': 'File avancée',
-    'replies': 'Réponses',
-    'actions': 'Actions',
-    'messages': 'Messages',
-  };
+class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? _st, _cm, _inbox;
+  int _avisTodo = 0, _msgTodo = 0;
+  String _upd = '';
+  final List<String> _errs = [];
+  bool _busy = true;
 
   @override
   void initState() {
@@ -39,195 +51,389 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _busy = true;
-      _err = null;
-    });
-    try {
-      final d = await Api.dash();
-      if (!mounted) return;
-      setState(() {
-        _dash = d;
-        _busy = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _err = Api.hint(e);
-        _busy = false;
-      });
+    setState(() => _busy = _st == null && _cm == null);
+    final errs = <String>[];
+    Map<String, dynamic>? st, cm, inbox;
+    await Future.wait<dynamic>([
+      Api.readObj('inbox/statistiques.json')
+          .then((v) { st = v; })
+          .catchError((Object e) { errs.add(Api.hint(e)); }),
+      Api.readObj('inbox/commentaires.json')
+          .then((v) { cm = v; })
+          .catchError((Object e) { errs.add(Api.hint(e)); }),
+      Api.readObj('inbox/messages.json')
+          .then((v) { inbox = v; })
+          .catchError((Object e) {}),
+    ]);
+    if (!mounted) return;
+    final fcm = cm, finbox = inbox;
+    var avisTodo = 0, msgTodo = 0;
+    var upd = '';
+    if (fcm != null) {
+      final pid = asObj(fcm['page']).os('id');
+      avisTodo = Api.unanswered(Api.flatComments(fcm), pid).length;
+      final u = fcm.os('updated');
+      if (u.isNotEmpty) upd = u;
     }
+    if (finbox != null) {
+      for (final conv in Api.conversations(finbox)) {
+        if (Api.needsReply(conv)) msgTodo++;
+      }
+      final u = finbox.os('updated');
+      if (u.compareTo(upd) > 0) upd = u;
+    }
+    setState(() {
+      _st = st;
+      _cm = cm;
+      _inbox = inbox;
+      _avisTodo = avisTodo;
+      _msgTodo = msgTodo;
+      _upd = upd;
+      _errs
+        ..clear()
+        ..addAll(errs);
+      _busy = false;
+    });
+    Bus.setAvis(avisTodo);
+    Bus.setMsg(msgTodo);
+  }
+
+  void _go(String title, Widget screen) {
+    Fx.tick();
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SubPage(title, child: screen)));
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    if (_busy && _dash == null) {
+    if (_busy && _st == null && _cm == null) {
       return ListView(
         padding: const EdgeInsets.all(12),
-        children: [
-          const KSkeleton(120),
-          const SizedBox(height: 12),
-          const KSkeleton(80),
-          const SizedBox(height: 12),
-          const KSkeleton(200),
+        children: const [
+          KSkeleton(64),
+          SizedBox(height: 12),
+          KSkeleton(90),
+          SizedBox(height: 12),
+          KSkeleton(110),
         ],
       );
     }
-    if (_err != null && _dash == null) {
-      return ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          KCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Connexion impossible', style: T.strong(c)),
-              const SizedBox(height: 6),
-              Text(_err!, style: T.caption(c)),
-              const SizedBox(height: 12),
-              KBtn('Réessayer', onTap: _load),
-            ]),
-          ),
-        ],
-      );
-    }
-    final d = _dash!;
-    final bot = d.bot;
-    final pendingSum = d.pending.fold<int>(0, (a, b) => a + b);
-    final state = bot?.state ?? 'wait';
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
       children: [
-        /* héros inversé : état du bot */
-        KHero(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              PulseDot(state == 'on' ? c.accent : c.heroMut),
-              const SizedBox(width: 8),
-              Text(
-                state == 'on'
-                    ? 'Bot en route'
-                    : state == 'off'
-                        ? "À l'arrêt"
-                        : 'En attente',
-                style: T.hero(c),
-              ),
-            ]),
-            const SizedBox(height: 6),
-            Text(
-              bot == null
-                  ? 'État indisponible'
-                  : '${bot.running} exécution(s) en cours'
-                    '${bot.veille == null ? '' : ' · veille ${bot.veille}'}',
-              style: T.body(c).copyWith(color: c.heroMut),
-            ),
-          ]),
-        ),
+        _composer(c),
         const SizedBox(height: 12),
-        /* KPI : à traiter */
-        Row(children: [
-          Expanded(
-            child: KCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('À TRAITER', style: T.micro(c)),
-                const SizedBox(height: 4),
-                Text('$pendingSum', style: T.kpi(c)),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: KCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('EXÉCUTIONS', style: T.micro(c)),
-                const SizedBox(height: 4),
-                Text('${bot?.running ?? 0}', style: T.kpi(c)),
-              ]),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 16),
-        /* files d'attente */
-        KSection('Files d\'attente'),
-        for (var i = 0; i < Api.queues.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Press(
-              onTap: () {},
-              child: KCard(
-                pad: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(children: [
-                  IconBox(Icons.list_alt_outlined),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(_queueNames[Api.queues[i]] ?? Api.queues[i],
-                          style: T.strong(c)),
-                      Text('${d.total[i]} élément(s)',
-                          style: T.caption(c)),
-                    ]),
-                  ),
-                  if (d.pending[i] > 0) KBadge('${d.pending[i]} à faire'),
-                ]),
-              ),
-            ),
-          ),
+        _kpiStrip(c),
+        if (_avisTodo > 0 || _msgTodo > 0) ...[
+          const SizedBox(height: 12),
+          _todoCard(c),
+        ],
+        for (final e in _errs.take(2))
+          Padding(padding: const EdgeInsets.only(top: 8), child: ErrBox(e)),
         const SizedBox(height: 8),
-        /* dernières exécutions */
-        KSection('Dernières exécutions'),
-        if (d.runs.isEmpty)
-          KEmpty(Icons.terminal_outlined, 'Aucune exécution récente'),
-        for (final r in d.runs.take(5))
+        KSection('Fil de la Page'),
+        if (_upd.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _runCard(context, c, asObj(r)),
+            child: Text('Données du dernier cycle du bot : ${rel(_upd)}',
+                style: T.caption(c)),
           ),
-        if (d.errs.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(d.errs.join('\n'),
-                style: T.caption(c).copyWith(color: c.muted)),
-          ),
+        ..._feed(c),
+        const SizedBox(height: 4),
+        Text("Les exécutions du bot sont dans l'onglet Bot.",
+            style: T.caption(c)),
       ],
     );
   }
 
-  Widget _runCard(BuildContext ctx, Palette c, Map<String, dynamic> r) {
-    final status = r.os('status');
-    final concl = r.os('conclusion');
-    final running = status != 'completed';
-    final label = running
-        ? 'En cours'
-        : concl == 'success'
-            ? 'Terminé'
-            : concl.isEmpty
-                ? status
-                : concl;
-    return KCard(
-      pad: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(children: [
-        IconBox(running ? Icons.bolt_outlined : Icons.check_circle_outline),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(r.os('name').isEmpty ? 'Workflow' : r.os('name'),
-                style: T.strong(c), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(_ago(r.os('created_at')), style: T.caption(c)),
-          ]),
+  /* ---------- barre de rédaction, comme sur Facebook ---------- */
+
+  Widget _composer(Palette c) {
+    return Row(children: [
+      Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+            color: c.ink, borderRadius: BorderRadius.circular(13)),
+        child: Center(
+            child: Text('K',
+                style: TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w900, color: c.bg))),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Press(
+          onTap: () => _go('Publier', const PublishScreen()),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.centerLeft,
+            decoration: BoxDecoration(
+                color: c.card,
+                borderRadius: BorderRadius.circular(21),
+                border: Border.all(color: c.line)),
+            child: Text('Quoi de neuf, Aboubacar ?',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13.5, color: c.muted)),
+          ),
         ),
-        KBadge(label,
-            bg: running ? c.accent : null,
-            fg: running ? c.onAccent : null),
+      ),
+      const SizedBox(width: 10),
+      Press(
+        onTap: () => _go('Assistant IA', const AiChatScreen()),
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+              color: c.accent, shape: BoxShape.circle),
+          child: Icon(Icons.auto_awesome_outlined,
+              size: 20, color: c.onAccent),
+        ),
+      ),
+    ]);
+  }
+
+  /* ---------- chiffres de la Page ---------- */
+
+  Widget _kpiStrip(Palette c) {
+    final ms = Api.metrics(_st);
+    Metric? find(String key) {
+      for (final m in ms) {
+        if (m.key == key) return m;
+      }
+      return null;
+    }
+
+    return KCard(
+      child: Row(children: [
+        _kpi(c, 'ABONNÉS', find('page_follows')),
+        _vdiv(c),
+        _kpi(c, 'VISITES', find('page_views_total')),
+        _vdiv(c),
+        _kpi(c, 'INTERACTIONS', find('page_post_engagements')),
       ]),
     );
   }
 
-  String _ago(String iso) {
-    final t = DateTime.tryParse(iso);
-    if (t == null) return '';
-    final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return "à l'instant";
-    if (d.inMinutes < 60) return 'il y a ${d.inMinutes} min';
-    if (d.inHours < 24) return 'il y a ${d.inHours} h';
-    return 'il y a ${d.inDays} j';
+  Widget _kpi(Palette c, String label, Metric? m) {
+    final v = m == null || m.vals.isEmpty ? null : m.vals.last;
+    var delta = '';
+    if (m != null && m.vals.length >= 2) {
+      delta = pct(m.vals.last, m.vals[m.vals.length - 2]);
+    }
+    return Expanded(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: T.micro(c)),
+        const SizedBox(height: 3),
+        Text(v == null ? '—' : nf(v), style: T.kpi(c)),
+        SizedBox(
+          height: 15,
+          child: delta.isEmpty
+              ? null
+              : Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(delta,
+                      style: T.caption(c)
+                          .copyWith(fontWeight: FontWeight.w800))),
+        ),
+      ]),
+    );
+  }
+
+  Widget _vdiv(Palette c) {
+    return Container(
+      width: 1,
+      height: 34,
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      color: c.line,
+    );
+  }
+
+  /* ---------- ce qui attend une réponse ---------- */
+
+  Widget _todoCard(Palette c) {
+    return KCard(
+      pad: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: Column(children: [
+        if (_avisTodo > 0)
+          _todoRow(c, Icons.chat_bubble_outline, '${nf(_avisTodo)} avis sans réponse',
+              'Répondre', () => _go('Avis (commentaires)', const CommentsScreen())),
+        if (_avisTodo > 0 && _msgTodo > 0) const KDivider(),
+        if (_msgTodo > 0)
+          _todoRow(c, Icons.messenger_outline, '${nf(_msgTodo)} messages à traiter',
+              'Ouvrir', () => _go('Messages', const MessagesScreen())),
+      ]),
+    );
+  }
+
+  Widget _todoRow(Palette c, IconData ic, String label, String action,
+      VoidCallback onTap) {
+    return Press(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(children: [
+          IconBox(ic),
+          const SizedBox(width: 11),
+          Expanded(
+              child: Text(label,
+                  style: T.strong(c).copyWith(fontSize: 14.5))),
+          KBadge(action),
+        ]),
+      ),
+    );
+  }
+
+  /* ---------- fil unifié : avis + messages ---------- */
+
+  List<Widget> _feed(Palette c) {
+    final cm = _cm, inbox = _inbox;
+    final unIds = Set<Cmt>.identity();
+    final items = <_FeedItem>[];
+    if (cm != null) {
+      final all = Api.flatComments(cm);
+      final pid = asObj(cm['page']).os('id');
+      unIds.addAll(Api.unanswered(all, pid));
+      for (final x in all.take(30)) {
+        items.add(_FeedItem('avis', iso(x.c.os('created_time')), cmt: x));
+      }
+    }
+    if (inbox != null) {
+      for (final conv in Api.conversations(inbox).take(12)) {
+        items.add(_FeedItem('msg', iso(conv.os('updated_time')), conv: conv));
+      }
+    }
+    items.removeWhere((x) => x.ts <= 0);
+    items.sort((a, b) => b.ts.compareTo(a.ts));
+    if (items.isEmpty) {
+      return [
+        KEmpty(Icons.feed_outlined, 'Rien encore sur la Page.',
+            sub: "Lance « Surveiller » dans l'onglet Bot pour remplir le fil."),
+      ];
+    }
+    const maxItems = 18;
+    final out = <Widget>[];
+    for (final it in items.take(maxItems)) {
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: it.kind == 'avis'
+            ? _avisCard(c, it.cmt!, unIds.contains(it.cmt))
+            : _msgCard(c, it.conv!),
+      ));
+    }
+    if (items.length > maxItems) {
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(
+            '${items.length - maxItems} éléments plus anciens dans Avis et Messages.',
+            style: T.caption(c)),
+      ));
+    }
+    return out;
+  }
+
+  Widget _avisCard(Palette c, Cmt x, bool unanswered) {
+    final from = asObj(x.c['from']);
+    final name = from.os('name').isEmpty ? 'Abonné' : from.os('name');
+    final msg = x.c.os('message');
+    var postTxt = x.post.os('message');
+    if (postTxt.isEmpty) postTxt = x.post.os('story');
+    final snippet = postTxt.isEmpty
+        ? 'une publication'
+        : (postTxt.length > 70 ? '${postTxt.substring(0, 70)}…' : postTxt);
+    return Press(
+      onTap: () => _go('Avis (commentaires)', const CommentsScreen()),
+      child: KCard(
+        pad: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            _avatar(c, name),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: T.strong(c)),
+                    Text(rel(x.c.os('created_time')), style: T.caption(c)),
+                  ]),
+            ),
+            if (unanswered) const KBadge('Sans réponse'),
+          ]),
+          if (msg.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(msg, style: T.body(c).copyWith(fontSize: 14)),
+          ],
+          const SizedBox(height: 6),
+          Text('Sur : $snippet',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: T.caption(c)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _msgCard(Palette c, Map<String, dynamic> conv) {
+    final who = asObj(conv['with']);
+    final name = who.os('name').isEmpty ? 'Contact' : who.os('name');
+    final ms = conv['messages'] is List
+        ? conv['messages'] as List<dynamic>
+        : const <dynamic>[];
+    var preview = 'Conversation ouverte';
+    var prefix = '';
+    if (ms.isNotEmpty) {
+      final last = asObj(ms.last);
+      final t = last.os('message');
+      preview = t.isEmpty ? '(pièce jointe)' : t;
+      prefix = last.ob('from_page', false) ? 'Toi : ' : '';
+    }
+    return Press(
+      onTap: () => _go('Messages', const MessagesScreen()),
+      child: KCard(
+        pad: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            _avatar(c, name),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: T.strong(c)),
+                    Text(rel(conv.os('updated_time')), style: T.caption(c)),
+                  ]),
+            ),
+            if (Api.needsReply(conv)) const KBadge('À répondre'),
+          ]),
+          const SizedBox(height: 8),
+          Text(prefix + preview,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: T.body(c).copyWith(fontSize: 14)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _avatar(Palette c, String name) {
+    final letter = name.isEmpty ? '?' : name[0].toUpperCase();
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+          color: c.soft, shape: BoxShape.circle, border: Border.all(color: c.line)),
+      child: Text(letter,
+          style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w800, color: c.ink)),
+    );
   }
 }

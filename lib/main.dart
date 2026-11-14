@@ -8,6 +8,7 @@ import 'core/native.dart';
 import 'core/palette.dart';
 import 'core/store.dart';
 import 'core/updater.dart';
+import 'screens/ai_chat.dart';
 import 'screens/bot.dart';
 import 'screens/home.dart';
 import 'screens/media.dart';
@@ -238,7 +239,7 @@ class _ShellState extends State<Shell> {
   int _gen = 0; // incrémente au bouton rafraîchir
 
   static const _titles = [
-    'Centre de contrôle',
+    'La Page en direct',
     'Pilotage du bot',
     '',
     'Réponses et règles',
@@ -268,6 +269,7 @@ class _ShellState extends State<Shell> {
 
   Future<void> _openPlus() async {
     final t = await kSheet<int>(context, title: 'Actions rapides', children: [
+      _sheetRow(context, Icons.auto_awesome_outlined, "Discuter avec l'IA", 4),
       _sheetRow(context, Icons.edit_outlined, 'Publier', 0),
       _sheetRow(context, Icons.image_outlined, 'Médias', 1),
       _sheetRow(context, Icons.chat_bubble_outline, 'Avis (commentaires)', 2),
@@ -275,6 +277,7 @@ class _ShellState extends State<Shell> {
     ]);
     if (t == null || !mounted) return;
     final screens = <int, Widget Function()>{
+      4: () => const SubPage('Assistant IA', child: AiChatScreen()),
       0: () => const SubPage('Publier', child: PublishScreen()),
       1: () => const SubPage('Médias', child: MediaScreen()),
       2: () => const SubPage('Avis (commentaires)', child: CommentsScreen()),
