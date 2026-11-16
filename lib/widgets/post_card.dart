@@ -313,8 +313,8 @@ class _PostCardState extends State<PostCard> {
         const Spacer(),
         Text(
           [
-            if (n > 0) '$n commentaires',
-            if (partages > 0) '$partages partages',
+            if (n > 0) (n == 1 ? '1 commentaire' : '$n commentaires'),
+            if (partages > 0) (partages == 1 ? '1 partage' : '$partages partages'),
           ].join(' · '),
           style: T.caption(c).copyWith(fontSize: 12, fontFeatures: tf),
         ),

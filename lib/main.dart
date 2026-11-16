@@ -443,7 +443,7 @@ class _ShellState extends State<Shell> {
             const SizedBox(height: 2),
             Row(children: [
               if (_pageUser.isNotEmpty) ...[
-                Text('$_pageUser',
+                Text('@$_pageUser',
                     style: TextStyle(fontSize: 11.5, color: c.muted,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(width: 6),
