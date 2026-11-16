@@ -42,10 +42,10 @@ class Boite {
     Map<String, dynamic>? cm, inbox;
     await Future.wait<dynamic>([
       Api.readObj('inbox/commentaires.json')
-          .then((v) => cm = v)
+          .then((v) { cm = v; })
           .catchError((Object e) {}),
       Api.readObj('inbox/messages.json')
-          .then((v) => inbox = v)
+          .then((v) { inbox = v; })
           .catchError((Object e) {}),
     ]);
     final out = <UnifiedItem>[];
