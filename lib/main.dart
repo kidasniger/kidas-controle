@@ -241,6 +241,7 @@ class _ShellState extends State<Shell> {
   int _tab = 0;
   int _gen = 0; // incrémente au bouton rafraîchir
   String _pageName = 'KI DAS';
+  String _pageUser = '';
 
   @override
   void initState() {
@@ -264,7 +265,11 @@ class _ShellState extends State<Shell> {
       // sans données, l'en-tête garde la marque KI DAS
     }
     if (pg != null && mounted) {
-      setState(() => _pageName = pg!.os('name'));
+      final page = pg!;
+      setState(() {
+        _pageName = page.os('name');
+        _pageUser = page.os('username');
+      });
     }
   }
 
@@ -437,6 +442,12 @@ class _ShellState extends State<Shell> {
             ]),
             const SizedBox(height: 2),
             Row(children: [
+              if (_pageUser.isNotEmpty) ...[
+                Text('$_pageUser',
+                    style: TextStyle(fontSize: 11.5, color: c.muted,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(width: 6),
+              ],
               PulseDot(c.accent, size: 5),
               const SizedBox(width: 5),
               Text('En ligne',

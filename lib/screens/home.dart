@@ -305,7 +305,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   border: Border.all(color: c.line)),
               child: Row(children: [
                 Expanded(
-                  child: Text('Quoi de neuf, Aboubacar ?',
+                  child: Text(
+                      'Quoi de neuf, ${_pageName == "Ma Page" ? "Aboubacar" : _pageName} ?',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 13, color: c.muted)),

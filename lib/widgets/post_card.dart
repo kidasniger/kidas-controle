@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -211,21 +213,34 @@ class _PostCardState extends State<PostCard> {
     final reste = tous.length - affiches.length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      padding: const EdgeInsets.only(top: 12, bottom: 6),
       decoration: BoxDecoration(
           color: c.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: c.line)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _tete(c),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _tete(c),
+        ),
         if (_postTexte.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(_postTexte, style: T.body(c).copyWith(fontSize: 13.5)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(_postTexte, style: T.body(c).copyWith(fontSize: 13.5)),
+          ),
         ],
+        _imagePost(c),
         _compteur(c, tous),
-        _actions(c, tous.length),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: _actions(c, tous.length),
+        ),
         if (tous.isNotEmpty || attendants.isNotEmpty)
-          _commentairesBloc(c, affiches, attendants, reste),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: _commentairesBloc(c, affiches, attendants, reste),
+          ),
       ]),
     );
   }
@@ -267,34 +282,42 @@ class _PostCardState extends State<PostCard> {
     ]);
   }
 
-  /* ----- compteur : nombre réel de commentaires ----- */
+  /* ----- image de la publication (masquée si absente ou cassée) ----- */
+
+  Widget _imagePost(Palette c) {
+    final url = widget.post.os('full_picture');
+    if (url.isEmpty) return const SizedBox.shrink();
+    return _PostImage(url: url, c: c);
+  }
+
+  /* ----- compteur : J'aime à gauche, commentaires · partages à droite ----- */
 
   Widget _compteur(Palette c, List<Cmt> tous) {
-    if (tous.isEmpty) return const SizedBox(height: 4);
     var n = 0;
     for (final x in tous) {
       n += 1 + (x.c.oi('comment_count'));
     }
+    final likes = widget.post.oi('likes_total');
+    final partages = widget.post.oi('shares_total');
+    const tf = [FontFeature.tabularFigures()];
+    if (likes <= 0 && n == 0 && partages <= 0) return const SizedBox(height: 4);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+      padding: const EdgeInsets.fromLTRB(16, 9, 16, 7),
       child: Row(children: [
-        Icon(Icons.chat_bubble_outline, size: 13, color: c.muted),
-        const SizedBox(width: 6),
-        Text('$n commentaires',
-            style: T.caption(c).copyWith(fontSize: 11.5)),
+        if (likes > 0) ...[
+          Icon(Icons.thumb_up_alt_outlined, size: 14, color: c.muted),
+          const SizedBox(width: 6),
+          Text(nf(likes),
+              style: T.caption(c).copyWith(fontSize: 12, fontFeatures: tf)),
+        ],
         const Spacer(),
-        if (widget.post.os('permalink_url').isNotEmpty)
-          Press(
-            onTap: () async {
-              await Clipboard.setData(ClipboardData(
-                  text: widget.post.os('permalink_url')));
-              if (mounted) kToast(context, 'Lien copié.');
-            },
-            child: Text('Voir sur Facebook',
-                style: T.caption(c).copyWith(
-                    fontSize: 11.5, fontWeight: FontWeight.w700,
-                    color: c.muted)),
-          ),
+        Text(
+          [
+            if (n > 0) '$n commentaires',
+            if (partages > 0) '$partages partages',
+          ].join(' · '),
+          style: T.caption(c).copyWith(fontSize: 12, fontFeatures: tf),
+        ),
       ]),
     );
   }
@@ -463,6 +486,11 @@ class _PostCardState extends State<PostCard> {
                     style: TextStyle(fontSize: 11,
                         fontWeight: FontWeight.w800, color: c.muted)),
               ),
+              if (x.c.oi('like_count') > 0) ...[
+                const SizedBox(width: 12),
+                Text("${x.c.oi('like_count')} J'aime",
+                    style: T.caption(c).copyWith(fontSize: 11)),
+              ],
               if (x.c.oi('comment_count') > 0) ...[
                 const SizedBox(width: 12),
                 Text('${x.c.oi('comment_count')} réponses',
@@ -739,4 +767,47 @@ Widget etiquette(Palette c, String label, bool urgent) {
             fontWeight: FontWeight.w800,
             color: urgent ? c.accent : c.muted)),
   );
+}
+
+/// Image d'une publication : pleine largeur, bords à bords comme la
+/// maquette (250 px de haut maximum), fond discret pendant le chargement,
+/// retirée entièrement si le lien est cassé. Rien ne s'affiche si la
+/// publication n'a pas d'image.
+class _PostImage extends StatefulWidget {
+  final String url;
+  final Palette c;
+  const _PostImage({required this.url, required this.c});
+  @override
+  State<_PostImage> createState() => _PostImageState();
+}
+
+class _PostImageState extends State<_PostImage> {
+  bool _ko = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_ko) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      width: double.infinity,
+      height: 250,
+      color: widget.c.soft,
+      child: Image.network(
+        widget.url,
+        fit: BoxFit.cover,
+        loadingBuilder: (_, child, prog) =>
+            prog != null &&
+                    prog.expectedTotalBytes != null &&
+                    prog.cumulativeBytesLoaded < prog.expectedTotalBytes!
+                ? const SizedBox.expand()
+                : child,
+        errorBuilder: (_, __, ___) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _ko = true);
+          });
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
 }
