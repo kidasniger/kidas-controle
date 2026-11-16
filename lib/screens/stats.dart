@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
@@ -153,6 +154,12 @@ class _StatsScreenState extends State<StatsScreen> {
           _bars(c, ms),
         ],
         const SizedBox(height: 16),
+        /* semaine vs semaine */
+        if (ms.isNotEmpty) _semaine(c, ms),
+        const SizedBox(height: 16),
+        /* top publications */
+        if (d.cm != null) _topPosts(c, d),
+        const SizedBox(height: 16),
         /* anneaux */
         _rings(c, d, all, un),
         const SizedBox(height: 16),
@@ -261,6 +268,101 @@ class _StatsScreenState extends State<StatsScreen> {
             ]),
           ),
       ]),
+    ]);
+  }
+
+  /* ---------- semaine vs semaine ---------- */
+
+  Widget _semaine(Palette c, List<Metric> ms) {
+    // les trois métriques les plus parlantes pour un comparatif hebdo
+    final cles = ['page_post_engagements', 'page_views_total', 'page_follows'];
+    final picks = <Metric>[];
+    for (final k in cles) {
+      for (final m in ms) {
+        if (m.key == k && m.vals.length >= 8) picks.add(m);
+      }
+    }
+    if (picks.isEmpty) return const SizedBox();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      KSection('Semaine vs semaine'),
+      KCard(
+        child: Column(children: [
+          for (var i = 0; i < picks.length; i++) ...[
+            if (i > 0) const KDivider(),
+            _semaineRow(c, picks[i]),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 4),
+      Text('Somme des 7 derniers jours contre les 7 jours précédents.',
+          style: T.caption(c)),
+    ]);
+  }
+
+  Widget _semaineRow(Palette c, Metric m) {
+    final recent = sommeRecente(m.vals, 7);
+    final avant = sommePrecedente(m.vals, 7);
+    return Row(children: [
+      Expanded(child: Text(m.name, style: T.body(c))),
+      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Text(nf(recent), style: T.strong(c).copyWith(fontSize: 15)),
+        Text('7 derniers j', style: T.caption(c).copyWith(fontSize: 10.5)),
+      ]),
+      const SizedBox(width: 10),
+      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Text(nf(avant), style: T.body(c)),
+        Text('7 avant', style: T.caption(c).copyWith(fontSize: 10.5)),
+      ]),
+      const SizedBox(width: 10),
+      SizedBox(
+        width: 74,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: avant <= 0
+              ? Text('—', style: T.caption(c))
+              : deltaChip(context, recent, avant),
+        ),
+      ),
+    ]);
+  }
+
+  /* ---------- top publications ---------- */
+
+  Widget _topPosts(Palette c, Dash d) {
+    final posts = topPosts(d.cm, max: 5);
+    if (posts.isEmpty) return const SizedBox();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      KSection('Top publications'),
+      KCard(
+        child: Column(children: [
+          for (var i = 0; i < posts.length; i++) ...[
+            if (i > 0) const KDivider(),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(
+                width: 26,
+                child: Text('${i + 1}',
+                    style: T.kpi(c).copyWith(
+                        fontSize: 16,
+                        color: i == 0 ? c.accent : c.muted)),
+              ),
+              Expanded(
+                child: Text(posts[i].texte,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: T.body(c)),
+              ),
+              const SizedBox(width: 8),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(nf(posts[i].commentaires), style: T.strong(c)),
+                Text('commentaires', style: T.caption(c).copyWith(fontSize: 10.5)),
+              ]),
+            ]),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 4),
+      Text('Classement par commentaires reçus, d\'après le dernier audit.',
+          style: T.caption(c)),
     ]);
   }
 

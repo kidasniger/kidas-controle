@@ -39,6 +39,12 @@ class _AiChatScreenState extends State<AiChatScreen> {
     'Que disent les derniers commentaires ?',
   ];
 
+  static const _rapides = [
+    ('Résumer les avis', 'Résume en 3 points les avis et commentaires qui attendent une réponse.'),
+    ('Écrire un post', 'Écris un post Facebook engageant pour la Page, en français, 3 à 5 phrases.'),
+    ('Répondre à un client', 'Propose une réponse polie et utile au commentaire le plus récent sans réponse.'),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -187,8 +193,48 @@ class _AiChatScreenState extends State<AiChatScreen> {
           ],
         ),
       ),
+      _rapidesBar(c),
       _input(c),
     ]);
+  }
+
+  /* ---------- actions rapides (avis, post, client) ---------- */
+
+  Widget _rapidesBar(Palette c) {
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        shrinkWrap: true,
+        children: [
+          for (final (label, prompt) in _rapides)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Press(
+                onTap: _thinking ? null : () => _send(prompt),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                      color: c.card,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: c.line)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.auto_awesome, size: 13, color: c.accent),
+                    const SizedBox(width: 6),
+                    Text(label,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: c.ink)),
+                  ]),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   /* ---------- état vide + suggestions ---------- */
