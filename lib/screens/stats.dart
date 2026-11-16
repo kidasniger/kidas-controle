@@ -22,6 +22,7 @@ class _StatsScreenState extends State<StatsScreen> {
   bool _busy = true;
   String? _err;
   int _sel = 0;
+  int _periode = 30; // fenêtre des courbes : 7 ou 30 jours
 
   @override
   void initState() {
@@ -78,7 +79,20 @@ class _StatsScreenState extends State<StatsScreen> {
     }
     final c = context.p;
     final d = _d!;
-    final ms = Api.metrics(d.st);
+    final msToutes = Api.metrics(d.st);
+    // fenêtre 7 j / 30 j : on coupe les séries par la fin
+    List<double> coupe(List<double> v) =>
+        v.length > _periode ? v.sublist(v.length - _periode) : v;
+    List<String?>? coupeLabs(List<String?>? l) =>
+        l == null || l.length <= _periode ? l : l.sublist(l.length - _periode);
+    final ms = <Metric>[
+      for (final m in msToutes)
+        Metric()
+          ..key = m.key
+          ..name = m.name
+          ..vals = coupe(m.vals)
+          ..labs = coupeLabs(m.labs),
+    ];
     Map<String, dynamic> pg = <String, dynamic>{};
     final p1 = d.st?['page'];
     if (p1 is Map<String, dynamic>) pg = p1;
@@ -100,6 +114,43 @@ class _StatsScreenState extends State<StatsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
       children: [
+        /* en-tête de page (maquette) */
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+          child: Row(children: [
+            Text('Stats',
+                style: TextStyle(
+                    fontSize: 26, fontWeight: FontWeight.w800,
+                    letterSpacing: -.5, color: c.ink)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                  color: c.soft, borderRadius: BorderRadius.circular(99)),
+              child: Row(children: [
+                for (final (v, label) in const [(7, '7 j'), (30, '30 j')])
+                  Press(
+                    onTap: () {
+                      Fx.tick();
+                      setState(() => _periode = v);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                          color: _periode == v ? c.accent : Colors.transparent,
+                          borderRadius: BorderRadius.circular(99)),
+                      child: Text(label,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _periode == v ? c.onAccent : c.muted)),
+                    ),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
         /* héros : abonnés */
         KHero(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

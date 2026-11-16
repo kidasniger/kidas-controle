@@ -172,6 +172,39 @@ class Moderation {
           _rm(o, 'urgents', id);
         }
       }, v ? 'Modération : marqué urgent' : 'Modération : plus urgent');
+
+  /* ----- détection locale (prix, colère, spam) — comme la maquette ----- */
+
+  static final RegExp _prix = RegExp(
+      r'prix|combien|tarif|co[uû]te|co[uû]t|cfa|frs?|f\s?cfa|\bfc\b|argent|paye|payer|acheter|commande',
+      caseSensitive: false);
+  static final RegExp _colere = RegExp(
+      r'abusez|abus|arnaque|escro|nul|pourri|honte|scandale|inadmissible|trop cher|trop chere|colere|fâché|fache',
+      caseSensitive: false);
+  static final RegExp _spam = RegExp(
+      r'gagnez|gagner de l|argent rapide|gagner argent|privé (aujourdhui|hui)|abonnez[- ]?vous|lien bio|crypto|trading|gagnerfast|work from home',
+      caseSensitive: false);
+  static final RegExp _majuscules = RegExp(r'[A-ZÀ-Ý]{4,}');
+
+  /// Étiquette locale d'un commentaire, ou null si rien de spécial.
+  static String? detecteTag(String texte) {
+    final t = texte.trim();
+    if (t.isEmpty) return null;
+    if (_spam.hasMatch(t)) return 'Spam';
+    if (_prix.hasMatch(t)) return 'Urgent · Prix';
+    if (_colere.hasMatch(t)) return 'Colère';
+    final mots = t.split(RegExp(r'\s+'));
+    if (mots.length >= 3 &&
+        mots.where((m) => _majuscules.hasMatch(m)).length >= mots.length / 2) {
+      return 'Spam';
+    }
+    return null;
+  }
+
+  /// Vrai si le commentaire doit être traité en premier (manuel ou local).
+  bool estUrgent(String id, String texte) =>
+      urgents.contains(id) ||
+      (detecteTag(texte)?.startsWith('Urgent') ?? false);
 }
 
 /* ---------- journal d'activité ---------- */

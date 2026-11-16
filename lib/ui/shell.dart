@@ -5,12 +5,15 @@ import '../core/palette.dart';
 import '../core/updater.dart';
 import 'common.dart';
 
-/// Bus d'état partagé : badges, thème, marqueur d'écran externe.
+/// Bus d'état partagé : badges, thème, recherche de l'accueil, marqueur
+/// d'écran externe.
 class Bus {
   static final ValueNotifier<int> avis = ValueNotifier(0);
   static final ValueNotifier<int> msg = ValueNotifier(0);
   static final ValueNotifier<ThemeMode> themeMode =
       ValueNotifier(ThemeMode.system);
+  static final ValueNotifier<bool> chercher = ValueNotifier(false);
+  static final ValueNotifier<String> requete = ValueNotifier('');
   static bool external = false;
 
   static void setAvis(int n) => avis.value = n;

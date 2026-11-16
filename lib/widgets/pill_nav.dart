@@ -26,12 +26,12 @@ class PillNav extends StatefulWidget {
 
 class _PillNavState extends State<PillNav>
     with SingleTickerProviderStateMixin {
-  static const _labels = ['Accueil', 'Boîte', '', 'IA', 'Stats'];
+  static const _labels = ['Accueil', 'Boîte', '', 'Bot', 'Stats'];
   static const _icons = [
     Icons.home_outlined,
     Icons.inbox_outlined,
     Icons.add,
-    Icons.auto_awesome_outlined,
+    Icons.smart_toy_outlined,
     Icons.bar_chart_outlined,
   ];
   static const _badgeIdx = 1;

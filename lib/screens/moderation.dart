@@ -7,12 +7,14 @@ import '../core/palette.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
 import '../ui/forms.dart';
+import '../widgets/post_card.dart' show avatarInitiales, etiquette;
+import 'boite.dart' show ReplyBoxAvis;
 
-/// Modération : file de commentaires à traiter. Balayer vers la droite
-/// approuve, vers la gauche cache (avec « Annuler » dans le bandeau).
-/// Le bouton « Tout approuver » traite le lot d'un coup. Chaque décision
-/// est tracée dans le journal et gardée dans moderation/moderation.json,
-/// donc elle survit aux cycles du bot.
+/// Modération, comme sur la maquette : file des commentaires à traiter,
+/// tri par urgence (détection locale : prix, colère, spam, doublons),
+/// contexte de publication visible au-dessus de chaque bulle, réponse
+/// en un tap, balayage droite = approuver / gauche = cacher avec
+/// « Annuler », et traitement par lot.
 class ModerationScreen extends StatefulWidget {
   const ModerationScreen({super.key});
   @override
@@ -22,8 +24,8 @@ class ModerationScreen extends StatefulWidget {
 class _ModerationScreenState extends State<ModerationScreen> {
   List<UnifiedItem> _avis = const [];
   Moderation _mod = const Moderation();
-  int _vue = 0; // 0 à traiter, 1 approuvés, 2 cachés
   bool _busy = true;
+  final Set<String> _reponseOuverte = {};
 
   @override
   void initState() {
@@ -51,7 +53,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
 
   /* ---------- actions ---------- */
 
-  Future<void> _approuve(UnifiedItem it, {bool annulable = true}) async {
+  Future<void> _approuve(UnifiedItem it) async {
     await Moderation.approuve(it.id);
     await Journal.ajoute('moderation', 'Commentaire approuvé',
         detail: 'de ${it.name}');
@@ -60,7 +62,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
         traite: {..._mod.traite, it.id},
         cache: _mod.cache.where((x) => x != it.id).toSet(),
         urgents: _mod.urgents.where((x) => x != it.id).toSet()));
-    if (annulable) _bandeau('Approuvé : ${it.name}', () async {
+    _bandeau('Approuvé : ${it.name}', () async {
       await Moderation.reouvre(it.id);
       await Journal.ajoute('moderation', 'Approbation annulée',
           detail: 'de ${it.name}');
@@ -87,13 +89,14 @@ class _ModerationScreenState extends State<ModerationScreen> {
 
   void _bandeau(String msg, Future<void> Function() annuler) {
     Fx.medium();
+    final c = context.p;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(msg,
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
-                color: context.p.bg)),
-        backgroundColor: context.p.ink,
+                color: c.bg)),
+        backgroundColor: c.ink,
         behavior: SnackBarBehavior.floating,
         elevation: 6,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -101,15 +104,14 @@ class _ModerationScreenState extends State<ModerationScreen> {
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: 'Annuler',
-          textColor: context.p.accent,
+          textColor: c.accent,
           onPressed: () => Future.microtask(annuler),
         ),
       ));
   }
 
   Future<void> _toutApprouver() async {
-    final liste = _avis.where((x) =>
-        !_mod.traite.contains(x.id) && !_mod.cache.contains(x.id)).toList();
+    final liste = _aTraiter;
     if (liste.isEmpty) return;
     if (!await kConfirm(context,
         'Approuver les ${liste.length} commentaires en attente ?')) {
@@ -122,6 +124,21 @@ class _ModerationScreenState extends State<ModerationScreen> {
         'Lot approuvé (${liste.length} commentaires)');
     await _load();
     if (mounted) kToast(context, '${liste.length} commentaires approuvés.');
+  }
+
+  /* ---------- sélections ---------- */
+
+  List<UnifiedItem> get _aTraiter {
+    final liste = _avis
+        .where((x) => !_mod.traite.contains(x.id) && !_mod.cache.contains(x.id))
+        .toList()
+      ..sort((a, b) {
+        final ua = _mod.estUrgent(a.id, a.text) ? 0 : 1;
+        final ub = _mod.estUrgent(b.id, b.text) ? 0 : 1;
+        if (ua != ub) return ua - ub;
+        return b.ts.compareTo(a.ts);
+      });
+    return liste;
   }
 
   /* ---------- rendu ---------- */
@@ -138,108 +155,197 @@ class _ModerationScreenState extends State<ModerationScreen> {
         KSkeleton(90),
       ]);
     }
-    final aTraiter = _avis
-        .where((x) => !_mod.traite.contains(x.id) && !_mod.cache.contains(x.id))
-        .toList()
-      ..sort((a, b) {
-        final ua = _mod.urgents.contains(a.id) ? 0 : 1;
-        final ub = _mod.urgents.contains(b.id) ? 0 : 1;
-        if (ua != ub) return ua - ub;
-        return b.ts.compareTo(a.ts);
-      });
-    final approuves = _avis.where((x) => _mod.traite.contains(x.id)).toList();
-    final caches = _avis.where((x) => _mod.cache.contains(x.id)).toList();
-    final urgents = aTraiter.where((x) => _mod.urgents.contains(x.id)).length;
-    final list = switch (_vue) {
-      1 => approuves,
-      2 => caches,
-      _ => aTraiter,
-    };
+    final liste = _aTraiter;
+    final urgents = liste.where((x) => _mod.estUrgent(x.id, x.text)).length;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-      children: [
-        Row(children: [
-          Expanded(child: _counter(c, '${aTraiter.length}', 'à traiter')),
-          Expanded(child: _counter(c, '${urgents}', 'urgents')),
-          Expanded(child: _counter(c, '${caches.length}', 'cachés')),
-        ]),
-        const SizedBox(height: 12),
-        KSegmented(
-          ['À traiter', 'Approuvés', 'Cachés'],
-          sel: _vue,
-          onSelect: (i) {
-            Fx.tick();
-            setState(() => _vue = i);
-          },
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Balaye une carte vers la droite pour approuver, vers la gauche pour cacher.',
-          style: T.caption(c),
-        ),
-        const SizedBox(height: 12),
-        if (_vue == 0 && aTraiter.length > 1) ...[
-          SizedBox(
-            width: double.infinity,
-            child: ActionBtn('Tout approuver (${aTraiter.length})',
-                icon: Icons.done_all_outlined, job: _toutApprouver),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (list.isEmpty)
-          KEmpty(Icons.verified_outlined,
-              _vue == 0 ? 'Rien à modérer : tout est traité.' : 'Aucun commentaire ici.')
-        else
-          for (final it in list.take(60))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _vue == 0
-                  ? _SwipeCarte(
-                      item: it,
-                      urgent: _mod.urgents.contains(it.id),
-                      onApprouve: () => _approuve(it),
-                      onCache: () => _cache(it),
-                    )
-                  : _CarteFixe(item: it, estCache: _vue == 2),
+    return Stack(children: [
+      ListView(
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 110),
+        children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: Text(
+                "Tri par urgence — détection locale : prix, colère, spam, doublons. "
+                'Balaye à droite pour approuver, à gauche pour cacher.',
+                style: T.caption(c),
+              ),
             ),
-      ],
-    );
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+              decoration: BoxDecoration(
+                  color: liste.isEmpty ? c.soft : c.accent,
+                  borderRadius: BorderRadius.circular(99)),
+              child: Text('${liste.length}',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: liste.isEmpty ? c.muted : c.onAccent)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          if (urgents > 0)
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                  color: c.soft, borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                Text('MODÉRATION — ', style: T.microInk(c)),
+                Text('$urgents URGENT(S) D\u2019ABORD',
+                    style: T.micro(c).copyWith(color: c.ink)),
+              ]),
+            ),
+          if (liste.isEmpty)
+            KEmpty(Icons.verified_outlined,
+                'Rien à modérer : tout est traité.',
+                sub: 'Les nouveaux commentaires arrivent à chaque cycle du bot.')
+          else
+            for (final it in liste.take(60))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _carte(c, it),
+              ),
+        ],
+      ),
+      /* barre de traitement par lot */
+      if (liste.length > 1)
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 16,
+          child: ActionBtn(
+            'Tout approuver (${liste.length})',
+            icon: Icons.done_all_outlined,
+            height: 50,
+            job: _toutApprouver,
+          ),
+        ),
+    ]);
   }
 
-  Widget _counter(Palette c, String v, String label) {
-    return KCard(
-      pad: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  /* ---------- carte de modération : contexte + bulle + actions ---------- */
+
+  Widget _carte(Palette c, UnifiedItem it) {
+    final urgent = _mod.estUrgent(it.id, it.text);
+    final tag = Moderation.detecteTag(it.text);
+    final ouverte = _reponseOuverte.contains(it.id);
+    final postTxt = it.postTxt;
+
+    Widget coeur = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: c.line)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(v, style: T.kpi(c).copyWith(fontSize: 19)),
-        const SizedBox(height: 2),
-        Text(label.toUpperCase(), style: T.micro(c)),
+        /* contexte : la publication concernée */
+        if (postTxt.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Row(children: [
+              Container(
+                width: 34,
+                height: 26,
+                decoration: BoxDecoration(
+                    color: c.soft,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(color: c.line)),
+                child: Icon(Icons.image_outlined, size: 13, color: c.muted),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  '« ${postTxt.length > 70 ? '${postTxt.substring(0, 70)}…' : postTxt} »',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: T.caption(c).copyWith(fontSize: 11),
+                ),
+              ),
+            ]),
+          ),
+        /* la bulle du commentaire */
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          avatarInitiales(c, it.name, 30),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                  color: c.soft,
+                  borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(14),
+                      bottomLeft: Radius.circular(14),
+                      bottomRight: Radius.circular(14))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text(it.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: T.strong(c).copyWith(fontSize: 12.5)),
+                  ),
+                  if (tag != null) etiquette(c, tag, urgent),
+                ]),
+                if (it.text.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(it.text,
+                      style: T.body(c).copyWith(fontSize: 13)),
+                ],
+                const SizedBox(height: 4),
+                Text(relMs(it.ts),
+                    style: T.caption(c).copyWith(fontSize: 11)),
+                const SizedBox(height: 7),
+                Row(children: [
+                  Expanded(
+                    child: _cAct(c, Icons.reply_outlined, 'Répondre', true,
+                        () {
+                      Fx.tick();
+                      setState(() => ouverte
+                          ? _reponseOuverte.remove(it.id)
+                          : _reponseOuverte.add(it.id));
+                    }),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _cAct(c, Icons.check_outlined, 'Approuver', false,
+                        () => _approuve(it)),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _cAct(c, Icons.visibility_off_outlined, 'Masquer',
+                        false, () => _cache(it)),
+                  ),
+                ]),
+                if (ouverte) ...[
+                  const SizedBox(height: 8),
+                  ReplyBoxAvis(cid: it.id, nom: it.name, onSent: _load),
+                ],
+              ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          'Cacher retire le commentaire des écrans de l\'application ; '
+          'le commentaire reste visible sur Facebook.',
+          style: T.caption(c).copyWith(fontSize: 10.5),
+        ),
       ]),
     );
-  }
-}
 
-/* ---------- carte balayable (à traiter) ---------- */
-
-class _SwipeCarte extends StatelessWidget {
-  final UnifiedItem item;
-  final bool urgent;
-  final Future<void> Function() onApprouve;
-  final Future<void> Function() onCache;
-  const _SwipeCarte({required this.item, required this.urgent,
-      required this.onApprouve, required this.onCache});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.p;
     return Dismissible(
-      key: ValueKey('mod-${item.id}'),
+      key: ValueKey('mod-${it.id}'),
       background: Container(
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 16),
         decoration: BoxDecoration(
             color: c.soft,
-            borderRadius: BorderRadius.circular(KDim.rCard),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: c.line)),
         child: Row(children: [
           Icon(Icons.check_circle_outline, size: 22, color: c.ink),
@@ -253,8 +359,7 @@ class _SwipeCarte extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
-            color: c.ink,
-            borderRadius: BorderRadius.circular(KDim.rCard)),
+            color: c.ink, borderRadius: BorderRadius.circular(16)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text('CACHER',
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900,
@@ -266,83 +371,40 @@ class _SwipeCarte extends StatelessWidget {
       onDismissed: (_) {},
       confirmDismiss: (d) async {
         if (d == DismissDirection.startToEnd) {
-          await onApprouve();
+          await _approuve(it);
         } else {
-          await onCache();
+          await _cache(it);
         }
         return true;
       },
-      child: _CarteFixe(item: item, urgent: urgent, actions: true),
+      child: coeur,
     );
   }
-}
 
-/* ---------- carte fixe (contenu d'un commentaire) ---------- */
-
-class _CarteFixe extends StatelessWidget {
-  final UnifiedItem item;
-  final bool urgent;
-  final bool estCache;
-  final bool actions;
-  const _CarteFixe({required this.item, this.urgent = false,
-      this.estCache = false, this.actions = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.p;
-    final it = item;
-    var postTxt = it.postTxt;
-    return KCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                color: c.soft, shape: BoxShape.circle,
-                border: Border.all(color: c.line)),
-            child: Text(it.name.isEmpty ? '?' : it.name[0].toUpperCase(),
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800,
-                    color: c.ink)),
+  Widget _cAct(Palette c, IconData ic, String label, bool pri, VoidCallback f) {
+    return Press(
+      onTap: f,
+      child: Container(
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            color: pri ? c.accent.withValues(alpha: .1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border:
+                Border.all(color: pri ? c.accent.withValues(alpha: .4) : c.line)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(ic, size: 12, color: pri ? c.accent : c.muted),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: pri ? c.accent : c.ink)),
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(it.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: T.strong(c)),
-              Text(relMs(it.ts), style: T.caption(c)),
-            ]),
-          ),
-          if (urgent)
-            const KBadge('URGENT')
-          else if (estCache)
-            const StatusChip('Caché', kind: 3)
-          else if (!actions)
-            const StatusChip('Approuvé', kind: 1),
         ]),
-        if (it.text.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(it.text, style: T.body(c).copyWith(fontSize: 14.5)),
-        ],
-        if (postTxt.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(
-            'Sur : ${postTxt.length > 70 ? '${postTxt.substring(0, 70)}…' : postTxt}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: T.caption(c),
-          ),
-        ],
-        if (actions) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Caché = retiré des écrans de l\'application. Le commentaire reste sur Facebook : '
-            'utilise la Page pour un masquage côté Facebook.',
-            style: T.caption(c).copyWith(fontSize: 11),
-          ),
-        ],
-      ]),
+      ),
     );
   }
 }

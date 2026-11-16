@@ -22,6 +22,7 @@ import 'screens/welcome.dart';
 import 'ui/common.dart';
 import 'ui/shell.dart';
 import 'widgets/pill_nav.dart';
+import 'widgets/post_card.dart' show badgeVerifie;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -235,17 +236,36 @@ class Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<Shell> {
-  // 0 Accueil, 1 Boîte unifiée, 3 Assistant IA, 4 Stats (2 = bouton +)
+  // onglets de la maquette : 0 Accueil, 1 Boîte, 3 Bot, 4 Stats (2 = bouton +)
   int _tab = 0;
   int _gen = 0; // incrémente au bouton rafraîchir
+  String _pageName = 'KI DAS';
 
-  static const _titles = [
-    'La Page en direct',
-    'Boîte unifiée',
-    '',
-    'Assistant IA',
-    'Statistiques',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadPage();
+  }
+
+  /// Nom réel de la Page (données du bot) pour l'en-tête d'identité.
+  Future<void> _loadPage() async {
+    Map<String, dynamic>? pg;
+    try {
+      final st = await Api.readObj('inbox/statistiques.json');
+      final cm = await Api.readObj('inbox/commentaires.json');
+      for (final o in [st?['page'], cm?['page']]) {
+        if (o is Map<String, dynamic> && o.os('name').isNotEmpty) {
+          pg = o;
+          break;
+        }
+      }
+    } catch (_) {
+      // sans données, l'en-tête garde la marque KI DAS
+    }
+    if (pg != null && mounted) {
+      setState(() => _pageName = pg!.os('name'));
+    }
+  }
 
   Widget _screen(int t) {
     if (Api.tok.isEmpty) return const WelcomeScreen();
@@ -253,7 +273,7 @@ class _ShellState extends State<Shell> {
       case 1:
         return const BoiteScreen();
       case 3:
-        return const AiChatScreen();
+        return const BotRulesScreen();
       case 4:
         return const StatsScreen();
       default:
@@ -344,7 +364,7 @@ class _ShellState extends State<Shell> {
         body: SafeArea(
           bottom: false,
           child: Column(children: [
-            _header(c),
+            if (_tab == 0 && Api.tok.isNotEmpty) _header(c),
             Expanded(
               child: AnimatedSwitcher(
                 duration: KAnim.med,
@@ -381,64 +401,111 @@ class _ShellState extends State<Shell> {
     );
   }
 
+  /* ---------- en-tête d'identité de la Page (écran Accueil) ---------- */
+
   Widget _header(Palette c) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 10, 0),
-      child: Column(children: [
-        Row(children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-                color: c.ink, borderRadius: BorderRadius.circular(9)),
-            child: Center(
-                child: Text('K',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w900, color: c.bg))),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('KI DAS',
-                  style: TextStyle(
-                      fontSize: 15.5, fontWeight: FontWeight.w900,
-                      letterSpacing: .8, color: c.ink)),
-              Text(_titles[_tab],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 10.5, color: c.muted, height: 1.2)),
-            ]),
-          ),
-          _ibtn(c, Icons.refresh_outlined, () {
-            HapticFeedback.selectionClick();
-            _refresh();
-          }),
-          const SizedBox(width: 6),
-          _ibtn(c, Icons.more_horiz, () {
-            _openMenu();
-          }),
-        ]),
-        const SizedBox(height: 10),
+      padding: const EdgeInsets.fromLTRB(14, 8, 10, 10),
+      child: Row(children: [
         Container(
-            height: 2,
-            decoration: BoxDecoration(
-                color: c.ink, borderRadius: BorderRadius.circular(2))),
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: c.ink, shape: BoxShape.circle),
+          child: Text('K',
+              style: TextStyle(
+                  fontSize: 19, fontWeight: FontWeight.w900, color: c.bg)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(
+                child: Text(_pageName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14.5, fontWeight: FontWeight.w800,
+                        color: c.ink)),
+              ),
+              const SizedBox(width: 5),
+              badgeVerifie(c, 15),
+            ]),
+            const SizedBox(height: 2),
+            Row(children: [
+              PulseDot(c.accent, size: 5),
+              const SizedBox(width: 5),
+              Text('En ligne',
+                  style: TextStyle(fontSize: 10.5, color: c.muted,
+                      fontWeight: FontWeight.w600)),
+            ]),
+          ]),
+        ),
+        _ibtn(c, Icons.search_outlined, () {
+          Fx.tick();
+          Bus.requete.value = '';
+          Bus.chercher.value = !Bus.chercher.value;
+          if (_tab != 0) setState(() => _tab = 0);
+        }),
+        const SizedBox(width: 6),
+        _cloche(c),
+        const SizedBox(width: 6),
+        _ibtn(c, Icons.more_horiz, () {
+          _openMenu();
+        }),
       ]),
     );
   }
 
-  Widget _ibtn(Palette c, IconData ic, VoidCallback f) {
+  Widget _cloche(Palette c) {
+    return ValueListenableBuilder<int>(
+      valueListenable: Bus.avis,
+      builder: (_, a, __) => ValueListenableBuilder<int>(
+        valueListenable: Bus.msg,
+        builder: (_, m, ___) {
+          final n = a + m;
+          return _ibtn(c, Icons.notifications_outlined, () {
+            Fx.tick();
+            if (_tab != 1) setState(() => _tab = 1);
+          }, badge: n);
+        },
+      ),
+    );
+  }
+
+  Widget _ibtn(Palette c, IconData ic, VoidCallback f, {int badge = 0}) {
     return Press(
       onTap: f,
       child: Container(
-        width: 34,
-        height: 34,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
             color: c.card,
             borderRadius: BorderRadius.circular(11),
             border: Border.all(color: c.line)),
-        child: Icon(ic, size: 16, color: c.ink),
+        child: Stack(clipBehavior: Clip.none, children: [
+          Center(child: Icon(ic, size: 17, color: c.ink)),
+          if (badge > 0)
+            Positioned(
+              right: -5,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                    color: c.ink, borderRadius: BorderRadius.circular(99)),
+                constraints:
+                    const BoxConstraints(minWidth: 16, minHeight: 15),
+                alignment: Alignment.center,
+                child: Text(
+                  badge > 99 ? '99+' : '$badge',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: c.bg),
+                ),
+              ),
+            ),
+        ]),
       ),
     );
   }

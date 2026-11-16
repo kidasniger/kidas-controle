@@ -279,6 +279,25 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
           padding: const EdgeInsets.only(bottom: 8),
           child: ErrBox(e),
         ),
+        /* en-tête de page (maquette) */
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+          child: Row(children: [
+            Text('Bot',
+                style: TextStyle(
+                    fontSize: 26, fontWeight: FontWeight.w800,
+                    letterSpacing: -.5, color: c.ink)),
+            const Spacer(),
+            if (bs != null)
+              StatusChip(
+                  switch (bs.state) {
+                    'on' => 'En marche',
+                    'wait' => 'En attente',
+                    _ => 'Arrêté',
+                  },
+                  kind: bs.state == 'off' ? 3 : 5),
+          ]),
+        ),
         if (bs != null) ...[
           _hero(c, bs),
           const SizedBox(height: 16),
