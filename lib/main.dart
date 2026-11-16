@@ -255,7 +255,7 @@ class _ShellState extends State<Shell> {
     try {
       final st = await Api.readObj('inbox/statistiques.json');
       final cm = await Api.readObj('inbox/commentaires.json');
-      for (final o in [st?['page'], cm?['page']]) {
+      for (final o in [cm?['page'], st?['page']]) {
         if (o is Map<String, dynamic> && o.os('name').isNotEmpty) {
           pg = o;
           break;
