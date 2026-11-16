@@ -8,9 +8,8 @@ import '../ui/common.dart';
 import '../ui/forms.dart';
 import '../ui/shell.dart' show Bus, SubPage;
 import 'ai_chat.dart';
-import 'comments.dart';
-import 'messages.dart';
-import 'publish.dart';
+import 'boite.dart';
+import 'composer.dart';
 
 /// Accueil « façon page Facebook » : la barre de rédaction, les chiffres de
 /// la Page, ce qui attend une réponse et le fil de tout ce qui s'est passé
@@ -34,6 +33,7 @@ class _FeedItem {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _st, _cm, _inbox;
   int _avisTodo = 0, _msgTodo = 0;
+  int _vue = 0; // 0 Tout, 1 Avis, 2 Messages, 3 Chiffres
   String _upd = '';
   final List<String> _errs = [];
   bool _busy = true;
@@ -124,26 +124,102 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _composer(c),
         const SizedBox(height: 12),
+        _chips(c),
+        const SizedBox(height: 12),
         _kpiStrip(c),
-        if (_avisTodo > 0 || _msgTodo > 0) ...[
+        if (_vue == 3) ...[
           const SizedBox(height: 12),
-          _todoCard(c),
+          _chiffres(c),
+        ] else ...[
+          if (_avisTodo > 0 || _msgTodo > 0) ...[
+            const SizedBox(height: 12),
+            _todoCard(c),
+          ],
+          for (final e in _errs.take(2))
+            Padding(padding: const EdgeInsets.only(top: 8), child: ErrBox(e)),
+          const SizedBox(height: 8),
+          KSection('Fil de la Page'),
+          if (_upd.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('Données du dernier cycle du bot : ${rel(_upd)}',
+                  style: T.caption(c)),
+            ),
+          ..._feed(c),
+          const SizedBox(height: 4),
+          Text('La modération, le journal et les réglages sont dans le menu « ... ».',
+              style: T.caption(c)),
         ],
-        for (final e in _errs.take(2))
-          Padding(padding: const EdgeInsets.only(top: 8), child: ErrBox(e)),
-        const SizedBox(height: 8),
-        KSection('Fil de la Page'),
-        if (_upd.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text('Données du dernier cycle du bot : ${rel(_upd)}',
-                style: T.caption(c)),
-          ),
-        ..._feed(c),
-        const SizedBox(height: 4),
-        Text("Les exécutions du bot sont dans l'onglet Bot.",
-            style: T.caption(c)),
       ],
+    );
+  }
+
+  /* ---------- chips de filtre, comme sur Facebook ---------- */
+
+  Widget _chips(Palette c) {
+    const labels = ['Tout', 'Avis', 'Messages', 'Chiffres'];
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        shrinkWrap: true,
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Padding(
+              padding:
+                  EdgeInsets.only(right: i == labels.length - 1 ? 0 : 8),
+              child: Press(
+                onTap: () {
+                  Fx.tick();
+                  setState(() => _vue = i);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                      color: _vue == i ? c.accent : c.card,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(
+                          color: _vue == i ? c.accent : c.line)),
+                  child: Text(labels[i],
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _vue == i ? c.onAccent : c.muted)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /* ---------- vue Chiffres : toutes les métriques en lignes ---------- */
+
+  Widget _chiffres(Palette c) {
+    final ms = Api.metrics(_st);
+    if (ms.isEmpty) {
+      return KCard(
+        child: Text('Aucune statistique : lance « Statistiques » depuis Bot & Règles.',
+            style: T.body(c).copyWith(color: c.muted)),
+      );
+    }
+    return KCard(
+      child: Column(children: [
+        for (var i = 0; i < ms.length; i++) ...[
+          if (i > 0) const KDivider(),
+          Row(children: [
+            Expanded(child: Text(ms[i].name, style: T.body(c))),
+            Text(nf(ms[i].vals.last),
+                style: T.strong(c).copyWith(fontSize: 15)),
+            if (ms[i].vals.length > 1) ...[
+              const SizedBox(width: 8),
+              Text(pct(ms[i].vals.last, ms[i].vals[ms[i].vals.length - 2]),
+                  style: T.caption(c).copyWith(fontWeight: FontWeight.w800)),
+            ],
+          ]),
+        ],
+      ]),
     );
   }
 
@@ -164,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const SizedBox(width: 10),
       Expanded(
         child: Press(
-          onTap: () => _go('Publier', const PublishScreen()),
+          onTap: () => _go('Composer', const ComposerScreen()),
           child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -259,11 +335,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(children: [
         if (_avisTodo > 0)
           _todoRow(c, Icons.chat_bubble_outline, '${nf(_avisTodo)} avis sans réponse',
-              'Répondre', () => _go('Avis (commentaires)', const CommentsScreen())),
+              'Boîte', () => _go('Boîte unifiée', const BoiteScreen())),
         if (_avisTodo > 0 && _msgTodo > 0) const KDivider(),
         if (_msgTodo > 0)
           _todoRow(c, Icons.messenger_outline, '${nf(_msgTodo)} messages à traiter',
-              'Ouvrir', () => _go('Messages', const MessagesScreen())),
+              'Boîte', () => _go('Boîte unifiée', const BoiteScreen(ouvreConvo: ''))),
       ]),
     );
   }
@@ -344,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ? 'une publication'
         : (postTxt.length > 70 ? '${postTxt.substring(0, 70)}…' : postTxt);
     return Press(
-      onTap: () => _go('Avis (commentaires)', const CommentsScreen()),
+      onTap: () => _go('Boîte unifiée', const BoiteScreen()),
       child: KCard(
         pad: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -393,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
       prefix = last.ob('from_page', false) ? 'Toi : ' : '';
     }
     return Press(
-      onTap: () => _go('Messages', const MessagesScreen()),
+      onTap: () => _go('Boîte unifiée', const BoiteScreen()),
       child: KCard(
         pad: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

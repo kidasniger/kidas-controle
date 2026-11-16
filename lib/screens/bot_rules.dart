@@ -1,25 +1,30 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
 import '../ui/forms.dart';
 
-// Port fidèle de BotScreen.java.
+// Bot & Règles : fusion de l'ancien onglet Bot (démarrage, verrous,
+// catalogue, exécutions) et de l'ancien onglet Réponses (interrupteur IA),
+// avec en plus les règles « si ... alors ... » et leur testeur.
 
-/// Pilotage du bot : interrupteurs, verrous, GLM Live manuel, catalogue des
-/// workflows et exécutions récentes. Port fidèle de BotScreen.java.
-class BotScreen extends StatefulWidget {
-  const BotScreen({super.key});
+/// Pilotage du bot : héros de contrôle, interrupteurs, verrous GitHub,
+/// catalogue des workflows, exécutions récentes, règles et testeur.
+class BotRulesScreen extends StatefulWidget {
+  const BotRulesScreen({super.key});
   @override
-  State<BotScreen> createState() => _BotScreenState();
+  State<BotRulesScreen> createState() => _BotRulesScreenState();
 }
 
-class _BotScreenState extends State<BotScreen> {
+class _BotRulesScreenState extends State<BotRulesScreen> {
   Bot? _bot;
   List<dynamic> _runs = const [], _wl = const [];
+  List<Regle> _regles = [];
+  bool _reglesBusy = true;
   final List<String> _errs = [];
   bool _busy = true;
 
@@ -59,6 +64,7 @@ class _BotScreenState extends State<BotScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadRegles();
   }
 
   Future<void> _load() async {
@@ -92,6 +98,20 @@ class _BotScreenState extends State<BotScreen> {
     });
   }
 
+  Future<void> _loadRegles() async {
+    setState(() => _reglesBusy = true);
+    try {
+      final rs = await Regles.charge();
+      if (!mounted) return;
+      setState(() {
+        _regles = rs;
+        _reglesBusy = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _reglesBusy = false);
+    }
+  }
+
   bool _nested(String key) {
     final o = _bot?.cfg[key];
     return o is! Map<String, dynamic> || o.ob('actif', true);
@@ -106,6 +126,138 @@ class _BotScreenState extends State<BotScreen> {
       return c;
     }, 'GLM $key ${v ? 'activé' : 'désactivé'}');
   }
+
+  /* ---------- règles ---------- */
+
+  Future<void> _ecrireRegles(List<Regle> rs) async {
+    await Regles.ecrire(rs);
+    await Journal.ajoute('regle', 'Règles du bot mises à jour',
+        detail: '${rs.length} règle(s)');
+    _loadRegles();
+  }
+
+  Future<void> _ajouterRegle() async {
+    final contient = TextEditingController();
+    final texte = TextEditingController();
+    var action = 'reponse';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setD) {
+        final cc = ctx2.p;
+        return AlertDialog(
+          backgroundColor: cc.card,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(color: cc.line)),
+          title: Text('Nouvelle règle', style: T.title(cc)),
+          content: Column(mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('SI le commentaire contient', style: T.micro(cc)),
+            const SizedBox(height: 6),
+            KEdit(controller: contient, hint: 'prix, livraison... (vide = tous)'),
+            const SizedBox(height: 12),
+            Text('ALORS', style: T.micro(cc)),
+            const SizedBox(height: 6),
+            for (final (k, label) in const [
+              ('reponse', 'Répondre automatiquement'),
+              ('urgent', 'Marquer urgent'),
+              ('rien', 'Ne rien faire (ignorer)'),
+            ])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Press(
+                  onTap: () => setD(() => action = k),
+                  child: Row(children: [
+                    Icon(
+                        action == k
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        size: 17,
+                        color: action == k ? cc.accent : cc.muted),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(label, style: T.body(cc))),
+                  ]),
+                ),
+              ),
+            if (action == 'reponse') ...[
+              const SizedBox(height: 4),
+              KEdit(controller: texte, hint: 'Texte de la réponse...', minLines: 3),
+            ],
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx2, false),
+                child: Text('Annuler', style: TextStyle(color: cc.muted))),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx2, true),
+                child: Text('Ajouter',
+                    style: TextStyle(color: cc.accent,
+                        fontWeight: FontWeight.w800))),
+          ],
+        );
+      }),
+    );
+    if (ok != true || !mounted) return;
+    final rs = [..._regles];
+    rs.add(Regle(
+        id: 'r${DateTime.now().millisecondsSinceEpoch}',
+        contient: contient.text.trim(),
+        action: action,
+        texte: texte.text.trim()));
+    await _ecrireRegles(rs);
+    if (mounted) kToast(context, 'Règle ajoutée.');
+  }
+
+  Future<void> _tester() async {
+    final ed = TextEditingController();
+    void Function(void Function())? setD;
+    ed.addListener(() {
+      setD?.call(() {});
+    });
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setDLocal) {
+        setD = setDLocal;
+        final cc = ctx2.p;
+        final r = Regles.simule(_regles, ed.text);
+        return AlertDialog(
+          backgroundColor: cc.card,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(color: cc.line)),
+          title: Text('Testeur de règles', style: T.title(cc)),
+          content: Column(mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Écris un commentaire comme un abonné :',
+                style: T.caption(cc)),
+            const SizedBox(height: 8),
+            KEdit(controller: ed, hint: 'Combien coûte le t-shirt ?', minLines: 2),
+            const SizedBox(height: 10),
+            if (ed.text.trim().isEmpty)
+              Text('Le résultat s\'affiche pendant que tu écris.',
+                  style: T.caption(cc))
+            else if (r == null)
+              Text('Aucune règle ne colle : le bot répond avec l\'IA normale '
+                  '(si « Répondre aux commentaires » est activé).',
+                  style: T.body(cc))
+            else
+              Text(
+                  'Règle trouvée : ${r.contient.isEmpty ? '(tous les commentaires)' : 'contient « ${r.contient} »'} '
+                  '→ ${r.libelle}${r.texte.isEmpty ? '' : ' : « ${r.texte} »'}.',
+                  style: T.body(cc)),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx2),
+                child: Text('Fermer', style: TextStyle(color: cc.muted))),
+          ],
+        );
+      }),
+    );
+    ed.dispose();
+  }
+
+  /* ---------- rendu ---------- */
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +300,7 @@ class _BotScreenState extends State<BotScreen> {
                   job: (v) => _setNested('posts', v)),
               const KDivider(),
               KSwitchRow('Réponses automatiques',
-                  desc: 'Réponses aux commentaires',
+                  desc: 'Le bot like et répond aux commentaires',
                   value: _nested('reponses'),
                   job: (v) => _setNested('reponses', v)),
             ]),
@@ -156,9 +308,11 @@ class _BotScreenState extends State<BotScreen> {
           const SizedBox(height: 16),
           _hardLocks(c, bs),
           const SizedBox(height: 16),
+          _reglesSection(c),
+          const SizedBox(height: 16),
           _manual(c),
+          const SizedBox(height: 16),
         ],
-        const SizedBox(height: 16),
         for (final g in _catalog) ...[
           KSection(g['groupe'] as String),
           KCard(
@@ -234,6 +388,7 @@ class _BotScreenState extends State<BotScreen> {
                   await Api.dispatch('glm-live.yml',
                       {'dry_run': 'false', 'minutes': '330'});
                 }
+                await Journal.ajoute('bot', 'Bot démarré');
                 await Future.delayed(const Duration(milliseconds: 1500));
               },
               ok: 'Bot démarré (session dans quelques secondes).',
@@ -263,6 +418,7 @@ class _BotScreenState extends State<BotScreen> {
                     } catch (_) {/* déjà terminé */}
                   }
                 }
+                await Journal.ajoute('bot', "Arrêt d'urgence du bot");
                 await Future.delayed(const Duration(milliseconds: 800));
               },
               ok: 'Bot arrêté.',
@@ -306,6 +462,90 @@ class _BotScreenState extends State<BotScreen> {
     ]);
   }
 
+  /* ---------- règles « si ... alors ... » ---------- */
+
+  Widget _reglesSection(Palette c) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      KSection('Règles du bot',
+          action: 'Tester',
+          onAction: _regles.isEmpty ? null : _tester),
+      KCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (_reglesBusy)
+            const KSkeleton(60)
+          else if (_regles.isEmpty)
+            Text(
+              'Aucune règle : le bot répond à tout avec l\'IA. '
+              'Ajoute des règles pour les cas évidents (prix, livraison...) '
+              'et laisse l\'IA gérer le reste.',
+              style: T.body(c).copyWith(color: c.muted),
+            )
+          else
+            for (var i = 0; i < _regles.length; i++) ...[
+              if (i > 0) const KDivider(),
+              _regleRow(c, _regles[i]),
+            ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ActionBtn('Ajouter une règle',
+                icon: Icons.add, job: _ajouterRegle),
+          ),
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _regleRow(Palette c, Regle r) {
+    return Row(children: [
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          RichText(
+              text: TextSpan(children: [
+            TextSpan(text: 'SI ', style: T.microInk(c)),
+            TextSpan(
+                text: r.contient.isEmpty
+                    ? 'n\'importe quel commentaire'
+                    : 'contient « ${r.contient} »',
+                style: T.body(c)),
+            TextSpan(text: '  ALORS ', style: T.microInk(c)),
+            TextSpan(text: r.libelle, style: T.body(c)),
+          ])),
+          if (r.texte.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text('« ${r.texte} »',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: T.caption(c)),
+          ],
+        ]),
+      ),
+      const SizedBox(width: 8),
+      Transform.scale(
+        scale: .85,
+        child: Switch.adaptive(
+            value: r.actif,
+            activeThumbColor: c.accent,
+            inactiveTrackColor: c.line,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onChanged: (v) async {
+              final rs = [..._regles];
+              final i = rs.indexWhere((x) => x.id == r.id);
+              if (i >= 0) rs[i].actif = v;
+              await _ecrireRegles(rs);
+            }),
+      ),
+      const SizedBox(width: 4),
+      Press(
+        onTap: () async {
+          if (!await kConfirm(context, 'Supprimer cette règle ?')) return;
+          await _ecrireRegles(_regles.where((x) => x.id != r.id).toList());
+        },
+        child: Icon(Icons.delete_outline, size: 18, color: c.muted),
+      ),
+    ]);
+  }
+
   /* ---------- GLM Live manuel ---------- */
 
   Widget _manual(Palette c) {
@@ -343,6 +583,8 @@ class _BotScreenState extends State<BotScreen> {
                 final minutes = m.clamp(1, 330);
                 await Api.dispatch('glm-live.yml',
                     {'dry_run': dry ? 'true' : 'false', 'minutes': '$minutes'});
+                await Journal.ajoute('bot', 'GLM Live lancé',
+                    detail: '${minutes} min${dry ? ' · mode test' : ''}');
                 await Future.delayed(const Duration(milliseconds: 1500));
               },
               ok: 'GLM Live lancé.',

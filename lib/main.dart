@@ -9,13 +9,13 @@ import 'core/palette.dart';
 import 'core/store.dart';
 import 'core/updater.dart';
 import 'screens/ai_chat.dart';
-import 'screens/bot.dart';
+import 'screens/boite.dart';
+import 'screens/bot_rules.dart';
+import 'screens/composer.dart';
+import 'screens/journal.dart';
 import 'screens/home.dart';
-import 'screens/media.dart';
-import 'screens/messages.dart';
-import 'screens/comments.dart';
-import 'screens/publish.dart';
-import 'screens/rules.dart';
+import 'screens/medias.dart';
+import 'screens/moderation.dart';
 import 'screens/settings.dart';
 import 'screens/stats.dart';
 import 'screens/welcome.dart';
@@ -235,14 +235,15 @@ class Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<Shell> {
-  int _tab = 0; // 0 Accueil, 1 Bot, 3 Réponses, 4 Stats (2 = bouton +)
+  // 0 Accueil, 1 Boîte unifiée, 3 Assistant IA, 4 Stats (2 = bouton +)
+  int _tab = 0;
   int _gen = 0; // incrémente au bouton rafraîchir
 
   static const _titles = [
     'La Page en direct',
-    'Pilotage du bot',
+    'Boîte unifiée',
     '',
-    'Réponses et règles',
+    'Assistant IA',
     'Statistiques',
   ];
 
@@ -250,9 +251,9 @@ class _ShellState extends State<Shell> {
     if (Api.tok.isEmpty) return const WelcomeScreen();
     switch (t) {
       case 1:
-        return const BotScreen();
+        return const BoiteScreen();
       case 3:
-        return const RulesScreen();
+        return const AiChatScreen();
       case 4:
         return const StatsScreen();
       default:
@@ -265,29 +266,45 @@ class _ShellState extends State<Shell> {
     setState(() => _gen++);
   }
 
-  /* ---------- menu du bouton + (port de MainActivity.openSheet) ---------- */
+  /* ---------- bouton + : le composer en plein écran ---------- */
 
   Future<void> _openPlus() async {
-    final t = await kSheet<int>(context, title: 'Actions rapides', children: [
-      _sheetRow(context, Icons.auto_awesome_outlined, "Discuter avec l'IA", 4),
-      _sheetRow(context, Icons.edit_outlined, 'Publier', 0),
-      _sheetRow(context, Icons.image_outlined, 'Médias', 1),
-      _sheetRow(context, Icons.chat_bubble_outline, 'Avis (commentaires)', 2),
-      _sheetRow(context, Icons.messenger_outline, 'Messages', 3),
+    Fx.medium();
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const SubPage('Composer', child: ComposerScreen())));
+    if (mounted) _refresh();
+  }
+
+  /* ---------- menu « ... » : écrans de gestion ---------- */
+
+  Future<void> _openMenu() async {
+    Fx.tick();
+    final t = await kSheet<String>(context, title: 'Gestion de la Page', children: [
+      _sheetRow(context, Icons.shield_outlined, 'Modération', 'mod',
+          sub: 'Commentaires à traiter'),
+      _sheetRow(context, Icons.image_outlined, 'Studio Médias', 'med',
+          sub: 'Bibliothèque, étiquettes, sélection'),
+      _sheetRow(context, Icons.smart_toy_outlined, 'Bot & Règles', 'bot',
+          sub: 'Pilotage, verrous, règles, exécutions'),
+      _sheetRow(context, Icons.receipt_long_outlined, "Journal d'activité", 'log',
+          sub: 'Application et bot, tout est tracé'),
+      _sheetRow(context, Icons.settings_outlined, 'Réglages', 'set',
+          sub: 'Apparence, connexion, sécurité'),
     ]);
     if (t == null || !mounted) return;
-    final screens = <int, Widget Function()>{
-      4: () => const SubPage('Assistant IA', child: AiChatScreen()),
-      0: () => const SubPage('Publier', child: PublishScreen()),
-      1: () => const SubPage('Médias', child: MediaScreen()),
-      2: () => const SubPage('Avis (commentaires)', child: CommentsScreen()),
-      3: () => const SubPage('Messages', child: MessagesScreen()),
+    final screens = <String, Widget Function()>{
+      'mod': () => const SubPage('Modération', child: ModerationScreen()),
+      'med': () => const SubPage('Studio Médias', child: MediasScreen()),
+      'bot': () => const SubPage('Bot & Règles', child: BotRulesScreen()),
+      'log': () => const SubPage("Journal d'activité", child: JournalScreen()),
+      'set': () => const SubPage('Réglages', child: SettingsScreen()),
     };
     await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => screens[t]!()));
   }
 
-  Widget _sheetRow(BuildContext ctx, IconData ic, String label, int v) {
+  Widget _sheetRow(BuildContext ctx, IconData ic, String label, String v,
+      {String sub = ''}) {
     final c = ctx.p;
     return Press(
       onTap: () {
@@ -300,9 +317,13 @@ class _ShellState extends State<Shell> {
           IconBox(ic),
           const SizedBox(width: 13),
           Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      fontSize: 14.5, fontWeight: FontWeight.w700, color: c.ink))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 14.5, fontWeight: FontWeight.w700, color: c.ink)),
+                if (sub.isNotEmpty)
+                  Text(sub, style: TextStyle(fontSize: 11.5, color: c.muted)),
+              ])),
           Icon(Icons.chevron_right, size: 18, color: c.muted),
         ]),
       ),
@@ -394,11 +415,8 @@ class _ShellState extends State<Shell> {
             _refresh();
           }),
           const SizedBox(width: 6),
-          _ibtn(c, Icons.settings_outlined, () {
-            Fx.tick();
-            Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) =>
-                    const SubPage('Réglages', child: SettingsScreen())));
+          _ibtn(c, Icons.more_horiz, () {
+            _openMenu();
           }),
         ]),
         const SizedBox(height: 10),

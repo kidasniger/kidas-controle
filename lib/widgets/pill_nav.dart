@@ -8,11 +8,12 @@ import '../core/palette.dart';
 /// Navigation flottante : pilule dépolie, 4 onglets + bouton « + » central
 /// surélevé. Port de NavBar.java avec le style validé de la maquette :
 /// pilule accent qui glisse avec un ressort, contenu actif blanc.
+/// Onglets v3 : Accueil, Boîte, + (composer), IA, Stats.
 class PillNav extends StatefulWidget {
   final int sel; // 0..4, -1 = aucune (écran hors onglets)
   final ValueChanged<int> onTab;
   final VoidCallback onFab;
-  final int badge; // badge sur l'onglet Réponses (index 3 visuel, slot 2)
+  final int badge; // badge sur l'onglet Boîte (index 1)
   const PillNav(
       {super.key,
       required this.sel,
@@ -25,14 +26,15 @@ class PillNav extends StatefulWidget {
 
 class _PillNavState extends State<PillNav>
     with SingleTickerProviderStateMixin {
-  static const _labels = ['Accueil', 'Bot', '', 'Réponses', 'Stats'];
+  static const _labels = ['Accueil', 'Boîte', '', 'IA', 'Stats'];
   static const _icons = [
     Icons.home_outlined,
-    Icons.smart_toy_outlined,
+    Icons.inbox_outlined,
     Icons.add,
-    Icons.forum_outlined,
+    Icons.auto_awesome_outlined,
     Icons.bar_chart_outlined,
   ];
+  static const _badgeIdx = 1;
 
   late final AnimationController _bounce = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 380));
@@ -158,7 +160,7 @@ class _PillNavState extends State<PillNav>
           Stack(clipBehavior: Clip.none, children: [
             Icon(_icons[i],
                 size: 20, color: active ? c.onAccent : c.muted),
-            if (i == 3 && widget.badge > 0)
+            if (i == _badgeIdx && widget.badge > 0)
               Positioned(
                 right: -10,
                 top: -5,
