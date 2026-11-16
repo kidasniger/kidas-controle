@@ -243,33 +243,35 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(children: [
         Expanded(
             child: _kpi(c, abonnes <= 0 ? '—' : nf(abonnes), 'Abonnés',
-                nouveaux > 0 ? '+${nf(nouveaux)} · 7 j' : '')),
+                nouveaux > 0 ? '+${nf(nouveaux)}' : '')),
         _vdiv(c),
         Expanded(
             child: _kpi(c, visites > 0 ? nf(visites) : '—', 'Visites · 7 j', '')),
         _vdiv(c),
         Expanded(
             child: _kpi(c, interactions > 0 ? nf(interactions) : '—',
-                'Interactions · 7 j', '')),
+                'Interactions', '')),
       ]),
     );
   }
 
   Widget _kpi(Palette c, String v, String label, String delta) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.only(left: 10),
-        child: Text(v, style: T.kpi(c).copyWith(fontSize: 19)),
+    return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(v, style: T.kpi(c)),
       ),
       const SizedBox(height: 2),
-      Padding(
-        padding: const EdgeInsets.only(left: 10),
-        child: Row(children: [
-          Text(label.toUpperCase(), style: T.micro(c)),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label.toUpperCase(),
+              style: T.micro(c).copyWith(fontSize: 9, letterSpacing: 1.26)),
           if (delta.isNotEmpty) ...[
             const SizedBox(width: 5),
             Text(delta,
-                style: T.micro(c).copyWith(color: c.accent, fontSize: 9.5)),
+                style: T.micro(c).copyWith(
+                    color: c.accent, fontSize: 9.5, letterSpacing: 0)),
           ],
         ]),
       ),
