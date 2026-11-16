@@ -14,8 +14,12 @@ navigation en pilule flottante, retour tactile (vibration + tic de 40 ms, désac
 
 ## Structure
 
-- `lib/` — application Dart : `core/` (API GitHub, stockage, mises à jour, sons),
-  `screens/` (les 10 écrans), `ui/` (design system, graphiques, formulaires), `widgets/` (pilule).
+- `lib/` — application Dart : `core/` (API GitHub, stockage, mises à jour, sons,
+  données v3 : boîte unifiée, modération, journal, règles, brouillons, étiquettes),
+  `screens/` (les 10 écrans v3 : Accueil « fil de la Page », Boîte unifiée,
+  Composer, Assistant IA, Stats, plus Modération, Studio Médias, Bot & Règles,
+  Journal d'activité et Réglages dans le menu « ... »),
+  `ui/` (design system, graphiques, formulaires), `widgets/` (pilule).
 - `android/` — hôte Android + pont natif Kotlin (`kidas/native` : version installée,
   migration du coffre v1, vérification et installation des APK).
 - `app/` — code source de la v1 Java, conservé comme référence historique (non compilé).
