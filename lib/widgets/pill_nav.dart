@@ -1,31 +1,23 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/palette.dart';
 
-/// Navigation flottante : pilule dépolie, 4 onglets + bouton « + » central
-/// surélevé. Port de NavBar.java avec le style validé de la maquette :
-/// pilule accent qui glisse avec un ressort, contenu actif blanc.
-/// Onglets v3 : Accueil, Boîte, + (composer), IA, Stats.
-class PillNav extends StatefulWidget {
-  final int sel; // 0..4, -1 = aucune (écran hors onglets)
+/// Pilule flottante de la maquette : fond #101014, 4 onglets + bouton « + »
+/// bleu central. Onglet actif = fond blanc translucide.
+/// Index : 0 Accueil, 1 Boîte, 2 + (fab), 3 Bot, 4 Stats.
+class PillNav extends StatelessWidget {
+  final int sel; // 0..4, -1 = aucune
   final ValueChanged<int> onTab;
   final VoidCallback onFab;
-  final int badge; // badge sur l'onglet Boîte (index 1)
+  final int badge; // badge sur Boîte
   const PillNav(
       {super.key,
       required this.sel,
       required this.onTab,
       required this.onFab,
       this.badge = 0});
-  @override
-  State<PillNav> createState() => _PillNavState();
-}
 
-class _PillNavState extends State<PillNav>
-    with SingleTickerProviderStateMixin {
   static const _labels = ['Accueil', 'Boîte', '', 'Bot', 'Stats'];
   static const _icons = [
     Icons.home_outlined,
@@ -34,163 +26,125 @@ class _PillNavState extends State<PillNav>
     Icons.smart_toy_outlined,
     Icons.bar_chart_outlined,
   ];
-  static const _badgeIdx = 1;
-
-  late final AnimationController _bounce = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 380));
-
-  @override
-  void initState() {
-    super.initState();
-    _bounce.forward();
-  }
-
-  @override
-  void didUpdateWidget(covariant PillNav old) {
-    super.didUpdateWidget(old);
-    if (old.sel != widget.sel) _bounce.forward(from: .3);
-  }
-
-  @override
-  void dispose() {
-    _bounce.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(11, 0, 11, 11),
-      height: 60,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: .38),
-              blurRadius: 32,
-              offset: const Offset(0, 12)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(999),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: 1,
           child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
             decoration: BoxDecoration(
-              color: c.navBg,
+              color: c.pill,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: c.navLine),
+              border: Border.all(color: const Color(0x12FFFFFF)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: .5),
+                    blurRadius: 38,
+                    offset: const Offset(0, 16)),
+              ],
             ),
-            child: LayoutBuilder(builder: (ctx, box) {
-              final slot = box.maxWidth / 5;
-              return Stack(children: [
-                if (widget.sel >= 0 && widget.sel != 2)
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeOutBack,
-                    top: 6,
-                    left: widget.sel * slot + 6,
-                    width: slot - 12,
-                    height: 47,
-                    child: ScaleTransition(
-                      scale: Tween(begin: .85, end: 1.0).animate(
-                          CurvedAnimation(
-                              parent: _bounce, curve: Curves.easeOutBack)),
-                      child: Container(
-                          decoration: BoxDecoration(
-                              color: c.accent,
-                              borderRadius: BorderRadius.circular(999))),
-                    ),
-                  ),
-                Row(children: [
-                  for (var i = 0; i < 5; i++)
-                    Expanded(child: _slot(ctx, c, i, i == 2)),
-                ]),
-              ]);
-            }),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              _tab(c, 0),
+              const SizedBox(width: 2),
+              _tab(c, 1),
+              const SizedBox(width: 2),
+              _fab(c),
+              const SizedBox(width: 2),
+              _tab(c, 3),
+              const SizedBox(width: 2),
+              _tab(c, 4),
+            ]),
           ),
         ),
       ),
     );
   }
 
-  Widget _slot(BuildContext ctx, Palette c, int i, bool isFab) {
-    if (isFab) {
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          widget.onFab();
-        },
-        child: Center(
-          child: Transform.translate(
-            offset: const Offset(0, -14),
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: c.accent,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: c.accent.withValues(alpha: .45),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6)),
-                ],
-              ),
-              child: Icon(Icons.add, size: 26, color: c.bg),
-            ),
-          ),
-        ),
-      );
-    }
-    final active = widget.sel == i;
+  Widget _fab(Palette c) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
-        if (widget.sel != i) {
+        HapticFeedback.mediumImpact();
+        onFab();
+      },
+      child: Container(
+        width: 47,
+        height: 47,
+        margin: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: BoxDecoration(
+          color: c.accent,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+                color: c.accent.withValues(alpha: .42),
+                blurRadius: 24,
+                offset: const Offset(0, 10)),
+          ],
+        ),
+        child: const Icon(Icons.add, size: 20, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _tab(Palette c, int i) {
+    final active = sel == i;
+    final col = active ? c.pillInk : c.pillMuted;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (sel != i) {
           HapticFeedback.selectionClick();
-          widget.onTab(i);
+          onTab(i);
         }
       },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? c.pillOn : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
           Stack(clipBehavior: Clip.none, children: [
-            Icon(_icons[i],
-                size: 20, color: active ? c.onAccent : c.muted),
-            if (i == _badgeIdx && widget.badge > 0)
+            Icon(_icons[i], size: 19, color: col),
+            if (i == 1 && badge > 0)
               Positioned(
-                right: -10,
+                right: -8,
                 top: -5,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  constraints:
+                      const BoxConstraints(minWidth: 14, minHeight: 14),
                   decoration: BoxDecoration(
-                      color: c.ink,
-                      borderRadius: BorderRadius.circular(99)),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 15),
-                  alignment: Alignment.center,
-                  child: Text(
-                    widget.badge > 99 ? '99+' : '${widget.badge}',
-                    style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: c.bg),
+                    color: c.accent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: c.pill, width: 2),
                   ),
+                  alignment: Alignment.center,
+                  child: Text(badge > 99 ? '99+' : '$badge',
+                      style: const TextStyle(
+                          fontSize: 8.5,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
                 ),
               ),
           ]),
-          const SizedBox(height: 2),
+          const SizedBox(height: 2.5),
           Text(_labels[i],
               maxLines: 1,
               style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: .2,
-                  color: active ? c.onAccent : c.muted)),
-        ],
+                  fontSize: 9, fontWeight: FontWeight.w600,
+                  letterSpacing: .2, color: col)),
+        ]),
       ),
     );
   }
