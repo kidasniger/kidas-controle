@@ -300,6 +300,8 @@ class _ShellState extends State<Shell> {
   Future<void> _openMenu() async {
     Fx.tick();
     final t = await kSheet<String>(context, title: 'Gestion de la Page', children: [
+      _sheetRow(context, Icons.auto_awesome_outlined, 'Assistant IA', 'ia',
+          sub: 'Résumés, idées de posts, réponses prêtes'),
       _sheetRow(context, Icons.shield_outlined, 'Modération', 'mod',
           sub: 'Commentaires à traiter'),
       _sheetRow(context, Icons.image_outlined, 'Studio Médias', 'med',
@@ -313,6 +315,7 @@ class _ShellState extends State<Shell> {
     ]);
     if (t == null || !mounted) return;
     final screens = <String, Widget Function()>{
+      'ia': () => const SubPage('Assistant IA', child: AiChatScreen()),
       'mod': () => const SubPage('Modération', child: ModerationScreen()),
       'med': () => const SubPage('Studio Médias', child: MediasScreen()),
       'bot': () => const SubPage('Bot & Règles', child: BotRulesScreen()),

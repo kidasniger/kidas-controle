@@ -25,7 +25,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? _st, _cm, _inbox;
+  Map<String, dynamic>? _st, _cm;
   Moderation _mod = const Moderation();
   int _avisTodo = 0, _msgTodo = 0;
   int _vue = 0; // 0 Tout, 1 Avis, 2 Messages, 3 Chiffres
@@ -81,7 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _st = st;
       _cm = cm;
-      _inbox = inbox;
       _avisTodo = avisTodo;
       _msgTodo = msgTodo;
       _upd = upd;
