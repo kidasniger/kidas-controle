@@ -265,7 +265,7 @@ class _ShellState extends State<Shell> {
       // sans données, l'en-tête garde la marque KI DAS
     }
     if (pg != null && mounted) {
-      final page = pg!;
+      final page = pg;
       setState(() {
         _pageName = page.os('name');
         _pageUser = page.os('username');
