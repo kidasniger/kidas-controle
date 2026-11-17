@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
-import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
