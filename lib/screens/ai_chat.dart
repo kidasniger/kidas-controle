@@ -12,8 +12,9 @@ import '../ui/shell.dart' show Bus;
 /// compteurs réels de la Page, bulles aux coins maquette, relances rapides
 /// dans la dernière réponse, indicateur « l'IA écrit » à trois points,
 /// chips de suggestion pointillées et barre de saisie en pilule. La
-/// conversation est sauvegardée dans glm/chat.json (dépôt de données) pour
-/// la retrouver même après une réinstallation.
+/// conversation est sauvegardée dans glm/chat.json (dépôt de données) et le
+/// relais Actions écrit la réponse au même endroit : on la retrouve même
+/// après une réinstallation.
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
   @override
@@ -26,7 +27,6 @@ class AiChatScreenState extends State<AiChatScreen> {
   final _ta = TextEditingController();
   final _scroll = ScrollController();
   final List<_Msg> _msgs = [];
-  String _ctx = '';
   bool _loading = true, _thinking = false, _failed = false;
 
   /* chips de la maquette : rédiger / idées / résumé semaine */
@@ -72,22 +72,13 @@ class AiChatScreenState extends State<AiChatScreen> {
 
   Future<void> _load() async {
     List<dynamic> hist = const [];
-    var ctx = '';
-    await Future.wait<dynamic>([
-      Api.readArr('glm/chat.json')
-          .then((v) {
-            hist = v;
-          })
-          .catchError((Object e) {}),
-      Ai.context()
-          .then((v) {
-            ctx = v;
-          })
-          .catchError((Object e) {}),
-    ]);
+    try {
+      hist = await Api.readArr('glm/chat.json');
+    } catch (_) {
+      hist = const [];
+    }
     if (!mounted) return;
     setState(() {
-      _ctx = ctx;
       _msgs.clear();
       for (final e in hist) {
         final m = asObj(e);
@@ -106,22 +97,6 @@ class AiChatScreenState extends State<AiChatScreen> {
       if (!_scroll.hasClients) return;
       _scroll.jumpTo(_scroll.position.maxScrollExtent);
     });
-  }
-
-  /// Historique récent envoyé au modèle (le contexte système est déjà là).
-  List<Map<String, String>> _apiMsgs() {
-    final out = <Map<String, String>>[
-      {'role': 'system', 'content': _ctx},
-    ];
-    final hist = _msgs.where((m) => m.t.isNotEmpty).toList();
-    final start = hist.length > 14 ? hist.length - 14 : 0;
-    for (var i = start; i < hist.length; i++) {
-      out.add({
-        'role': hist[i].me ? 'user' : 'assistant',
-        'content': hist[i].t,
-      });
-    }
-    return out;
   }
 
   Future<void> _save(String role, String text) async {
@@ -145,14 +120,14 @@ class AiChatScreenState extends State<AiChatScreen> {
     _bottom();
     try {
       await _save('u', t);
-      final reply = await Ai.chat(_apiMsgs());
+      final reply = await Ai.chat();
       if (!mounted) return;
       setState(() {
         _msgs.add(_Msg(false, reply, DateTime.now().millisecondsSinceEpoch));
         _thinking = false;
       });
       _bottom();
-      await _save('a', reply);
+      /* la réponse est déjà persistée par le relais dans glm/chat.json */
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -167,7 +142,7 @@ class AiChatScreenState extends State<AiChatScreen> {
     if (_thinking) return;
     setState(() => _thinking = true);
     try {
-      final reply = await Ai.chat(_apiMsgs());
+      final reply = await Ai.chat();
       if (!mounted) return;
       setState(() {
         _msgs.add(_Msg(false, reply, DateTime.now().millisecondsSinceEpoch));
@@ -175,7 +150,7 @@ class AiChatScreenState extends State<AiChatScreen> {
         _failed = false;
       });
       _bottom();
-      await _save('a', reply);
+      /* la réponse est déjà persistée par le relais dans glm/chat.json */
     } catch (e) {
       if (!mounted) return;
       setState(() => _thinking = false);
