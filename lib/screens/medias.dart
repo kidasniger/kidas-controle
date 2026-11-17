@@ -14,9 +14,11 @@ import '../ui/forms.dart';
 import '../ui/shell.dart' show SubPage;
 import 'composer.dart';
 
-/// Studio Médias : bibliothèque en grille, recherche, étiquettes,
-/// sélection multiple puis réutilisation dans un post ou suppression
-/// par lot. L'envoi reste vers media/ (dépôt de données).
+/// Studio Médias, comme sur la maquette : titre avec « Sélectionner »,
+/// chips Tout / Photos / Vidéos / Taggés avec compteurs, grille carrée de
+/// vignettes (sélection par appui long ou mode sélection), barre de
+/// sélection pour utiliser, étiqueter ou supprimer. L'envoi reste vers
+/// media/ (dépôt de données).
 class MediasScreen extends StatefulWidget {
   const MediasScreen({super.key});
   @override
@@ -28,8 +30,9 @@ class _MediasScreenState extends State<MediasScreen> {
   Map<String, List<String>> _tags = {};
   final _sel = <String>{};
   bool _modeSel = false;
+  bool _cherche = false;
   String _recherche = '';
-  String _tagFiltre = '';
+  String _filtre = ''; // '', 'photos', 'videos', 'tagges' ou une étiquette
   String _status = '';
 
   @override
@@ -68,13 +71,27 @@ class _MediasScreenState extends State<MediasScreen> {
       if (_recherche.isNotEmpty && !name.contains(_recherche.toLowerCase())) {
         return false;
       }
-      if (_tagFiltre.isNotEmpty &&
-          !(_tags[e.os('path')] ?? const []).contains(_tagFiltre)) {
-        return false;
+      final tags = _tags[e.os('path')] ?? const <String>[];
+      switch (_filtre) {
+        case 'photos':
+          return kind(e.os('name')) != 'video';
+        case 'videos':
+          return kind(e.os('name')) == 'video';
+        case 'tagges':
+          return tags.isNotEmpty;
+        default:
+          return _filtre.isEmpty || tags.contains(_filtre);
       }
-      return true;
     }).toList();
   }
+
+  int get _nbPhotos =>
+      (_files ?? const []).where((e) => kind(e.os('name')) != 'video').length;
+  int get _nbVideos =>
+      (_files ?? const []).where((e) => kind(e.os('name')) == 'video').length;
+  int get _nbTagges => (_files ?? const [])
+      .where((e) => (_tags[e.os('path')] ?? const <String>[]).isNotEmpty)
+      .length;
 
   Set<String> get _etiquettesUtilisees {
     final s = <String>{};
@@ -88,43 +105,59 @@ class _MediasScreenState extends State<MediasScreen> {
     final paths = _sel.toList();
     if (paths.isEmpty) return;
     PublishDraft.media = paths.first;
-    await Journal.ajoute('media', 'Média choisi pour un post',
-        detail: stripStamp(paths.first.split('/').last));
+    await Journal.ajoute(
+      'media',
+      'Média choisi pour un post',
+      detail: stripStamp(paths.first.split('/').last),
+    );
     _sel.clear();
     _modeSel = false;
     setState(() {});
     if (!mounted) return;
     if (paths.length > 1) {
-      kToast(context,
-          'Premier média chargé (${paths.length} sélectionnés : les autres pour de prochains posts).');
+      kToast(
+        context,
+        'Premier média chargé (${paths.length} sélectionnés : les autres pour de prochains posts).',
+      );
     }
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => const SubPage('Composer', child: ComposerScreen())));
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const SubPage('Composer', child: ComposerScreen()),
+      ),
+    );
   }
 
   Future<void> _etiqueter() async {
     final paths = _sel.toList();
     if (paths.isEmpty) return;
     final ed = TextEditingController(
-        text: (_tags[paths.first] ?? const []).join(', '));
+      text: (_tags[paths.first] ?? const []).join(', '),
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ctx.p.card,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: ctx.p.line)),
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: ctx.p.line),
+        ),
         title: Text('Étiqueter (${paths.length})', style: T.title(ctx.p)),
         content: KEdit(controller: ed, hint: 'concert, promo, photo...'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Annuler', style: TextStyle(color: ctx.p.muted))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Annuler', style: TextStyle(color: ctx.p.muted)),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Enregistrer',
-                  style: TextStyle(color: ctx.p.accent,
-                      fontWeight: FontWeight.w800))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Enregistrer',
+              style: TextStyle(
+                color: ctx.p.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -144,8 +177,10 @@ class _MediasScreenState extends State<MediasScreen> {
   Future<void> _supprimerSelection() async {
     final paths = _sel.toList();
     if (paths.isEmpty) return;
-    if (!await kConfirm(context,
-        'Supprimer ${paths.length} fichier(s) du dépôt ?')) {
+    if (!await kConfirm(
+      context,
+      'Supprimer ${paths.length} fichier(s) du dépôt ?',
+    )) {
       return;
     }
     var ok = 0;
@@ -175,12 +210,17 @@ class _MediasScreenState extends State<MediasScreen> {
       final f = picked[i];
       if (f.path == null) continue;
       try {
-        await Api.upload(File(f.path!), f.name, say: (s) {
-          if (mounted) {
-            setState(() =>
-                _status = '(${i + 1}/${picked.length}) ${f.name} : $s');
-          }
-        });
+        await Api.upload(
+          File(f.path!),
+          f.name,
+          say: (s) {
+            if (mounted) {
+              setState(
+                () => _status = '(${i + 1}/${picked.length}) ${f.name} : $s',
+              );
+            }
+          },
+        );
         ok++;
       } catch (e) {
         if (picked.length == 1) {
@@ -203,71 +243,156 @@ class _MediasScreenState extends State<MediasScreen> {
   Widget build(BuildContext context) {
     final c = context.p;
     final files = _filtrees;
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        child: Column(children: [
-          KEdit(
-            text: _recherche,
-            hint: 'Chercher un fichier...',
-            onChanged: (v) => setState(() => _recherche = v),
-          ),
+    return Column(
+      children: [
+        _pageHead(c),
+        if (_cherche) ...[
           const SizedBox(height: 8),
-          SizedBox(
-            height: 34,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              shrinkWrap: true,
-              children: [
-                _chip(c, 'Tous', _tagFiltre.isEmpty, () => setState(() => _tagFiltre = '')),
-                for (final t in _etiquettesUtilisees)
-                  _chip(c, t, _tagFiltre == t,
-                      () => setState(() => _tagFiltre = _tagFiltre == t ? '' : t)),
-              ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: KEdit(
+              text: _recherche,
+              hint: 'Chercher un fichier...',
+              onChanged: (v) => setState(() => _recherche = v),
             ),
           ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: ActionBtn('Envoyer des fichiers',
-                  icon: Icons.file_upload_outlined, job: _uploadAll),
-            ),
-          ]),
-          if (_status.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(_status, style: T.caption(c)),
-            ),
-        ]),
-      ),
-      Expanded(
-        child: _files == null
-            ? ListView(padding: const EdgeInsets.all(12), children: const [
-                KSkeleton(110),
-                SizedBox(height: 10),
-                KSkeleton(110),
-              ])
-            : files.isEmpty
-                ? ListView(children: [
-                    KEmpty(Icons.image_outlined,
-                        _recherche.isEmpty && _tagFiltre.isEmpty
-                            ? 'Aucun média. Envoie ta première image ou vidéo.'
-                            : 'Aucun résultat pour ce filtre.'),
-                  ])
-                : GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 6,
-                            mainAxisSpacing: 6,
-                            childAspectRatio: .82),
-                    itemCount: files.length,
-                    itemBuilder: (ctx, i) => _cellule(c, files[i]),
+        ],
+        const SizedBox(height: 8),
+        _chips(c),
+        if (_status.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+            child: Text(_status, style: T.caption(c)),
+          ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: _files == null
+              ? ListView(
+                  padding: const EdgeInsets.all(14),
+                  children: const [
+                    KSkeleton(110),
+                    SizedBox(height: 10),
+                    KSkeleton(110),
+                  ],
+                )
+              : files.isEmpty
+              ? KEmpty(
+                  Icons.image_outlined,
+                  _recherche.isEmpty && _filtre.isEmpty
+                      ? 'Aucun média. Envoie ta première image ou vidéo.'
+                      : 'Aucun résultat pour ce filtre.',
+                  sub: _recherche.isEmpty && _filtre.isEmpty
+                      ? "Utilise l'icône d'envoi en haut."
+                      : 'Essaie un autre mot ou un autre filtre.',
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 120),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    childAspectRatio: 1,
                   ),
+                  itemCount: files.length,
+                  itemBuilder: (ctx, i) => _cellule(c, files[i]),
+                ),
+        ),
+        if (_modeSel && _sel.isNotEmpty) _barreActions(c),
+      ],
+    );
+  }
+
+  Widget _pageHead(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      child: Row(
+        children: [
+          Text('Médias', style: T.hero(c)),
+          const Spacer(),
+          _ic(c, Icons.search_outlined, () {
+            Fx.tick();
+            setState(() {
+              _cherche = !_cherche;
+              if (!_cherche) _recherche = '';
+            });
+          }),
+          const SizedBox(width: 8),
+          _ic(c, Icons.file_upload_outlined, _uploadAll),
+          const SizedBox(width: 10),
+          Press(
+            onTap: () {
+              Fx.tick();
+              setState(() => _modeSel = !_modeSel);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Text(
+                _modeSel ? 'Annuler' : 'Sélectionner',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: c.accent,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      if (_modeSel && _sel.isNotEmpty) _barreActions(c),
-    ]);
+    );
+  }
+
+  Widget _ic(Palette c, IconData ic, VoidCallback f) {
+    return Press(
+      onTap: f,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: c.chip,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Icon(ic, size: 17, color: c.ink),
+      ),
+    );
+  }
+
+  Widget _chips(Palette c) {
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        shrinkWrap: true,
+        children: [
+          _chip(c, 'Tout', _filtre.isEmpty, () => setState(() => _filtre = '')),
+          _chip(
+            c,
+            'Photos $_nbPhotos',
+            _filtre == 'photos',
+            () => setState(() => _filtre = _filtre == 'photos' ? '' : 'photos'),
+          ),
+          _chip(
+            c,
+            'Vidéos $_nbVideos',
+            _filtre == 'videos',
+            () => setState(() => _filtre = _filtre == 'videos' ? '' : 'videos'),
+          ),
+          _chip(
+            c,
+            'Taggés $_nbTagges',
+            _filtre == 'tagges',
+            () => setState(() => _filtre = _filtre == 'tagges' ? '' : 'tagges'),
+          ),
+          for (final t in _etiquettesUtilisees)
+            _chip(
+              c,
+              t,
+              _filtre == t,
+              () => setState(() => _filtre = _filtre == t ? '' : t),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _chip(Palette c, String label, bool on, VoidCallback f) {
@@ -281,13 +406,17 @@ class _MediasScreenState extends State<MediasScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-              color: on ? c.accent : c.soft,
-              borderRadius: BorderRadius.circular(99)),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: on ? c.onAccent : c.muted)),
+            color: on ? c.accent : c.soft,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: on ? c.onAccent : c.muted,
+            ),
+          ),
         ),
       ),
     );
@@ -298,7 +427,6 @@ class _MediasScreenState extends State<MediasScreen> {
     final path = f.os('path');
     final isVideo = kind(name) == 'video';
     final selected = _sel.contains(path);
-    final tags = _tags[path] ?? const <String>[];
     return Press(
       onLongPress: () {
         Fx.medium();
@@ -312,69 +440,59 @@ class _MediasScreenState extends State<MediasScreen> {
           _feuille(c, f);
         }
       },
-      child: Column(children: [
-        Expanded(
-          child: Stack(fit: StackFit.expand, children: [
-            Container(
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: selected ? c.accent : c.line,
-                      width: selected ? 2 : 1)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(9),
-                child: !isVideo && f.oi('size') < 1500000
-                    ? Image.network(
-                        'https://api.github.com/repos/${Api.data}/contents/${Api.cp(path)}',
-                        headers: {
-                          'Authorization': 'Bearer ${Api.tok}',
-                          'Accept': 'application/vnd.github.raw+json',
-                          'User-Agent': 'kidas-controle',
-                        },
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(
-                            Icons.image_outlined,
-                            size: 26,
-                            color: c.muted),
-                      )
-                    : Icon(
-                        isVideo
-                            ? Icons.play_circle_outline
-                            : Icons.image_outlined,
-                        size: 26,
-                        color: c.muted),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected ? c.accent : c.line,
+                width: selected ? 2 : 1,
               ),
             ),
-            if (_modeSel)
-              Positioned(
-                top: 5,
-                right: 5,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                      color: selected ? c.accent : c.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: c.accent, width: 1.5)),
-                  child: selected
-                      ? Icon(Icons.check, size: 13, color: c.onAccent)
-                      : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: !isVideo && f.oi('size') < 1500000
+                  ? Image.network(
+                      'https://api.github.com/repos/${Api.data}/contents/${Api.cp(path)}',
+                      headers: {
+                        'Authorization': 'Bearer ${Api.tok}',
+                        'Accept': 'application/vnd.github.raw+json',
+                        'User-Agent': 'kidas-controle',
+                      },
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Icon(Icons.image_outlined, size: 26, color: c.muted),
+                    )
+                  : Icon(
+                      isVideo
+                          ? Icons.play_circle_outline
+                          : Icons.image_outlined,
+                      size: 26,
+                      color: c.muted,
+                    ),
+            ),
+          ),
+          if (_modeSel)
+            Positioned(
+              top: 5,
+              right: 5,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: selected ? c.accent : c.card,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: c.accent, width: 1.5),
                 ),
+                child: selected
+                    ? Icon(Icons.check, size: 13, color: c.onAccent)
+                    : null,
               ),
-          ]),
-        ),
-        const SizedBox(height: 4),
-        Text(stripStamp(name),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: T.caption(c).copyWith(fontSize: 10.5)),
-        if (tags.isNotEmpty)
-          Text(tags.join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: T.caption(c).copyWith(
-                  fontSize: 9.5, color: c.accent, fontWeight: FontWeight.w700)),
-      ]),
+            ),
+        ],
+      ),
     );
   }
 
@@ -391,20 +509,26 @@ class _MediasScreenState extends State<MediasScreen> {
 
   Future<void> _feuille(Palette c, Map<String, dynamic> f) async {
     final path = f.os('path');
-    final action = await kSheet<String>(context, title: stripStamp(f.os('name')), children: [
-      _row(context, Icons.edit_outlined, 'Utiliser dans un post', 'use'),
-      _row(context, Icons.sell_outlined, 'Étiqueter', 'tag'),
-      _row(context, Icons.copy_outlined, 'Copier le chemin', 'copy'),
-      _row(context, Icons.delete_outline, 'Supprimer', 'del'),
-    ]);
+    final action = await kSheet<String>(
+      context,
+      title: stripStamp(f.os('name')),
+      children: [
+        _row(context, Icons.edit_outlined, 'Utiliser dans un post', 'use'),
+        _row(context, Icons.sell_outlined, 'Étiqueter', 'tag'),
+        _row(context, Icons.copy_outlined, 'Copier le chemin', 'copy'),
+        _row(context, Icons.delete_outline, 'Supprimer', 'del'),
+      ],
+    );
     if (action == null || !mounted) return;
     switch (action) {
       case 'use':
         PublishDraft.media = path;
         if (!mounted) return;
-        await Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) =>
-                const SubPage('Composer', child: ComposerScreen())));
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const SubPage('Composer', child: ComposerScreen()),
+          ),
+        );
       case 'tag':
         setState(() {
           _sel.clear();
@@ -419,8 +543,11 @@ class _MediasScreenState extends State<MediasScreen> {
         if (!await kConfirm(context, 'Supprimer ce fichier du dépôt ?')) return;
         try {
           await Api.deleteFile(path, f.os('name'), f.os('sha'));
-          await Journal.ajoute('media', 'Média supprimé',
-              detail: stripStamp(f.os('name')));
+          await Journal.ajoute(
+            'media',
+            'Média supprimé',
+            detail: stripStamp(f.os('name')),
+          );
           if (mounted) kToast(context, 'Supprimé.');
         } catch (e) {
           if (mounted) kToast(context, Api.hint(e), bad: true);
@@ -438,16 +565,23 @@ class _MediasScreenState extends State<MediasScreen> {
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(children: [
-          IconBox(ic),
-          const SizedBox(width: 13),
-          Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      fontSize: 14.5, fontWeight: FontWeight.w700,
-                      color: c.ink))),
-          Icon(Icons.chevron_right, size: 18, color: c.muted),
-        ]),
+        child: Row(
+          children: [
+            IconBox(ic),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: c.ink,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: c.muted),
+          ],
+        ),
       ),
     );
   }
@@ -457,39 +591,50 @@ class _MediasScreenState extends State<MediasScreen> {
   Widget _barreActions(Palette c) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(color: c.navBg, border: Border(
-          top: BorderSide(color: c.navLine))),
+      decoration: BoxDecoration(
+        color: c.navBg,
+        border: Border(top: BorderSide(color: c.navLine)),
+      ),
       child: SafeArea(
         top: false,
-        child: Row(children: [
-          Expanded(
-              child: Text('${_sel.length} sélectionné(s)',
-                  style: T.strong(c))),
-          const SizedBox(width: 8),
-          ActionBtn('Utiliser',
+        child: Row(
+          children: [
+            Expanded(
+              child: Text('${_sel.length} sélectionnée(s)', style: T.strong(c)),
+            ),
+            const SizedBox(width: 8),
+            ActionBtn(
+              'Utiliser',
               height: 38,
               variant: KBtnVariant.accent,
-              job: _utiliserSelection),
-          const SizedBox(width: 6),
-          ActionBtn('Étiqueter',
-              height: 38, variant: KBtnVariant.ghost, job: _etiqueter),
-          const SizedBox(width: 6),
-          Press(
-            onTap: () {
-              Fx.tick();
-              _supprimerSelection();
-            },
-            child: Container(
-              width: 38,
+              job: _utiliserSelection,
+            ),
+            const SizedBox(width: 6),
+            ActionBtn(
+              'Étiqueter',
               height: 38,
-              decoration: BoxDecoration(
+              variant: KBtnVariant.ghost,
+              job: _etiqueter,
+            ),
+            const SizedBox(width: 6),
+            Press(
+              onTap: () {
+                Fx.tick();
+                _supprimerSelection();
+              },
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
                   color: c.soft,
                   borderRadius: BorderRadius.circular(11),
-                  border: Border.all(color: c.line)),
-              child: Icon(Icons.delete_outline, size: 17, color: c.ink),
+                  border: Border.all(color: c.line),
+                ),
+                child: Icon(Icons.delete_outline, size: 17, color: c.ink),
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
