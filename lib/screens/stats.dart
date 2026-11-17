@@ -9,8 +9,9 @@ import '../ui/charts.dart';
 import '../ui/common.dart';
 import '../ui/shell.dart' show Bus;
 
-/// Statistiques : héros abonnés, tuiles KPI, explorateur de courbes,
-/// barres quotidiennes, anneaux de santé. Port fidèle de StatsScreen.java.
+/// Statistiques selon la maquette 06 : héros abonnés avec pilule de
+/// variation, courbe de croissance, barres d'interactions de la semaine,
+/// anneau de répartition et top publications par J'aime.
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
   @override
@@ -21,7 +22,6 @@ class _StatsScreenState extends State<StatsScreen> {
   Dash? _d;
   bool _busy = true;
   String? _err;
-  int _sel = 0;
   int _periode = 30; // fenêtre des courbes : 7 ou 30 jours
 
   @override
@@ -38,7 +38,6 @@ class _StatsScreenState extends State<StatsScreen> {
       setState(() {
         _d = d;
         _busy = false;
-        _sel = 0;
       });
       final cm = d.cm;
       if (cm != null) {
@@ -55,79 +54,202 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
+  /* ---------- accès données ---------- */
+
+  Metric? _metrique(String key) {
+    for (final m in Api.metrics(_d?.st)) {
+      if (m.key == key) return m;
+    }
+    return null;
+  }
+
+  List<double> _fen(List<double> v) =>
+      v.length > _periode ? v.sublist(v.length - _periode) : v;
+
+  List<String?>? _fenLabs(List<String?>? l) =>
+      l == null || l.length <= _periode ? l : l.sublist(l.length - _periode);
+
+  double _somme(List<double> v) {
+    var t = 0.0;
+    for (final x in v) {
+      t += x;
+    }
+    return t;
+  }
+
+  double _lik(Map<String, dynamic> p) =>
+      p['likes_total'] is num ? (p['likes_total'] as num).toDouble() : 0.0;
+
+  /* libellés de la maquette : « 15/11 » devient « 15 nov » */
+  String? jolieDate(String? lab) {
+    if (lab == null) return null;
+    final m = RegExp(r'^(\d{1,2})/(\d{1,2})$').firstMatch(lab);
+    if (m == null) return lab;
+    const mois = [
+      'janv',
+      'févr',
+      'mars',
+      'avr',
+      'mai',
+      'juin',
+      'juil',
+      'août',
+      'sept',
+      'oct',
+      'nov',
+      'déc',
+    ];
+    final j = int.parse(m.group(1)!);
+    final mm = int.parse(m.group(2)!);
+    if (mm < 1 || mm > 12) return lab;
+    return '$j ${mois[mm - 1]}';
+  }
+
+  /* « 15/11 » devient la lettre du jour : L M M J V S D */
+  String? jourSemaine(String? lab) {
+    if (lab == null) return null;
+    final m = RegExp(r'^(\d{1,2})/(\d{1,2})$').firstMatch(lab);
+    if (m == null) return null;
+    final j = int.parse(m.group(1)!);
+    final mm = int.parse(m.group(2)!);
+    final auj = DateTime.now();
+    var d = DateTime(auj.year, mm, j);
+    if (d.isAfter(auj.add(const Duration(days: 2)))) {
+      d = DateTime(auj.year - 1, mm, j);
+    }
+    const jours = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    return jours[d.weekday - 1];
+  }
+
+  /* ---------- construction de l'écran ---------- */
+
   @override
   Widget build(BuildContext context) {
     if (_busy && _d == null) {
-      return ListView(padding: const EdgeInsets.all(12), children: const [
-        KSkeleton(120),
-        SizedBox(height: 12),
-        KSkeleton(80),
-        SizedBox(height: 12),
-        KSkeleton(80),
-      ]);
+      return ListView(
+        padding: const EdgeInsets.all(12),
+        children: const [
+          KSkeleton(120),
+          SizedBox(height: 12),
+          KSkeleton(160),
+          SizedBox(height: 12),
+          KSkeleton(140),
+        ],
+      );
     }
     if (_err != null && _d == null) {
-      return ListView(padding: const EdgeInsets.all(12), children: [
-        KCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Connexion impossible', style: T.strong(context.p)),
-          const SizedBox(height: 6),
-          Text(_err!, style: T.caption(context.p)),
-          const SizedBox(height: 12),
-          KBtn('Réessayer', onTap: _load),
-        ])),
-      ]);
+      return ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Connexion impossible', style: T.strong(context.p)),
+                const SizedBox(height: 6),
+                Text(_err!, style: T.caption(context.p)),
+                const SizedBox(height: 12),
+                KBtn('Réessayer', onTap: _load),
+              ],
+            ),
+          ),
+        ],
+      );
     }
     final c = context.p;
     final d = _d!;
-    final msToutes = Api.metrics(d.st);
-    // fenêtre 7 j / 30 j : on coupe les séries par la fin
-    List<double> coupe(List<double> v) =>
-        v.length > _periode ? v.sublist(v.length - _periode) : v;
-    List<String?>? coupeLabs(List<String?>? l) =>
-        l == null || l.length <= _periode ? l : l.sublist(l.length - _periode);
-    final ms = <Metric>[
-      for (final m in msToutes)
-        Metric()
-          ..key = m.key
-          ..name = m.name
-          ..vals = coupe(m.vals)
-          ..labs = coupeLabs(m.labs),
-    ];
-    Map<String, dynamic> pg = <String, dynamic>{};
+    final suiv = _metrique('page_follows');
+    final eng = _metrique('page_post_engagements');
+    final vues = _metrique('page_views_total');
+    final cont = _metrique('page_media_view');
+    final pg = <String, dynamic>{};
     final p1 = d.st?['page'];
-    if (p1 is Map<String, dynamic>) pg = p1;
+    if (p1 is Map<String, dynamic>) pg.addAll(p1);
     if (pg.isEmpty) {
       final p2 = d.cm?['page'];
-      if (p2 is Map<String, dynamic>) pg = p2;
+      if (p2 is Map<String, dynamic>) pg.addAll(p2);
     }
-    final pendingSum = d.pending.fold<int>(0, (a, b) => a + b);
-    final all = Api.flatComments(d.cm);
-    final un = Api.unanswered(all, Api.pageId(d.st, d.cm));
 
-    var sub = pg.containsKey('fan_count')
-        ? '${nf(pg['fan_count'] is num ? pg['fan_count'] : 0)} J\'aime sur la Page'
-        : '';
-    if (d.st != null && d.st!.os('date').isNotEmpty) {
-      sub += '${sub.isEmpty ? '' : ' · '}mis à jour ${rel(d.st!.os('date'))}';
+    final kids = <Widget>[_pageHead(c)];
+    var nCartes = 0;
+
+    kids.add(_heros(c, pg, suiv));
+    if (suiv != null && suiv.vals.length >= 2) {
+      nCartes++;
+      kids.add(const SizedBox(height: 12));
+      kids.add(_carteCroissance(c, suiv));
+    }
+    if (eng != null && eng.vals.isNotEmpty) {
+      nCartes++;
+      kids.add(const SizedBox(height: 12));
+      kids.add(_carteInteractions(c, eng));
+    }
+    if (eng != null || vues != null || cont != null) {
+      nCartes++;
+      kids.add(const SizedBox(height: 12));
+      kids.add(_carteAudience(c, eng, vues, cont));
+    }
+    final cm = d.cm;
+    if (cm != null && asArr(cm['posts']).isNotEmpty) {
+      nCartes++;
+      kids.add(const SizedBox(height: 12));
+      kids.add(_carteTop(c, cm));
+    }
+    if (nCartes == 0) {
+      kids.add(const SizedBox(height: 12));
+      kids.add(
+        KCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              KEmpty(
+                Icons.insert_chart_outlined,
+                "Aucune statistique pour l'instant. Lance « Statistiques » depuis l'accueil.",
+              ),
+              const SizedBox(height: 8),
+              ActionBtn(
+                'Lancer les statistiques',
+                icon: Icons.play_arrow_rounded,
+                job: () => Api.dispatch('statistiques.yml', null),
+                ok: 'Statistiques lancées.',
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-      children: [
-        /* en-tête de page (maquette) */
-        Padding(
-          padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
-          child: Row(children: [
-            Text('Stats',
-                style: TextStyle(
-                    fontSize: 26, fontWeight: FontWeight.w800,
-                    letterSpacing: -.5, color: c.ink)),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                  color: c.soft, borderRadius: BorderRadius.circular(99)),
-              child: Row(children: [
+      children: kids,
+    );
+  }
+
+  /* en-tête : titre + segmenté 7 j / 30 j (maquette) */
+  Widget _pageHead(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+      child: Row(
+        children: [
+          Text(
+            'Stats',
+            style: TextStyle(
+              fontFamily: kDisp,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.5,
+              color: c.ink,
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: c.soft,
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Row(
+              children: [
                 for (final (v, label) in const [(7, '7 j'), (30, '30 j')])
                   Press(
                     onTap: () {
@@ -136,364 +258,287 @@ class _StatsScreenState extends State<StatsScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
-                          color: _periode == v ? c.accent : Colors.transparent,
-                          borderRadius: BorderRadius.circular(99)),
-                      child: Text(label,
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: _periode == v ? c.onAccent : c.muted)),
+                        color: _periode == v ? c.accent : Colors.transparent,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _periode == v ? c.onAccent : c.muted,
+                        ),
+                      ),
                     ),
                   ),
-              ]),
-            ),
-          ]),
-        ),
-        /* héros : abonnés */
-        KHero(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('ABONNÉS', style: T.micro(c).copyWith(color: c.heroMut)),
-            CountUpText(
-              pg.containsKey('followers_count')
-                  ? (pg['followers_count'] as num? ?? 0).toDouble()
-                  : 0,
-              style: T.hero(c).copyWith(fontSize: 42, color: c.heroInk),
-            ),
-            if (sub.isNotEmpty)
-              Text(sub, style: T.body(c).copyWith(color: c.heroMut)),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        /* tuiles KPI */
-        Row(children: [
-          Expanded(
-              child: _kpi(c, Icons.favorite_outline, 'J\'aime la Page',
-                  _num(pg['fan_count']))),
-          const SizedBox(width: 12),
-          Expanded(
-              child: _kpi(c, Icons.chat_bubble_outline, 'Sans réponse',
-                  d.cm == null ? 0 : un.length.toDouble())),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-              child: _kpi(c, Icons.schedule_outlined, 'En attente',
-                  pendingSum.toDouble())),
-          const SizedBox(width: 12),
-          Expanded(
-              child: _kpi(c, Icons.trending_up_outlined, 'Commentaires',
-                  d.cm == null ? 0 : all.length.toDouble())),
-        ]),
-        const SizedBox(height: 16),
-        /* courbes */
-        if (ms.isEmpty) ...[
-          KSection('Courbes'),
-          KCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            KEmpty(Icons.insert_chart_outlined,
-                "Aucune statistique pour l'instant. Lance « Statistiques » depuis l'accueil."),
-            const SizedBox(height: 8),
-            ActionBtn('Lancer les statistiques',
-                icon: Icons.play_arrow_rounded,
-                job: () => Api.dispatch('statistiques.yml', null),
-                ok: 'Statistiques lancées.'),
-          ])),
-        ] else ...[
-          _explorer(c, ms),
-          const SizedBox(height: 16),
-          _bars(c, ms),
-        ],
-        const SizedBox(height: 16),
-        /* semaine vs semaine */
-        if (ms.isNotEmpty) _semaine(c, ms),
-        const SizedBox(height: 16),
-        /* top publications */
-        if (d.cm != null) _topPosts(c, d),
-        const SizedBox(height: 16),
-        /* anneaux */
-        _rings(c, d, all, un),
-        const SizedBox(height: 16),
-        /* toutes les métriques */
-        if (ms.isNotEmpty) ...[
-          KSection('Toutes les métriques'),
-          KCard(
-            child: Column(children: [
-              for (var i = 0; i < ms.length; i++) ...[
-                if (i > 0) const KDivider(),
-                _metricRow(c, i, ms[i]),
               ],
-            ]),
+            ),
           ),
         ],
-      ],
-    );
-  }
-
-  double _num(dynamic v) => v is num ? v.toDouble() : 0;
-
-  Widget _kpi(Palette c, IconData ic, String label, double v) {
-    return KCard(
-      pad: const EdgeInsets.all(12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(ic, size: 15, color: c.muted),
-          const SizedBox(width: 6),
-          Expanded(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: T.caption(c))),
-        ]),
-        const SizedBox(height: 4),
-        CountUpText(v, style: T.kpi(c)),
-      ]),
-    );
-  }
-
-  /* ---------- explorateur ---------- */
-
-  Widget _explorer(Palette c, List<Metric> ms) {
-    final m = ms[_sel.clamp(0, ms.length - 1)];
-    final last = m.vals.last;
-    var mn = m.vals[0], mx = m.vals[0], sum = 0.0;
-    for (final v in m.vals) {
-      if (v < mn) mn = v;
-      if (v > mx) mx = v;
-      sum += v;
-    }
-    final palette = [c.accent, c.muted, c.accent, c.muted, c.muted];
-    final color = palette[_sel % palette.length];
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Évolution'),
-      SizedBox(
-        height: 36,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          shrinkWrap: true,
-          children: [
-            for (var i = 0; i < ms.length; i++)
-              Padding(
-                padding: EdgeInsets.only(right: i == ms.length - 1 ? 0 : 8),
-                child: Press(
-                  onTap: () {
-                    Fx.tick();
-                    setState(() => _sel = i);
-                  },
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                        color: _sel == i ? c.accent : c.soft,
-                        borderRadius: BorderRadius.circular(99)),
-                    child: Text(ms[i].name,
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: _sel == i ? c.onAccent : c.muted)),
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
-      const SizedBox(height: 14),
-      Row(children: [
-        CountUpText(last, style: T.title(c).copyWith(fontSize: 32)),
-        const SizedBox(width: 10),
-        if (m.vals.length > 1) deltaChip(context, last, m.vals[m.vals.length - 2]),
-      ]),
-      const SizedBox(height: 6),
-      LineChart(m.vals, labs: m.labs, color: color),
-      const SizedBox(height: 8),
-      Row(children: [
-        for (final it in [
-          ['Min', nf(mn)],
-          ['Moyenne', nf(sum / m.vals.length)],
-          ['Max', nf(mx)],
-        ])
-          Expanded(
-            child: Column(children: [
-              Text(it[1], style: T.strong(c).copyWith(fontSize: 16)),
-              Text(it[0], style: T.caption(c)),
-            ]),
-          ),
-      ]),
-    ]);
+    );
   }
 
-  /* ---------- semaine vs semaine ---------- */
-
-  Widget _semaine(Palette c, List<Metric> ms) {
-    // les trois métriques les plus parlantes pour un comparatif hebdo
-    final cles = ['page_post_engagements', 'page_views_total', 'page_follows'];
-    final picks = <Metric>[];
-    for (final k in cles) {
-      for (final m in ms) {
-        if (m.key == k && m.vals.length >= 8) picks.add(m);
+  /* héros : abonnés + pilule de variation (maquette stat-hero) */
+  Widget _heros(Palette c, Map<String, dynamic> pg, Metric? suiv) {
+    final f = pg['followers_count'] ?? pg['fan_count'];
+    final n = f is num ? f.toDouble() : 0.0;
+    String? delta;
+    String? note;
+    if (suiv != null && suiv.vals.length >= 2) {
+      final v = _fen(suiv.vals);
+      final gain = v.last - v.first;
+      if (gain != 0) {
+        delta = '${gain > 0 ? '+' : ''}${nf(gain.round())}';
+        final tout = suiv.vals;
+        if (tout.length >= _periode * 2 + 1) {
+          final g2 =
+              tout[tout.length - 1 - _periode] -
+              tout[tout.length - 1 - 2 * _periode];
+          if (g2 > 0) {
+            final p = pct(gain, g2);
+            if (p.isNotEmpty) note = '· $p vs période précédente';
+          }
+        }
       }
     }
-    if (picks.isEmpty) return const SizedBox();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Semaine vs semaine'),
-      KCard(
-        child: Column(children: [
-          for (var i = 0; i < picks.length; i++) ...[
-            if (i > 0) const KDivider(),
-            _semaineRow(c, picks[i]),
-          ],
-        ]),
-      ),
-      const SizedBox(height: 4),
-      Text('Somme des 7 derniers jours contre les 7 jours précédents.',
-          style: T.caption(c)),
-    ]);
-  }
-
-  Widget _semaineRow(Palette c, Metric m) {
-    final recent = sommeRecente(m.vals, 7);
-    final avant = sommePrecedente(m.vals, 7);
-    return Row(children: [
-      Expanded(child: Text(m.name, style: T.body(c))),
-      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text(nf(recent), style: T.strong(c).copyWith(fontSize: 15)),
-        Text('7 derniers j', style: T.caption(c).copyWith(fontSize: 10.5)),
-      ]),
-      const SizedBox(width: 10),
-      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text(nf(avant), style: T.body(c)),
-        Text('7 avant', style: T.caption(c).copyWith(fontSize: 10.5)),
-      ]),
-      const SizedBox(width: 10),
-      SizedBox(
-        width: 74,
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: avant <= 0
-              ? Text('—', style: T.caption(c))
-              : deltaChip(context, recent, avant),
-        ),
-      ),
-    ]);
-  }
-
-  /* ---------- top publications ---------- */
-
-  Widget _topPosts(Palette c, Dash d) {
-    final posts = topPosts(d.cm, max: 5);
-    if (posts.isEmpty) return const SizedBox();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Top publications'),
-      KCard(
-        child: Column(children: [
-          for (var i = 0; i < posts.length; i++) ...[
-            if (i > 0) const KDivider(),
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(
-                width: 26,
-                child: Text('${i + 1}',
-                    style: T.kpi(c).copyWith(
-                        fontSize: 16,
-                        color: i == 0 ? c.accent : c.muted)),
+    return KCard(
+      pad: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ABONNÉS', style: T.micro(c)),
+          const SizedBox(height: 4),
+          CountUpText(
+            n,
+            style: TextStyle(
+              fontFamily: kDisp,
+              fontSize: 34,
+              height: 1.1,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.7,
+              color: c.ink,
+            ),
+          ),
+          if (delta != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: c.accent),
+                borderRadius: BorderRadius.circular(99),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    delta,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: c.accent,
+                    ),
+                  ),
+                  if (note != null) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      note,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: c.muted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /* carte croissance : courbe des abonnés (maquette chart-card 1) */
+  Widget _carteCroissance(Palette c, Metric suiv) {
+    final v = _fen(suiv.vals);
+    final labs = [
+      for (final l in _fenLabs(suiv.labs) ?? const <String?>[]) jolieDate(l),
+    ];
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('CROISSANCE · $_periode JOURS', style: T.micro(c)),
+          const SizedBox(height: 10),
+          LineChart(v, labs: labs, color: c.accent),
+        ],
+      ),
+    );
+  }
+
+  /* carte interactions : barres des 7 derniers jours (chart-card 2) */
+  Widget _carteInteractions(Palette c, Metric eng) {
+    final n = eng.vals.length < 7 ? eng.vals.length : 7;
+    final v = eng.vals.sublist(eng.vals.length - n);
+    List<String?> labs = const [];
+    if (eng.labs != null && eng.labs!.length >= n) {
+      final l = eng.labs!.sublist(eng.labs!.length - n);
+      labs = [for (final s in l) jourSemaine(s)];
+    }
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('INTERACTIONS · 7 JOURS', style: T.micro(c)),
+          const SizedBox(height: 10),
+          BarChart(v, labs: labs, color: c.accent),
+        ],
+      ),
+    );
+  }
+
+  /* carte audience : anneau de répartition + légende (chart-card 3) */
+  Widget _carteAudience(Palette c, Metric? eng, Metric? vues, Metric? cont) {
+    final parts = <(Metric, Color)>[];
+    if (eng != null) parts.add((eng, c.accent));
+    if (vues != null) parts.add((vues, c.muted));
+    if (cont != null) parts.add((cont, c.line));
+    if (parts.isEmpty) return const SizedBox();
+    final tot = parts.fold<double>(0, (a, b) => a + _somme(_fen(b.$1.vals)));
+    if (tot <= 0) return const SizedBox();
+    final segs = [
+      for (final (m, col) in parts) KDonutSeg(_somme(_fen(m.vals)) / tot, col),
+    ];
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('AUDIENCE', style: T.micro(c)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              KDonut(
+                segs,
+                center: '${(segs.first.v * 100).round()} %',
+                centerLabel: parts.first.$1.name,
+              ),
+              const SizedBox(width: 16),
               Expanded(
-                child: Text(posts[i].texte,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: T.body(c)),
+                child: Column(
+                  children: [
+                    for (final (m, col) in parts)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 9,
+                              height: 9,
+                              decoration: BoxDecoration(
+                                color: col,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                m.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: T.caption(c),
+                              ),
+                            ),
+                            Text(
+                              '${(_somme(_fen(m.vals)) / tot * 100).round()} %',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: c.ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(nf(posts[i].commentaires), style: T.strong(c)),
-                Text('commentaires', style: T.caption(c).copyWith(fontSize: 10.5)),
-              ]),
-            ]),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /* carte top publications par J'aime (chart-card 4) */
+  Widget _carteTop(Palette c, Map<String, dynamic> cm) {
+    final posts = [for (final e in asArr(cm['posts'])) asObj(e)];
+    posts.sort((a, b) => _lik(b).compareTo(_lik(a)));
+    final top = posts.take(3).toList();
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('TOP PUBLICATIONS · 7 JOURS', style: T.micro(c)),
+          for (var i = 0; i < top.length; i++) ...[
+            if (i > 0) Container(height: 1, color: c.line),
+            _lignePost(c, top[i]),
           ],
-        ]),
+        ],
       ),
-      const SizedBox(height: 4),
-      Text('Classement par commentaires reçus, d\'après le dernier audit.',
-          style: T.caption(c)),
-    ]);
+    );
   }
 
-  /* ---------- barres quotidiennes ---------- */
-
-  Widget _bars(Palette c, List<Metric> ms) {
-    var pick = ms[0];
-    for (final m in ms) {
-      if (m.key == 'page_daily_follows_unique') pick = m;
-    }
-    if (identical(pick, ms[0]) && ms.length > 1 && pick.key != 'page_daily_follows_unique') {
-      pick = ms[1];
-    }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('${pick.name} par jour'),
-      KCard(
-        pad: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-        child: BarChart(pick.vals, labs: pick.labs, color: c.accent),
-      ),
-    ]);
-  }
-
-  /* ---------- anneaux de santé ---------- */
-
-  Widget _rings(Palette c, Dash d, List<Cmt> all, List<Cmt> un) {
-    final answered =
-        all.isEmpty ? 1.0 : (all.length - un.length) / all.length;
-    var done = 0, ok = 0;
-    for (final r in d.runs) {
-      final ro = asObj(r);
-      if (ro.os('status') != 'completed') continue;
-      done++;
-      if (ro.os('conclusion') == 'success') ok++;
-    }
-    final success = done == 0 ? 0.0 : ok / done;
-    final tot = d.total.fold<int>(0, (a, b) => a + b);
-    final pend = d.pending.fold<int>(0, (a, b) => a + b);
-    final files = tot == 0 ? 1.0 : (tot - pend) / tot;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Santé du bot'),
-      KCard(
-        child: Row(children: [
-          Expanded(child: _ring(c, 'Réponses données', answered, c.accent)),
-          Expanded(child: _ring(c, 'Exécutions réussies', success, c.muted)),
-          Expanded(child: _ring(c, 'Files traitées', files, c.accent)),
-        ]),
-      ),
-    ]);
-  }
-
-  Widget _ring(Palette c, String label, double p, Color color) {
-    return Column(children: [
-      KRing(p, color: color),
-      const SizedBox(height: 8),
-      Text(label,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          style: T.caption(c)),
-    ]);
-  }
-
-  Widget _metricRow(Palette c, int idx, Metric m) {
-    final last = m.vals.last;
-    return Press(
-      onTap: () {
-        Fx.tick();
-        setState(() => _sel = idx);
-        kToast(context, '${m.name} affiché plus haut.');
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(children: [
-          Expanded(child: Text(m.name, style: T.body(c))),
+  Widget _lignePost(Palette c, Map<String, dynamic> p) {
+    var txt = p.os('message');
+    if (txt.isEmpty) txt = p.os('story');
+    if (txt.isEmpty) txt = 'Publication sans texte';
+    final pic = p.os('full_picture');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        children: [
+          _vignette(c, pic),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              txt,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: T.body(c).copyWith(fontSize: 12.5),
+            ),
+          ),
           const SizedBox(width: 8),
-          Text(nf(last), style: T.strong(c).copyWith(fontSize: 15)),
-          if (m.vals.length > 1) ...[
-            const SizedBox(width: 8),
-            deltaChip(context, last, m.vals[m.vals.length - 2]),
-          ],
-        ]),
+          Text('${nf(_lik(p).round())} J\'aime', style: T.caption(c)),
+        ],
+      ),
+    );
+  }
+
+  /* vignette 52 × 40 : image du post, ou pictogramme document */
+  Widget _vignette(Palette c, String pic) {
+    final vide = Container(
+      width: 52,
+      height: 40,
+      decoration: BoxDecoration(
+        color: c.soft,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(Icons.description_outlined, size: 16, color: c.muted),
+    );
+    if (pic.isEmpty) return vide;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        pic,
+        width: 52,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => vide,
       ),
     );
   }
