@@ -409,7 +409,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
   Widget _ligneBrouillon(
     Palette c,
     Brouillon b,
-    void Function() setF,
+    StateSetter setF,
     BuildContext ctx2,
   ) {
     return Padding(
