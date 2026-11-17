@@ -459,7 +459,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
               onTap: () async {
                 await Brouillons.supprime(b.id);
                 _loadBrouillons();
-                if (ctx2.mounted) setF();
+                if (ctx2.mounted) setF(() {});
               },
               child: Icon(Icons.delete_outline, size: 18, color: c.muted),
             ),
