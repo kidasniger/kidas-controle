@@ -19,9 +19,12 @@ class PublishDraft {
   static bool now = true;
 }
 
-/// Composer : écrire un post, voir l'aperçu façon Facebook, joindre un
-/// média, programmer, garder un brouillon et suivre la file. Le contenu
-/// part dans posts/queue.json ou posts/avance.json ; le bot publie.
+/// Composer, comme sur la maquette : l'éditeur (texte + vignette du média
+/// joint), trois lignes d'options (média, programmation, audience),
+/// l'aperçu du rendu Facebook, la file d'attente en crans et le gros
+/// bouton « Publier maintenant ». Les brouillons restent à portée via le
+/// bouton d'en-tête. Le contenu part dans posts/queue.json ou
+/// posts/avance.json ; le bot publie.
 class ComposerScreen extends StatefulWidget {
   const ComposerScreen({super.key});
   @override
@@ -29,8 +32,9 @@ class ComposerScreen extends StatefulWidget {
 }
 
 class _ComposerScreenState extends State<ComposerScreen> {
-  late final TextEditingController _ed =
-      TextEditingController(text: PublishDraft.msg);
+  late final TextEditingController _ed = TextEditingController(
+    text: PublishDraft.msg,
+  );
   String _status = '';
   List<Brouillon> _brouillons = [];
   bool _draftBusy = true;
@@ -57,6 +61,17 @@ class _ComposerScreenState extends State<ComposerScreen> {
       ? ''
       : stripStamp(PublishDraft.media.replaceFirst(RegExp(r'^media/'), ''));
 
+  /* ---------- chargement des médias du dépôt (aperçus) ---------- */
+
+  String _mediaUrl(String path) =>
+      'https://api.github.com/repos/${Api.data}/contents/${Api.cp(path)}';
+
+  Map<String, String> get _mediaHeaders => {
+    'Authorization': 'Bearer ${Api.tok}',
+    'Accept': 'application/vnd.github.raw+json',
+    'User-Agent': 'kidas-controle',
+  };
+
   /* ---------- brouillons ---------- */
 
   Future<void> _loadBrouillons() async {
@@ -75,7 +90,9 @@ class _ComposerScreenState extends State<ComposerScreen> {
   Future<void> _sauverBrouillon() async {
     final t = _ed.text.trim();
     if (t.isEmpty && PublishDraft.media.isEmpty) {
-      throw Exception('Rien à enregistrer : écris un texte ou choisis un média.');
+      throw Exception(
+        'Rien à enregistrer : écris un texte ou choisis un média.',
+      );
     }
     await Brouillons.ajoute(t, PublishDraft.media, PublishDraft.whenMs);
     if (!mounted) return;
@@ -100,10 +117,13 @@ class _ComposerScreenState extends State<ComposerScreen> {
     if (f == null || f.path == null) return;
     setState(() => _status = 'Envoi...');
     try {
-      final path = await Api.upload(File(f.path!), f.name,
-          say: (s) {
-            if (mounted) setState(() => _status = s);
-          });
+      final path = await Api.upload(
+        File(f.path!),
+        f.name,
+        say: (s) {
+          if (mounted) setState(() => _status = s);
+        },
+      );
       PublishDraft.media = path;
       setState(() => _status = '');
       if (mounted) kToast(context, 'Média envoyé.');
@@ -135,14 +155,14 @@ class _ComposerScreenState extends State<ComposerScreen> {
         builder: (ctx) => SimpleDialog(
           backgroundColor: ctx.p.card,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: BorderSide(color: ctx.p.line)),
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: ctx.p.line),
+          ),
           title: Text('Choisir un média', style: T.title(ctx.p)),
           children: [
             for (var i = 0; i < files.length && i < 60; i++)
               SimpleDialogOption(
-                onPressed: () =>
-                    Navigator.pop(ctx, files[i].os('path')),
+                onPressed: () => Navigator.pop(ctx, files[i].os('path')),
                 child: Text(
                   '${stripStamp(files[i].os('name'))} (${fsize(files[i].oi('size'))})',
                   maxLines: 1,
@@ -172,26 +192,281 @@ class _ComposerScreenState extends State<ComposerScreen> {
       firstDate: now,
       lastDate: now.add(const Duration(days: 60)),
       builder: (ctx, child) => Theme(
-          data: Theme.of(ctx).copyWith(
-              colorScheme: ColorScheme.fromSeed(
-                  seedColor: ctx.p.accent,
-                  brightness: Theme.of(ctx).brightness)),
-          child: child ?? const SizedBox()),
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: ctx.p.accent,
+            brightness: Theme.of(ctx).brightness,
+          ),
+        ),
+        child: child ?? const SizedBox(),
+      ),
     );
     if (d == null || !mounted) return;
     final t = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(init),
       builder: (ctx, child) => Theme(
-          data: Theme.of(ctx).copyWith(
-              colorScheme: ColorScheme.fromSeed(
-                  seedColor: ctx.p.accent,
-                  brightness: Theme.of(ctx).brightness)),
-          child: child ?? const SizedBox()),
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: ctx.p.accent,
+            brightness: Theme.of(ctx).brightness,
+          ),
+        ),
+        child: child ?? const SizedBox(),
+      ),
     );
     if (t == null || !mounted) return;
     final x = DateTime(d.year, d.month, d.day, t.hour, t.minute);
     setState(() => PublishDraft.whenMs = x.millisecondsSinceEpoch);
+  }
+
+  /* ---------- feuilles d'options (comme les lignes de la maquette) ---------- */
+
+  void _feuilleMedia(Palette c) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        side: BorderSide(color: c.line),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Photo ou vidéo', style: T.title(c)),
+              const SizedBox(height: 4),
+              Text(
+                PublishDraft.media.isEmpty
+                    ? 'Aucun fichier joint.'
+                    : 'Joint : $_mediaName',
+                style: T.caption(c),
+              ),
+              const SizedBox(height: 14),
+              ActionBtn(
+                'Choisir dans la bibliothèque',
+                variant: KBtnVariant.ghost,
+                height: 44,
+                job: () async {
+                  Navigator.pop(ctx);
+                  await _pickLibrary();
+                },
+              ),
+              const SizedBox(height: 8),
+              ActionBtn(
+                'Envoyer un fichier',
+                height: 44,
+                job: () async {
+                  Navigator.pop(ctx);
+                  await _upload();
+                },
+              ),
+              if (PublishDraft.media.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ActionBtn(
+                  'Retirer le média',
+                  variant: KBtnVariant.danger,
+                  height: 44,
+                  job: () async {
+                    Navigator.pop(ctx);
+                    if (mounted) setState(() => PublishDraft.media = '');
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _feuilleProg(Palette c) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        side: BorderSide(color: c.line),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Programmer', style: T.title(c)),
+              const SizedBox(height: 4),
+              Text(
+                PublishDraft.whenMs > 0
+                    ? 'Pour le ${fdate(PublishDraft.whenMs)}'
+                    : 'Publication immédiate.',
+                style: T.caption(c),
+              ),
+              const SizedBox(height: 14),
+              ActionBtn(
+                'Choisir date et heure',
+                icon: Icons.schedule_outlined,
+                variant: KBtnVariant.ghost,
+                height: 44,
+                job: () async {
+                  Navigator.pop(ctx);
+                  await _pickWhen();
+                },
+              ),
+              if (PublishDraft.whenMs > 0) ...[
+                const SizedBox(height: 8),
+                ActionBtn(
+                  'Annuler la programmation',
+                  variant: KBtnVariant.danger,
+                  height: 44,
+                  job: () async {
+                    Navigator.pop(ctx);
+                    if (mounted) setState(() => PublishDraft.whenMs = 0);
+                  },
+                ),
+              ],
+              const SizedBox(height: 14),
+              KSwitchRow(
+                'Lancer tout de suite',
+                desc: 'Sinon le contrôle automatique le prend sous 5 à 10 min.',
+                value: PublishDraft.now,
+                job: (v) async => PublishDraft.now = v,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _feuilleBrouillons(Palette c) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        side: BorderSide(color: c.line),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setF) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Brouillons', style: T.title(c)),
+                const SizedBox(height: 4),
+                Text(
+                  PublishDraft.msg.trim().isEmpty && PublishDraft.media.isEmpty
+                      ? 'Écris ou charge un texte pour en garder un.'
+                      : 'Garde le texte actuel pour le reprendre plus tard.',
+                  style: T.caption(c),
+                ),
+                const SizedBox(height: 14),
+                ActionBtn(
+                  'Garder le texte actuel en brouillon',
+                  icon: Icons.bookmark_border_outlined,
+                  variant: KBtnVariant.ghost,
+                  height: 44,
+                  job: () async {
+                    Navigator.pop(ctx2);
+                    await _sauverBrouillon();
+                  },
+                ),
+                const SizedBox(height: 14),
+                if (_draftBusy)
+                  const KSkeleton(60)
+                else if (_brouillons.isEmpty)
+                  Text(
+                    'Aucun brouillon gardé.',
+                    style: T.body(c).copyWith(color: c.muted),
+                  )
+                else
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final b in _brouillons.take(12))
+                            _ligneBrouillon(c, b, setF, ctx2),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ligneBrouillon(
+    Palette c,
+    Brouillon b,
+    void Function() setF,
+    BuildContext ctx2,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: KCard(
+        pad: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    b.texte.isEmpty
+                        ? '(média seul)'
+                        : (b.texte.length > 80
+                              ? '${b.texte.substring(0, 80)}…'
+                              : b.texte),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: T.body(c),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    b.whenMs > 0
+                        ? 'prévu pour le ${fdate(b.whenMs)}'
+                        : 'publication immédiate',
+                    style: T.caption(c),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Press(
+              onTap: () {
+                Navigator.pop(context);
+                _chargerBrouillon(b);
+              },
+              child: Icon(
+                Icons.open_in_new_outlined,
+                size: 18,
+                color: c.accent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Press(
+              onTap: () async {
+                await Brouillons.supprime(b.id);
+                _loadBrouillons();
+                if (ctx2.mounted) setF();
+              },
+              child: Icon(Icons.delete_outline, size: 18, color: c.muted),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /* ---------- mise en file ---------- */
@@ -204,10 +479,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
     if (text.isEmpty && mediaP.isEmpty) {
       throw Exception('Écris un texte ou choisis un média.');
     }
-    final entry = <String, dynamic>{
-      'message': text,
-      'status': 'pending',
-    };
+    final entry = <String, dynamic>{'message': text, 'status': 'pending'};
     var file = 'posts/queue.json';
     if (mediaP.isNotEmpty) {
       entry[kind(mediaP) == 'video' ? 'video_path' : 'image_path'] = mediaP;
@@ -233,15 +505,19 @@ class _ComposerScreenState extends State<ComposerScreen> {
     if (launch) {
       try {
         await Api.dispatch(
-            file == 'posts/queue.json' ? 'publier.yml' : 'publier-avance.yml',
-            null);
+          file == 'posts/queue.json' ? 'publier.yml' : 'publier-avance.yml',
+          null,
+        );
         launched = true;
       } catch (_) {
         launched = false;
       }
     }
-    await Journal.ajoute('post', 'Post mis en file',
-        detail: text.isEmpty ? '(média seul)' : text);
+    await Journal.ajoute(
+      'post',
+      'Post mis en file',
+      detail: text.isEmpty ? '(média seul)' : text,
+    );
     _ed.clear();
     PublishDraft.msg = '';
     PublishDraft.media = '';
@@ -252,8 +528,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
     _loadQueue();
     final okMsg = launch
         ? (launched
-            ? 'Mis en file et lancé.'
-            : 'Mis en file, mais pas lancé : traité sous 5 à 10 min.')
+              ? 'Mis en file et lancé.'
+              : 'Mis en file, mais pas lancé : traité sous 5 à 10 min.')
         : 'Mis en file (traité sous 5 à 10 min).';
     if (!mounted) return;
     kToast(context, okMsg);
@@ -265,18 +541,244 @@ class _ComposerScreenState extends State<ComposerScreen> {
   Widget build(BuildContext context) {
     final c = context.p;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+      padding: const EdgeInsets.fromLTRB(0, 6, 0, 96),
       children: [
-        _apercu(c),
+        _pageHead(c),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: _editeur(c),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: _options(c),
+        ),
         const SizedBox(height: 14),
-        _redaction(c),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: KSection('Aperçu Facebook'),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: _apercu(c),
+        ),
         const SizedBox(height: 14),
-        _programmation(c),
-        const SizedBox(height: 14),
-        _brouillonsBloc(c),
-        const SizedBox(height: 14),
-        _fileAttente(c),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: KSection("File d'attente"),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: _fileAttente(c),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: ActionBtn(
+            PublishDraft.whenMs > 0
+                ? 'Programmer ce post'
+                : 'Publier maintenant',
+            height: 50,
+            job: _submit,
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _pageHead(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          Text('Composer', style: T.hero(c)),
+          const Spacer(),
+          Press(
+            onTap: () {
+              Fx.tick();
+              _feuilleBrouillons(c);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Text(
+                'Brouillons',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: c.accent,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /* ---------- éditeur : texte + vignette du média joint ---------- */
+
+  Widget _editeur(Palette c) {
+    return KCard(
+      pad: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KEdit(
+            controller: _ed,
+            hint: 'Texte du post...',
+            minLines: 4,
+            maxLines: 10,
+          ),
+          if (_status.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(_status, style: T.caption(c)),
+          ],
+          if (PublishDraft.media.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _vignetteMedia(c),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _vignetteMedia(Palette c) {
+    final m = PublishDraft.media;
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            height: 150,
+            width: double.infinity,
+            child: kind(m) == 'video'
+                ? Container(
+                    color: c.soft,
+                    child: Icon(
+                      Icons.play_circle_outline,
+                      size: 34,
+                      color: c.ink,
+                    ),
+                  )
+                : Image.network(
+                    _mediaUrl(m),
+                    headers: _mediaHeaders,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: c.soft,
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 26,
+                        color: c.muted,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Press(
+            onTap: () {
+              Fx.tick();
+              setState(() => PublishDraft.media = '');
+            },
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: .55),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /* ---------- options : média, programmation, audience ---------- */
+
+  Widget _options(Palette c) {
+    return Container(
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        children: [
+          _optRow(
+            c,
+            Icons.image_outlined,
+            'Photo ou vidéo',
+            PublishDraft.media.isEmpty ? 'Aucun fichier joint' : _mediaName,
+            () => _feuilleMedia(c),
+          ),
+          Divider(height: 1, thickness: 1, color: c.line, indent: 52),
+          _optRow(
+            c,
+            Icons.event_outlined,
+            'Programmer',
+            PublishDraft.whenMs > 0
+                ? 'Pour le ${fdate(PublishDraft.whenMs)}'
+                : 'Publication immédiate',
+            () => _feuilleProg(c),
+          ),
+          Divider(height: 1, thickness: 1, color: c.line, indent: 52),
+          _optRow(c, Icons.public, 'Audience', 'Public', () {
+            Fx.tick();
+            kToast(context, 'Le bot publie toujours en public.');
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _optRow(
+    Palette c,
+    IconData ic,
+    String titre,
+    String sous,
+    VoidCallback f,
+  ) {
+    return Press(
+      onTap: f,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: c.soft,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(ic, size: 15, color: c.ink),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titre, style: T.strong(c).copyWith(fontSize: 14)),
+                  const SizedBox(height: 1),
+                  Text(
+                    sous,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: T.caption(c),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: c.muted),
+          ],
+        ),
+      ),
     );
   }
 
@@ -284,280 +786,259 @@ class _ComposerScreenState extends State<ComposerScreen> {
 
   Widget _apercu(Palette c) {
     final texte = _ed.text.trim();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Aperçu Facebook'),
-      KCard(
-        pad: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                  color: c.ink, borderRadius: BorderRadius.circular(13)),
-              child: Center(
-                  child: Text('K',
-                      style: TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w900,
-                          color: c.bg))),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Aboubacar Sidik | KI DAS', style: T.strong(c)),
-                    Row(children: [
-                      Text("à l'instant",
-                          style: T.caption(c).copyWith(fontSize: 11.5)),
-                      const SizedBox(width: 5),
-                      Icon(Icons.public, size: 12, color: c.muted),
-                    ]),
-                  ]),
-            ),
-          ]),
-          if (texte.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(texte, style: T.body(c).copyWith(fontSize: 14.5)),
-          ] else ...[
-            const SizedBox(height: 10),
-            Text('Ton texte apparaîtra ici…',
-                style: T.body(c).copyWith(color: c.muted)),
-          ],
-          if (PublishDraft.media.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              height: 90,
-              width: double.infinity,
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                  color: c.soft,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: c.line)),
-              child: Row(children: [
-                Icon(
-                    kind(PublishDraft.media) == 'video'
-                        ? Icons.play_circle_outline
-                        : Icons.image_outlined,
-                    size: 22, color: c.ink),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(_mediaName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: T.body(c)),
-                ),
-              ]),
-            ),
-          ],
-        ]),
+    final planifie = PublishDraft.whenMs > 0;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.line),
       ),
-    ]);
-  }
-
-  /* ---------- rédaction ---------- */
-
-  Widget _redaction(Palette c) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Rédaction'),
-      KCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          KEdit(controller: _ed, hint: 'Texte du post...', minLines: 5),
-          const SizedBox(height: 6),
-          Text('${_ed.text.length} caractères', style: T.caption(c)),
-          if (_status.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(_status, style: T.caption(c)),
-            ),
-          const SizedBox(height: 12),
-          Text('Média (image ou vidéo)', style: T.micro(c)),
-          const SizedBox(height: 4),
-          Text(
-            PublishDraft.media.isEmpty ? 'Aucun média' : _mediaName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: PublishDraft.media.isEmpty
-                ? T.body(c).copyWith(color: c.muted)
-                : T.body(c),
-          ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: ActionBtn('Bibliothèque',
-                  height: 38,
-                  variant: KBtnVariant.ghost,
-                  job: _pickLibrary),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ActionBtn('Envoyer un fichier',
-                  height: 38, variant: KBtnVariant.accent, job: _upload),
-            ),
-            if (PublishDraft.media.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              _iconBtn(c, Icons.close, () {
-                setState(() => PublishDraft.media = '');
-              }),
-            ],
-          ]),
-        ]),
-      ),
-    ]);
-  }
-
-  /* ---------- programmation ---------- */
-
-  Widget _programmation(Palette c) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Programmation'),
-      KCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(
-            PublishDraft.whenMs > 0
-                ? 'Pour le ${fdate(PublishDraft.whenMs)}'
-                : 'Publication immédiate',
-            style: PublishDraft.whenMs > 0
-                ? T.body(c)
-                : T.body(c).copyWith(color: c.muted),
-          ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: ActionBtn('Choisir date et heure',
-                  height: 38,
-                  variant: KBtnVariant.ghost,
-                  icon: Icons.schedule_outlined,
-                  job: _pickWhen),
-            ),
-            if (PublishDraft.whenMs > 0) ...[
-              const SizedBox(width: 8),
-              _iconBtn(c, Icons.close, () {
-                setState(() => PublishDraft.whenMs = 0);
-              }),
-            ],
-          ]),
-          const SizedBox(height: 10),
-          KSwitchRow(
-            'Lancer tout de suite',
-            desc: 'Sinon le contrôle automatique le prend sous 5 à 10 min.',
-            value: PublishDraft.now,
-            job: (v) async => PublishDraft.now = v,
-          ),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(
-              child: ActionBtn('Brouillon',
-                  height: 44,
-                  variant: KBtnVariant.ghost,
-                  icon: Icons.bookmark_border_outlined,
-                  job: _sauverBrouillon),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ActionBtn('Mettre en file', job: _submit),
-            ),
-          ]),
-        ]),
-      ),
-    ]);
-  }
-
-  /* ---------- brouillons ---------- */
-
-  Widget _brouillonsBloc(Palette c) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('Brouillons'),
-      if (_draftBusy)
-        const KSkeleton(70)
-      else if (_brouillons.isEmpty)
-        KCard(
-          child: Text('Aucun brouillon gardé.',
-              style: T.body(c).copyWith(color: c.muted)),
-        )
-      else
-        for (final b in _brouillons.take(6))
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: KCard(
-              pad: const EdgeInsets.all(12),
-              child: Row(children: [
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: c.ink,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'K',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: c.bg,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            b.texte.isEmpty
-                                ? '(média seul)'
-                                : (b.texte.length > 80
-                                    ? '${b.texte.substring(0, 80)}…'
-                                    : b.texte),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: T.body(c)),
-                        const SizedBox(height: 3),
-                        Text(
-                          b.whenMs > 0
-                              ? 'prévu pour le ${fdate(b.whenMs)}'
-                              : 'publication immédiate',
-                          style: T.caption(c),
-                        ),
-                      ]),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Aboubacar Sidik | KI DAS',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: T.strong(c),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: c.accent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              size: 10,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(
+                            planifie
+                                ? relMs(PublishDraft.whenMs)
+                                : "à l'instant",
+                            style: T.caption(c).copyWith(fontSize: 11.5),
+                          ),
+                          const SizedBox(width: 5),
+                          Icon(Icons.public, size: 12, color: c.muted),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
-                _iconBtn(c, Icons.open_in_new_outlined,
-                    () => _chargerBrouillon(b)),
-                const SizedBox(width: 6),
-                _iconBtn(c, Icons.delete_outline, () async {
-                  await Brouillons.supprime(b.id);
-                  _loadBrouillons();
-                }),
-              ]),
+              ],
             ),
           ),
-    ]);
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Text(
+              texte.isEmpty ? 'Ton texte apparaîtra ici…' : texte,
+              style: texte.isEmpty
+                  ? T.body(c).copyWith(color: c.muted)
+                  : T.body(c).copyWith(fontSize: 14.5),
+            ),
+          ),
+          _apercuMedia(c),
+          Container(height: 1, color: c.line),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              children: [
+                Icon(Icons.thumb_up_outlined, size: 13, color: c.muted),
+                const SizedBox(width: 5),
+                Text('—', style: T.caption(c)),
+                const Spacer(),
+                Text('0 commentaire · 0 partage', style: T.caption(c)),
+              ],
+            ),
+          ),
+          Container(height: 1, color: c.line),
+          Row(
+            children: [
+              _act(c, Icons.thumb_up_outlined, "J'aime"),
+              Container(width: 1, height: 34, color: c.line),
+              _act(c, Icons.chat_bubble_outline, 'Commenter'),
+              Container(width: 1, height: 34, color: c.line),
+              _act(c, Icons.share_outlined, 'Partager'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  /* ---------- file d'attente ---------- */
+  Widget _apercuMedia(Palette c) {
+    final m = PublishDraft.media;
+    if (m.isEmpty) return const SizedBox.shrink();
+    if (kind(m) == 'video') {
+      return Container(
+        height: 190,
+        width: double.infinity,
+        color: c.soft,
+        child: Icon(Icons.play_circle_outline, size: 40, color: c.ink),
+      );
+    }
+    return SizedBox(
+      height: 190,
+      width: double.infinity,
+      child: Image.network(
+        _mediaUrl(m),
+        headers: _mediaHeaders,
+        fit: BoxFit.cover,
+        loadingBuilder: (_, child, prog) =>
+            prog != null &&
+                prog.expectedTotalBytes != null &&
+                prog.cumulativeBytesLoaded < prog.expectedTotalBytes!
+            ? Container(color: c.soft)
+            : child,
+        errorBuilder: (_, __, ___) => Container(
+          color: c.soft,
+          child: Icon(Icons.image_outlined, size: 30, color: c.muted),
+        ),
+      ),
+    );
+  }
+
+  Widget _act(Palette c, IconData ic, String label) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(ic, size: 14, color: c.muted),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: c.ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /* ---------- file d'attente : crans avec vignette ---------- */
 
   Widget _fileAttente(Palette c) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      KSection('En file et programmés'),
-      if (_fileItems == null)
-        const KSkeleton(70)
-      else if (_fileItems!.isEmpty)
-        KCard(
-          child: Text('Rien en attente.',
-              style: T.body(c).copyWith(color: c.muted)),
-        )
-      else
-        for (final it in _fileItems!.take(10))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: KCard(
-              pad: const EdgeInsets.all(12),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Expanded(
-                          child: Text(it.meta,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: T.caption(c))),
-                      const SizedBox(width: 8),
-                      StatusChip(it.statut, kind: it.kind),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text(it.corps,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: T.body(c).copyWith(fontSize: 14.5)),
-                  ]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_fileItems == null)
+          const KSkeleton(70)
+        else if (_fileItems!.isEmpty)
+          KEmpty(
+            Icons.schedule_outlined,
+            'Rien en file.',
+            sub: 'Les posts mis en file attendent le cycle du bot.',
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: c.line),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < _fileItems!.length && i < 10; i++) ...[
+                  if (i > 0) Divider(height: 1, thickness: 1, color: c.line),
+                  _slot(c, _fileItems![i]),
+                ],
+              ],
             ),
           ),
-    ]);
+      ],
+    );
+  }
+
+  Widget _slot(Palette c, _QueueEntree it) {
+    final m = it.mediaPath;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: Container(
+              width: 44,
+              height: 33,
+              color: c.soft,
+              child: m.isEmpty
+                  ? Icon(Icons.description_outlined, size: 15, color: c.muted)
+                  : it.isVideo
+                  ? Icon(Icons.play_circle_outline, size: 17, color: c.ink)
+                  : Image.network(
+                      _mediaUrl(m),
+                      headers: _mediaHeaders,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Icon(Icons.image_outlined, size: 15, color: c.muted),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(it.st, style: T.strong(c).copyWith(fontSize: 12.5)),
+                const SizedBox(height: 2),
+                Text(
+                  it.ss,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: T.caption(c),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadQueue() async {
@@ -568,7 +1049,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
         for (final e in a) {
           final o = asObj(e);
           if (o.isEmpty) continue;
-          out.add(_QueueEntree(o, q));
+          out.add(_QueueEntree(o));
         }
       }
       out.sort((a, b) {
@@ -582,35 +1063,21 @@ class _ComposerScreenState extends State<ComposerScreen> {
       if (mounted) setState(() => _fileItems = const []);
     }
   }
-
-  Widget _iconBtn(Palette c, IconData ic, VoidCallback onTap) {
-    return Press(
-      onTap: () {
-        Fx.tick();
-        onTap();
-      },
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: c.line)),
-        child: Icon(ic, size: 16, color: c.ink),
-      ),
-    );
-  }
 }
 
 /* ---------- entrée de file (lecture seule ici) ---------- */
 
 class _QueueEntree {
   final Map<String, dynamic> e;
-  final String src;
-  const _QueueEntree(this.e, this.src);
+  const _QueueEntree(this.e);
 
   int get created => iso(e.os('created'));
   int get when => iso(e.os('publish_at'));
+
+  String get mediaPath =>
+      e.os('image_path').isEmpty ? e.os('video_path') : e.os('image_path');
+
+  bool get isVideo => mediaPath.isNotEmpty && kind(mediaPath) == 'video';
 
   String get statut {
     final st = e.os('status');
@@ -624,26 +1091,22 @@ class _QueueEntree {
     };
   }
 
-  int get kind => switch (e.os('status')) {
-        'published' || 'done' => 1,
-        'error' => 3,
-        _ => 2,
-      };
+  bool get fini =>
+      statut == 'Publié' ||
+      statut == 'Fait' ||
+      statut == 'Erreur' ||
+      statut == 'Annulé';
 
-  String get meta {
-    final b = StringBuffer(src == 'avance' ? 'Post média' : 'Post texte');
-    if (when > 0) b.write(' · pour le ${fdate(when)}');
-    final mp = e.os('image_path').isEmpty
-        ? e.os('video_path')
-        : e.os('image_path');
-    if (mp.isNotEmpty) {
-      b.write(' · ${stripStamp(mp.replaceFirst(RegExp(r'^media/'), ''))}');
+  /// Première ligne du cran : état réel, sinon la date prévue.
+  String get st => fini ? statut : (when > 0 ? fdate(when) : 'En attente');
+
+  /// Deuxième ligne : le texte, sinon le nom du média, sinon rien.
+  String get ss {
+    final t = e.os('message').trim();
+    if (t.isNotEmpty) return t;
+    if (mediaPath.isNotEmpty) {
+      return stripStamp(mediaPath.replaceFirst(RegExp(r'^media/'), ''));
     }
-    return b.toString();
-  }
-
-  String get corps {
-    final t = e.os('message');
-    return t.isEmpty ? '(sans texte)' : t;
+    return '(sans texte)';
   }
 }
