@@ -209,7 +209,7 @@ class _BoiteScreenState extends State<BoiteScreen> {
       child: Row(children: [
         Text('Boîte',
             style: TextStyle(
-                fontSize: 26, fontWeight: FontWeight.w800,
+                fontFamily: T.kpi(c).fontFamily, fontSize: 26, fontWeight: FontWeight.w800,
                 letterSpacing: -.5, color: c.ink)),
         const Spacer(),
         _ic(c, Icons.search_outlined, () {
@@ -234,9 +234,8 @@ class _BoiteScreenState extends State<BoiteScreen> {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: c.line)),
+            color: c.chip,
+            borderRadius: BorderRadius.circular(18)),
         child: Icon(ic, size: 17, color: c.ink),
       ),
     );
@@ -311,14 +310,14 @@ class _BoiteScreenState extends State<BoiteScreen> {
                         style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
-                            color: _filtre == i ? c.onAccent : c.ink)),
+                            color: _filtre == i ? c.onAccent : c.muted)),
                     if (labels[i].$2.isNotEmpty) ...[
                       const SizedBox(width: 5),
                       Text(labels[i].$2,
                           style: TextStyle(
                               fontSize: 12.5,
-                              fontWeight: FontWeight.w900,
-                              color: _filtre == i ? c.onAccent : c.accent)),
+                              fontWeight: FontWeight.w700,
+                              color: _filtre == i ? c.onAccent : c.muted)),
                     ],
                   ]),
                 ),
@@ -343,9 +342,9 @@ class _BoiteScreenState extends State<BoiteScreen> {
               ouvert ? _ouverts.remove(it.id) : _ouverts.add(it.id));
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
           child: Row(children: [
-            avatarInitiales(c, it.name, 34),
+            avatarInitiales(c, it.name, 28),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -362,9 +361,9 @@ class _BoiteScreenState extends State<BoiteScreen> {
                 const SizedBox(height: 2),
                 Text(
                   it.text.isEmpty ? '(sans texte)' : it.text,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: T.caption(c).copyWith(fontSize: 12.5),
+                  style: T.caption(c).copyWith(fontSize: 12.5, height: 1.45),
                 ),
               ]),
             ),
@@ -377,8 +376,8 @@ class _BoiteScreenState extends State<BoiteScreen> {
                 etiquette(c, tag ?? 'Urgent', true)
               else if (it.todo)
                 Container(
-                  width: 7,
-                  height: 7,
+                  width: 8,
+                  height: 8,
                   decoration: BoxDecoration(
                       color: c.accent, shape: BoxShape.circle),
                 ),
@@ -401,14 +400,16 @@ class _BoiteScreenState extends State<BoiteScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
       decoration: BoxDecoration(
-          color: c.soft, borderRadius: BorderRadius.circular(99)),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: c.line)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(avis ? Icons.chat_bubble_outline : Icons.bolt_outlined,
             size: 10, color: c.muted),
         const SizedBox(width: 3),
-        Text(avis ? 'Avis' : 'Message',
+        Text(avis ? 'AVIS' : 'MESSAGE',
             style: T.caption(c).copyWith(
-                fontSize: 10, fontWeight: FontWeight.w700)),
+                fontSize: 9.5, fontWeight: FontWeight.w700,
+                letterSpacing: .57)),
       ]),
     );
   }
@@ -637,7 +638,7 @@ class _ReplyBoxMessageState extends State<ReplyBoxMessage> {
         detail: t.length > 120 ? '${t.substring(0, 120)}…' : t);
     setState(() => _sent = true);
     if (mounted) {
-      kToast(context, 'Réponse mise en file : le bot l\'envoie à son prochain cycle.');
+      kToast(context, 'Message envoyé : il part dans la minute.');
     }
     widget.onSent();
   }
@@ -645,14 +646,14 @@ class _ReplyBoxMessageState extends State<ReplyBoxMessage> {
   @override
   Widget build(BuildContext context) {
     if (_sent) {
-      return Text('En file : le bot enverra le message à son prochain cycle.',
+      return Text('Envoyé : le message part dans la minute.',
           style: T.caption(context.p));
     }
     return Column(children: [
       KEdit(controller: _ta, hint: 'Ta réponse...', minLines: 2,
           maxLength: Api.messageMax),
       const SizedBox(height: 8),
-      ActionBtn('Mettre en file', height: 38, job: _envoyer),
+      ActionBtn('Envoyer', height: 38, job: _envoyer),
     ]);
   }
 }
