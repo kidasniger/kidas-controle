@@ -262,13 +262,13 @@ class JournalScreenState extends State<JournalScreen> {
 
   Widget _row(Palette c, JournalEvent e, {bool acc = false}) {
     final ic = switch (e.type) {
-      'reponse' => Icons.send_outlined,
-      'post' => Icons.image_outlined,
-      'media' => Icons.image_outlined,
-      'moderation' => Icons.visibility_off_outlined,
-      'regle' => Icons.edit_outlined,
-      'bot' => Icons.smart_toy_outlined,
-      _ => Icons.bolt_outlined,
+      'reponse' => 'send',
+      'post' => 'image',
+      'media' => 'image',
+      'moderation' => 'eyeoff',
+      'regle' => 'edit',
+      'bot' => 'bot',
+      _ => 'bolt',
     };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
@@ -283,7 +283,7 @@ class JournalScreenState extends State<JournalScreen> {
               color: acc ? c.accent.withValues(alpha: .14) : c.chip,
               shape: BoxShape.circle,
             ),
-            child: Icon(ic, size: 15, color: acc ? c.accent : c.ink),
+            child: Picto(ic, size: 15, color: acc ? c.accent : c.ink),
           ),
           const SizedBox(width: 11),
           Expanded(

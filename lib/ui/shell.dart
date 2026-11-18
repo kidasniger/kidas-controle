@@ -4,6 +4,7 @@ import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/updater.dart';
 import 'common.dart';
+import 'pictos.dart';
 
 /// Bus d'état partagé : badges, thème, recherche de l'accueil, marqueur
 /// d'écran externe.
@@ -175,7 +176,7 @@ class SubPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(11),
                             border: Border.all(color: c.line),
                           ),
-                          child: Icon(Icons.arrow_back, size: 17, color: c.ink),
+                          child: Picto('back', size: 17, color: c.ink),
                         ),
                       ),
                       const SizedBox(width: 9),

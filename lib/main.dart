@@ -20,6 +20,7 @@ import 'screens/settings.dart';
 import 'screens/stats.dart';
 import 'screens/welcome.dart';
 import 'ui/common.dart';
+import 'ui/pictos.dart';
 import 'ui/shell.dart';
 import 'widgets/pill_nav.dart';
 import 'widgets/post_card.dart' show badgeVerifie;
@@ -344,42 +345,42 @@ class _ShellState extends State<Shell> {
       children: [
         _sheetRow(
           context,
-          Icons.auto_awesome_outlined,
+          'spark',
           'Assistant IA',
           'ia',
           sub: 'Résumés, idées de posts, réponses prêtes',
         ),
         _sheetRow(
           context,
-          Icons.shield_outlined,
+          'shield',
           'Modération',
           'mod',
           sub: 'Commentaires à traiter',
         ),
         _sheetRow(
           context,
-          Icons.image_outlined,
+          'image',
           'Studio Médias',
           'med',
           sub: 'Bibliothèque, étiquettes, sélection',
         ),
         _sheetRow(
           context,
-          Icons.smart_toy_outlined,
+          'bot',
           'Bot & Règles',
           'bot',
           sub: 'Pilotage, verrous, règles, exécutions',
         ),
         _sheetRow(
           context,
-          Icons.receipt_long_outlined,
+          'doc',
           "Journal d'activité",
           'log',
           sub: 'Application et bot, tout est tracé',
         ),
         _sheetRow(
           context,
-          Icons.settings_outlined,
+          'gear',
           'Réglages',
           'set',
           sub: 'Apparence, connexion, sécurité',
@@ -401,7 +402,7 @@ class _ShellState extends State<Shell> {
               borderRadius: BorderRadius.circular(11),
               border: Border.all(color: c.line),
             ),
-            child: Icon(Icons.refresh, size: 17, color: c.ink),
+            child: Picto('refresh', size: 17, color: c.ink),
           ),
         ),
         child: AiChatScreen(key: _aiKey),
@@ -421,7 +422,7 @@ class _ShellState extends State<Shell> {
               borderRadius: BorderRadius.circular(11),
               border: Border.all(color: c.line),
             ),
-            child: Icon(Icons.filter_list, size: 17, color: c.ink),
+            child: Picto('filter', size: 17, color: c.ink),
           ),
         ),
         child: JournalScreen(key: _logKey),
@@ -434,7 +435,7 @@ class _ShellState extends State<Shell> {
 
   Widget _sheetRow(
     BuildContext ctx,
-    IconData ic,
+    String picto,
     String label,
     String v, {
     String sub = '',
@@ -449,7 +450,16 @@ class _ShellState extends State<Shell> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            IconBox(ic),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: c.soft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.line),
+              ),
+              child: Picto(picto, size: 18),
+            ),
             const SizedBox(width: 13),
             Expanded(
               child: Column(
@@ -468,7 +478,7 @@ class _ShellState extends State<Shell> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 18, color: c.muted),
+            Chev(size: 16, color: c.muted),
           ],
         ),
       ),
@@ -603,7 +613,7 @@ class _ShellState extends State<Shell> {
               ],
             ),
           ),
-          _ibtn(c, Icons.search_outlined, () {
+          _ibtn(c, 'search', () {
             Fx.tick();
             Bus.requete.value = '';
             Bus.chercher.value = !Bus.chercher.value;
@@ -612,7 +622,7 @@ class _ShellState extends State<Shell> {
           const SizedBox(width: 6),
           _cloche(c),
           const SizedBox(width: 6),
-          _ibtn(c, Icons.more_horiz, () {
+          _ibtn(c, 'kebab', () {
             _openMenu();
           }),
         ],
@@ -627,7 +637,7 @@ class _ShellState extends State<Shell> {
         valueListenable: Bus.msg,
         builder: (_, m, ___) {
           final n = a + m;
-          return _ibtn(c, Icons.notifications_outlined, () {
+          return _ibtn(c, 'bell', () {
             Fx.tick();
             if (_tab != 1) setState(() => _tab = 1);
           }, badge: n);
@@ -636,7 +646,7 @@ class _ShellState extends State<Shell> {
     );
   }
 
-  Widget _ibtn(Palette c, IconData ic, VoidCallback f, {int badge = 0}) {
+  Widget _ibtn(Palette c, String picto, VoidCallback f, {int badge = 0}) {
     return Press(
       onTap: f,
       child: Container(
@@ -650,7 +660,7 @@ class _ShellState extends State<Shell> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Center(child: Icon(ic, size: 17, color: c.ink)),
+            Center(child: Picto(picto, size: 17, color: c.ink)),
             if (badge > 0)
               Positioned(
                 right: -5,

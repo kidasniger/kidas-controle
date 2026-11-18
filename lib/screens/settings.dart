@@ -13,6 +13,7 @@ import '../core/updater.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
 import '../ui/forms.dart' show KEdit, KSegmented, KSwitchRow, kConfirm;
+import '../ui/pictos.dart';
 import '../ui/shell.dart' show Bus, SubPage, kUpdateFlow;
 import 'bot_rules.dart';
 import 'journal.dart';
@@ -129,7 +130,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         _groupe(c, [
           _ligne(
             c,
-            Icons.person_outline,
+            'user',
             'Compte connecté',
             _page == null
                 ? 'Connexion GitHub et Facebook'
@@ -138,7 +139,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
           _ligne(
             c,
-            Icons.receipt_long_outlined,
+            'doc',
             "Journal d'activité",
             "Tout ce que l'application et le bot ont fait",
             onTap: () async {
@@ -153,7 +154,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         _groupe(c, [
           _ligne(
             c,
-            Icons.smart_toy_outlined,
+            'bot',
             'Règles du bot',
             subRegles,
             onTap: () async {
@@ -165,7 +166,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
           _ligne(
             c,
-            Icons.shield_outlined,
+            'shield',
             'Modération automatique',
             'Filtres, masquages et réponses',
             onTap: () async {
@@ -182,20 +183,20 @@ class SettingsScreenState extends State<SettingsScreen> {
         _groupe(c, [
           _ligne(
             c,
-            Icons.lock_outline,
+            'shield',
             'Verrouillage',
             "Protégé par le verrou d'écran du téléphone",
           ),
           _ligne(
             c,
-            Icons.save_outlined,
+            'save',
             'Sauvegarde des règles',
             subSauv,
             onTap: _ouvrirSauvegarde,
           ),
           _ligne(
             c,
-            Icons.info_outline,
+            'info',
             'À propos',
             'Version ${_version.isEmpty ? '...' : _version}',
             onTap: () async {
@@ -277,7 +278,12 @@ class SettingsScreenState extends State<SettingsScreen> {
                         color: c.accent,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.check, size: 10, color: c.onAccent),
+                      child: Picto(
+                        'check',
+                        size: 10,
+                        color: c.onAccent,
+                        stroke: 2.4,
+                      ),
                     ),
                   ],
                 ),
@@ -342,7 +348,7 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   /* ---------- pastille carrée d'icône (set-ic maquette) ---------- */
 
-  Widget _pastille(Palette c, IconData ic) {
+  Widget _pastille(Palette c, String picto) {
     return Container(
       width: 32,
       height: 32,
@@ -350,7 +356,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         color: c.chip,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(ic, size: 15, color: c.ink),
+      child: Picto(picto, size: 15),
     );
   }
 
@@ -380,8 +386,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            if (onTap != null)
-              Icon(Icons.chevron_right, size: 18, color: c.muted),
+            if (onTap != null) Chev(size: 16, color: c.muted),
           ],
         ),
       ),
@@ -400,7 +405,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
       child: Row(
         children: [
-          _pastille(c, Icons.dark_mode_outlined),
+          _pastille(c, 'moon'),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -448,7 +453,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         valueListenable: Fx.sons,
         builder: (_, on, __) => Row(
           children: [
-            _pastille(c, Icons.vibration_outlined),
+            _pastille(c, 'bell'),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
