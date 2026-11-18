@@ -91,7 +91,7 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   void _ouvrirConnexion() async {
     Fx.tick();
-    await _push(const _ConnexionPage());
+    await _push(const ConnexionPage());
     _loadPage();
   }
 
@@ -99,6 +99,19 @@ class SettingsScreenState extends State<SettingsScreen> {
     Fx.tick();
     await _push(const _SauvegardePage());
     _loadRegles();
+  }
+
+  /* ---------- sous-titre « Compte connecté » : jours restants du jeton ---------- */
+
+  String _sousCompte(String name) {
+    final page = _page == null
+        ? 'Connexion GitHub et Facebook'
+        : 'Page « $name » via Facebook';
+    final j = Api.joursAvantExp();
+    if (j == null) return page;
+    if (j < 0) return '$page · jeton expiré';
+    if (j == 0) return '$page · jeton : dernier jour';
+    return '$page · jeton : $j jour${j > 1 ? 's' : ''}';
   }
 
   @override
@@ -134,9 +147,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             c,
             'user',
             'Compte connecté',
-            _page == null
-                ? 'Connexion GitHub et Facebook'
-                : 'Page « $name » via Facebook',
+            _sousCompte(name),
             onTap: _ouvrirConnexion,
           ),
           _ligne(
@@ -514,13 +525,13 @@ class SettingsScreenState extends State<SettingsScreen> {
    Sous-page Connexion : jeton, dépôts, expiration, tests de droits.
    ================================================================ */
 
-class _ConnexionPage extends StatefulWidget {
-  const _ConnexionPage();
+class ConnexionPage extends StatefulWidget {
+  const ConnexionPage();
   @override
   _ConnexionPageState createState() => _ConnexionPageState();
 }
 
-class _ConnexionPageState extends State<_ConnexionPage> {
+class _ConnexionPageState extends State<ConnexionPage> {
   late final TextEditingController _tok = TextEditingController(text: Api.tok);
   late final TextEditingController _dr = TextEditingController(text: Api.data);
   late final TextEditingController _mr = TextEditingController(text: Api.mgr);
@@ -549,6 +560,32 @@ class _ConnexionPageState extends State<_ConnexionPage> {
       () => _expiry =
           '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
     );
+  }
+
+  /* ---------- puce d'état : jours restants du jeton ---------- */
+
+  Widget _chipExp(Palette c) {
+    final j = Api.joursAvantExp(_expiry);
+    if (j == null) return const SizedBox.shrink();
+    final String label;
+    final int kind;
+    if (j < 0) {
+      label = 'Expiré';
+      kind = 3;
+    } else if (j == 0) {
+      label = "Dernier jour";
+      kind = 3;
+    } else if (j <= 3) {
+      label = 'J-$j';
+      kind = 3;
+    } else if (j <= 7) {
+      label = 'J-$j';
+      kind = 5;
+    } else {
+      label = 'J-$j';
+      kind = 4;
+    }
+    return StatusChip(label, kind: kind);
   }
 
   Future<void> _save() async {
@@ -650,6 +687,10 @@ class _ConnexionPageState extends State<_ConnexionPage> {
                     ],
                   ],
                 ),
+                if (_expiry.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _chipExp(c),
+                ],
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,

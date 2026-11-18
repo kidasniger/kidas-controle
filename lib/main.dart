@@ -507,6 +507,7 @@ class _ShellState extends State<Shell> {
           child: Column(
             children: [
               if (_tab == 0 && Api.tok.isNotEmpty) _header(c),
+              if (_tab == 0 && Api.tok.isNotEmpty) _banniereJeton(c),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: KAnim.med,
@@ -644,6 +645,84 @@ class _ShellState extends State<Shell> {
             _openMenu();
           }),
         ],
+      ),
+    );
+  }
+
+  /* ---------- bannière d'expiration du jeton (Réglages > Connexion) ---------- */
+
+  Widget _banniereJeton(Palette c) {
+    final j = Api.joursAvantExp();
+    if (j == null || j > 7) return const SizedBox.shrink();
+    final bool grave = j <= 3;
+    final String titre;
+    final String sub;
+    if (j < 0) {
+      titre = 'Jeton expiré';
+      final d = -j;
+      sub = 'Depuis $d jour${d > 1 ? 's' : ''} — reconnecte-toi';
+    } else if (j == 0) {
+      titre = "Le jeton expire aujourd'hui";
+      sub = 'Renouvelle-le dans Réglages';
+    } else {
+      titre = 'Jeton : $j jour${j > 1 ? 's' : ''} restant${j > 1 ? 's' : ''}';
+      sub = grave
+          ? 'Renouvelle-le vite dans Réglages'
+          : 'Pense à le renouveler';
+    }
+    final Color col = grave ? c.ink : c.accent;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: Press(
+        onTap: () async {
+          Fx.tick();
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ConnexionPage()),
+          );
+          if (mounted) setState(() {});
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: col.withValues(alpha: grave ? .7 : .45)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: c.soft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Picto('clock', size: 15, color: col),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titre, style: T.strong(c).copyWith(color: col)),
+                    Text(sub, style: T.caption(c)),
+                  ],
+                ),
+              ),
+              StatusChip(
+                j < 0
+                    ? 'Expiré'
+                    : j == 0
+                    ? 'J-0'
+                    : 'J-$j',
+                kind: grave ? 3 : 5,
+              ),
+              const SizedBox(width: 8),
+              Chev(size: 15, color: c.muted),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -34,8 +34,7 @@ List<dynamic> asArr(dynamic v) => v is List ? v : const <dynamic>[];
 extension J on Map<String, dynamic> {
   String os(String k, [String d = '']) =>
       this[k] == null ? d : this[k].toString();
-  bool ob(String k, [bool d = true]) =>
-      this[k] is bool ? this[k] as bool : d;
+  bool ob(String k, [bool d = true]) => this[k] is bool ? this[k] as bool : d;
   int oi(String k, [int d = 0]) {
     final v = this[k];
     return v is num ? v.toInt() : d;
@@ -68,6 +67,16 @@ class Api {
 
   static String isoNow() =>
       '${DateTime.now().toUtc().toIso8601String().split('.').first}Z';
+
+  /// Jours restants avant l'expiration du jeton (null si inconnue ou
+  /// illisible). [date] : optionnel, format yyyy-MM-dd (écran Connexion).
+  static int? joursAvantExp([String? date]) {
+    final d = DateTime.tryParse(date ?? exp);
+    if (d == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return DateTime(d.year, d.month, d.day).difference(today).inDays;
+  }
 
   /* ---------- messages d'erreur ---------- */
 
@@ -109,8 +118,12 @@ class Api {
   }
 
   /// Requête générique. 204 → chaîne vide ; >=400 → ApiError avec message GitHub.
-  static Future<String> req(String method, String path,
-      {String? body, String? accept}) async {
+  static Future<String> req(
+    String method,
+    String path, {
+    String? body,
+    String? accept,
+  }) async {
     final r = _rq(method, path, accept);
     var b = body;
     if (b == null &&
@@ -131,7 +144,9 @@ class Api {
     }
     final String txt;
     try {
-      txt = await resp.stream.bytesToString().timeout(const Duration(seconds: 40));
+      txt = await resp.stream.bytesToString().timeout(
+        const Duration(seconds: 40),
+      );
     } on TimeoutException {
       throw ApiError(0, 'Délai dépassé, réessaie.', path);
     } catch (_) {
@@ -142,10 +157,14 @@ class Api {
       var msg = 'HTTP ${resp.statusCode}';
       try {
         final j = jsonDecode(txt);
-        if (j is Map && j['message'] != null && j['message'].toString().isNotEmpty) {
+        if (j is Map &&
+            j['message'] != null &&
+            j['message'].toString().isNotEmpty) {
           msg = j['message'].toString();
         }
-      } catch (_) {/* corps non JSON */}
+      } catch (_) {
+        /* corps non JSON */
+      }
       throw ApiError(resp.statusCode, msg, path);
     }
     return txt;
@@ -204,7 +223,8 @@ class Api {
     }
   }
 
-  static Future<List<dynamic>> readArr(String path) async => asArr(await readJson(path));
+  static Future<List<dynamic>> readArr(String path) async =>
+      asArr(await readJson(path));
 
   static Future<Map<String, dynamic>?> readObj(String path) async {
     final v = await readJson(path);
@@ -221,7 +241,8 @@ class Api {
         last = e;
         if (e.status == 409 || e.status == 422) {
           await Future.delayed(
-              Duration(milliseconds: 700 * (i + 1) + Random().nextInt(500)));
+            Duration(milliseconds: 700 * (i + 1) + Random().nextInt(500)),
+          );
           continue;
         }
         rethrow;
@@ -231,8 +252,12 @@ class Api {
   }
 
   /// Lit, modifie et réécrit un fichier JSON (reprise automatique en cas de conflit).
-  static Future<void> updateJson(String path, bool isArray,
-      FutureOr<Object?> Function(Object? cur) m, String msg) async {
+  static Future<void> updateJson(
+    String path,
+    bool isArray,
+    FutureOr<Object?> Function(Object? cur) m,
+    String msg,
+  ) async {
     await retry((_) async {
       final f = await getFile(data, path);
       Object? cur;
@@ -253,8 +278,11 @@ class Api {
         'content': base64Encode(utf8.encode('$s\n')),
       };
       if (f != null) body['sha'] = f.sha;
-      await req('PUT', '/repos/$data/contents/${cp(path)}',
-          body: jsonEncode(body));
+      await req(
+        'PUT',
+        '/repos/$data/contents/${cp(path)}',
+        body: jsonEncode(body),
+      );
     });
   }
 
@@ -272,13 +300,19 @@ class Api {
 
   static Future<void> deleteFile(String path, String name, String sha) =>
       retry((_) async {
-        await req('DELETE', '/repos/$data/contents/${cp(path)}',
-            body: jsonEncode({'message': 'Suppression media $name', 'sha': sha}));
+        await req(
+          'DELETE',
+          '/repos/$data/contents/${cp(path)}',
+          body: jsonEncode({'message': 'Suppression media $name', 'sha': sha}),
+        );
       });
 
   /// Envoie un fichier dans media/ en flux (base64 par tranches de 96 Ko).
-  static Future<String> upload(File file, String displayName,
-      {void Function(String)? say}) async {
+  static Future<String> upload(
+    File file,
+    String displayName, {
+    void Function(String)? say,
+  }) async {
     final size = file.lengthSync();
     if (size > 50 * 1024 * 1024) {
       throw Exception('Fichier trop gros (maximum 50 Mo).');
@@ -288,14 +322,22 @@ class Api {
     final path = 'media/$name';
     await retry((i) async {
       say?.call(i > 0 ? 'Nouvelle tentative ${i + 1}...' : 'Envoi...');
-      await _putStream(file, size, '/repos/$data/contents/${cp(path)}',
-          'Ajout media $name');
+      await _putStream(
+        file,
+        size,
+        '/repos/$data/contents/${cp(path)}',
+        'Ajout media $name',
+      );
     });
     return path;
   }
 
   static Future<void> _putStream(
-      File file, int size, String path, String msg) async {
+    File file,
+    int size,
+    String path,
+    String msg,
+  ) async {
     final pre = utf8.encode('{"message":${jsonEncode(msg)},"content":"');
     final suf = utf8.encode('"}');
     final r = http.StreamedRequest('PUT', Uri.parse('$_base$path'));
@@ -332,7 +374,9 @@ class Api {
     }
     final String txt;
     try {
-      txt = await resp.stream.bytesToString().timeout(const Duration(seconds: 40));
+      txt = await resp.stream.bytesToString().timeout(
+        const Duration(seconds: 40),
+      );
     } on TimeoutException {
       throw ApiError(0, 'Délai dépassé, réessaie.', path);
     } catch (_) {
@@ -350,17 +394,26 @@ class Api {
 
   /* ---------- GitHub Actions ---------- */
 
-  static Future<void> dispatch(String file, Map<String, dynamic>? inputs) async {
+  static Future<void> dispatch(
+    String file,
+    Map<String, dynamic>? inputs,
+  ) async {
     final b = <String, dynamic>{'ref': 'main'};
     if (inputs != null) b['inputs'] = inputs;
-    await req('POST', '/repos/$mgr/actions/workflows/$file/dispatches',
-        body: jsonEncode(b));
+    await req(
+      'POST',
+      '/repos/$mgr/actions/workflows/$file/dispatches',
+      body: jsonEncode(b),
+    );
   }
 
   static Future<List<dynamic>> workflows(bool force) async {
     if (_wf == null || force) {
-      final j = asObj(jsonDecode(
-          await req('GET', '/repos/$mgr/actions/workflows?per_page=50')));
+      final j = asObj(
+        jsonDecode(
+          await req('GET', '/repos/$mgr/actions/workflows?per_page=50'),
+        ),
+      );
       _wf = asArr(j['workflows']);
     }
     return _wf!;
@@ -368,21 +421,24 @@ class Api {
 
   static Map<String, dynamic>? wfByFile(List<dynamic> list, String file) {
     for (final w in list) {
-      if (w is Map<String, dynamic> && w.os('path').endsWith('/$file')) return w;
+      if (w is Map<String, dynamic> && w.os('path').endsWith('/$file'))
+        return w;
     }
     return null;
   }
 
   static Future<List<dynamic>> runs(int n) async {
-    final j = asObj(jsonDecode(
-        await req('GET', '/repos/$mgr/actions/runs?per_page=$n')));
+    final j = asObj(
+      jsonDecode(await req('GET', '/repos/$mgr/actions/runs?per_page=$n')),
+    );
     return asArr(j['workflow_runs']);
   }
 
   static Future<String?> getVar(String n) async {
     try {
-      final j = asObj(jsonDecode(
-          await req('GET', '/repos/$mgr/actions/variables/$n')));
+      final j = asObj(
+        jsonDecode(await req('GET', '/repos/$mgr/actions/variables/$n')),
+      );
       return j.os('value');
     } on ApiError catch (e) {
       if (e.status == 404) return null;
@@ -401,7 +457,9 @@ class Api {
       } else if (e.status == 0) {
         try {
           await req('DELETE', '$base/$n');
-        } on ApiError catch (_) {/* absent */}
+        } on ApiError catch (_) {
+          /* absent */
+        }
         await req('POST', base, body: b);
       } else {
         rethrow;
@@ -413,8 +471,12 @@ class Api {
       req('POST', '/repos/$mgr/actions/runs/$id/cancel');
 
   static Future<void> startAudit() async {
-    await updateJson('audit/demande.json', false,
-        (_) => {'status': 'demande', 'date': isoNow()}, "Demande d'audit");
+    await updateJson(
+      'audit/demande.json',
+      false,
+      (_) => {'status': 'demande', 'date': isoNow()},
+      "Demande d'audit",
+    );
     await dispatch('audit.yml', null);
   }
 
@@ -435,12 +497,31 @@ class Api {
     List<dynamic> wl = const [];
     String runsRaw = '';
     await Future.wait<dynamic>([
-      readObj('glm/config.json').then((v) { cfg = v; }).catchError((Object e) {}),
-      getVar('GLM_LIVE').then((v) { live = v; }).catchError((Object e) {}),
-      getVar('AUTO_REPONSES').then((v) { auto = v; }).catchError((Object e) {}),
-      workflows(false).then((v) { wl = v; }).catchError((Object e) {}),
+      readObj('glm/config.json')
+          .then((v) {
+            cfg = v;
+          })
+          .catchError((Object e) {}),
+      getVar('GLM_LIVE')
+          .then((v) {
+            live = v;
+          })
+          .catchError((Object e) {}),
+      getVar('AUTO_REPONSES')
+          .then((v) {
+            auto = v;
+          })
+          .catchError((Object e) {}),
+      workflows(false)
+          .then((v) {
+            wl = v;
+          })
+          .catchError((Object e) {}),
       req('GET', '/repos/$mgr/actions/workflows/glm-live.yml/runs?per_page=10')
-          .then((v) { runsRaw = v; }).catchError((Object e) {}),
+          .then((v) {
+            runsRaw = v;
+          })
+          .catchError((Object e) {}),
     ]);
     if (cfg != null) b.cfg = cfg!;
     b.live = live;
@@ -453,7 +534,9 @@ class Api {
     }
     b.hardOff = b.live == 'off';
     b.softOff = b.cfg.containsKey('actif') && !b.cfg.ob('actif', true);
-    b.state = (b.hardOff || b.softOff) ? 'off' : (b.running > 0 ? 'on' : 'wait');
+    b.state = (b.hardOff || b.softOff)
+        ? 'off'
+        : (b.running > 0 ? 'on' : 'wait');
     return b;
   }
 
@@ -462,18 +545,42 @@ class Api {
   static Future<Dash> dash() async {
     final d = Dash();
     await Future.wait<dynamic>([
-      readObj('inbox/statistiques.json').then((v) { d.st = v; }).catchError((Object e) { d.errs.add(hint(e)); }),
-      readObj('inbox/commentaires.json').then((v) { d.cm = v; }).catchError((Object e) { d.errs.add(hint(e)); }),
+      readObj('inbox/statistiques.json')
+          .then((v) {
+            d.st = v;
+          })
+          .catchError((Object e) {
+            d.errs.add(hint(e));
+          }),
+      readObj('inbox/commentaires.json')
+          .then((v) {
+            d.cm = v;
+          })
+          .catchError((Object e) {
+            d.errs.add(hint(e));
+          }),
       for (var i = 0; i < queues.length; i++)
-        readArr('posts/${queues[i]}.json').then((a) {
-          for (final e in a) {
-            final m = asObj(e);
-            d.total[i]++;
-            if (m.os('status') == 'pending') d.pending[i]++;
-          }
-        }).catchError((Object e) {}),
-      runs(20).then((v) { d.runs = v; }).catchError((Object e) { d.errs.add(hint(e)); }),
-      botState().then((v) { d.bot = v; }).catchError((Object e) {}),
+        readArr('posts/${queues[i]}.json')
+            .then((a) {
+              for (final e in a) {
+                final m = asObj(e);
+                d.total[i]++;
+                if (m.os('status') == 'pending') d.pending[i]++;
+              }
+            })
+            .catchError((Object e) {}),
+      runs(20)
+          .then((v) {
+            d.runs = v;
+          })
+          .catchError((Object e) {
+            d.errs.add(hint(e));
+          }),
+      botState()
+          .then((v) {
+            d.bot = v;
+          })
+          .catchError((Object e) {}),
     ]);
     return d;
   }
@@ -537,13 +644,16 @@ class Api {
     for (final p in asArr(cm['posts'])) {
       final po = asObj(p);
       final cc = po['comments'];
-      final da = cc is Map<String, dynamic> ? asArr(cc['data']) : const <dynamic>[];
+      final da = cc is Map<String, dynamic>
+          ? asArr(cc['data'])
+          : const <dynamic>[];
       for (final c in da) {
         if (c is Map<String, dynamic>) out.add(Cmt(c, po));
       }
     }
-    out.sort((a, b) =>
-        b.c.os('created_time').compareTo(a.c.os('created_time')));
+    out.sort(
+      (a, b) => b.c.os('created_time').compareTo(a.c.os('created_time')),
+    );
     return out;
   }
 
@@ -571,7 +681,8 @@ class Api {
   /// Conversations de inbox/messages.json, la plus récente d'abord.
   static List<Map<String, dynamic>> conversations(Map<String, dynamic>? inbox) {
     final out = <Map<String, dynamic>>[];
-    for (final c in inbox == null ? const <dynamic>[] : asArr(inbox['conversations'])) {
+    for (final c
+        in inbox == null ? const <dynamic>[] : asArr(inbox['conversations'])) {
       if (c is Map<String, dynamic>) out.add(c);
     }
     out.sort((x, y) => y.os('updated_time').compareTo(x.os('updated_time')));
@@ -607,18 +718,21 @@ class Api {
   }
 
   /// Met une réponse Messenger en file : le bot l'envoie à son prochain cycle (~1 min).
-  static Future<void> queueMessage(String convId, String recipientId, String text) =>
-      updateJson('posts/messages.json', true, (cur) {
-        final a = (cur is List ? cur : <dynamic>[]).toList();
-        a.add({
-          'conversation_id': convId,
-          'recipient_id': recipientId,
-          'message': text,
-          'status': 'pending',
-          'created': isoNow(),
-        });
-        return a;
-      }, 'Message (appli de contrôle)');
+  static Future<void> queueMessage(
+    String convId,
+    String recipientId,
+    String text,
+  ) => updateJson('posts/messages.json', true, (cur) {
+    final a = (cur is List ? cur : <dynamic>[]).toList();
+    a.add({
+      'conversation_id': convId,
+      'recipient_id': recipientId,
+      'message': text,
+      'status': 'pending',
+      'created': isoNow(),
+    });
+    return a;
+  }, 'Message (appli de contrôle)');
 
   static String pageId(Map<String, dynamic>? st, Map<String, dynamic>? cm) {
     final p = st == null ? null : st['page'];
