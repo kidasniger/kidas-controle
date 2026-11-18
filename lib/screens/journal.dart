@@ -8,6 +8,7 @@ import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
+import '../ui/pictos.dart';
 
 /// Journal d'activité selon la maquette 09 : chips de filtre
 /// (Tout / Réponses / Publications / Modération), groupes par jour avec

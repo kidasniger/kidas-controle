@@ -364,7 +364,7 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   Widget _ligne(
     Palette c,
-    IconData ic,
+    String picto,
     String titre,
     String sub, {
     VoidCallback? onTap,
