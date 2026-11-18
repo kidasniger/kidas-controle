@@ -20,12 +20,13 @@ class Press extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool haptic;
-  const Press(
-      {super.key,
-      required this.child,
-      this.onTap,
-      this.onLongPress,
-      this.haptic = true});
+  const Press({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.onLongPress,
+    this.haptic = true,
+  });
   @override
   State<Press> createState() => _PressState();
 }
@@ -35,6 +36,8 @@ class _PressState extends State<Press> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      /* opaque : tout le bouton répond, pas seulement l'icône peinte */
+      behavior: HitTestBehavior.opaque,
       onTapDown: (_) => setState(() => _down = true),
       onTapCancel: () => setState(() => _down = false),
       onTapUp: (_) => setState(() => _down = false),
@@ -63,13 +66,14 @@ class KCard extends StatelessWidget {
   final Color? color;
   final double radius;
   final Border? border;
-  const KCard(
-      {super.key,
-      required this.child,
-      this.pad = const EdgeInsets.all(14),
-      this.color,
-      this.radius = KDim.rCard,
-      this.border});
+  const KCard({
+    super.key,
+    required this.child,
+    this.pad = const EdgeInsets.all(14),
+    this.color,
+    this.radius = KDim.rCard,
+    this.border,
+  });
   @override
   Widget build(BuildContext context) {
     final c = context.p;
@@ -115,25 +119,43 @@ class KSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(child: Text(title, style: T.title(c))),
-        if (action != null)
-          Press(
-            onTap: onAction,
-            child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Text(action!,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: c.accent))),
-          ),
-      ]),
-      const SizedBox(height: 6),
-      Container(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(title, style: T.title(c))),
+            if (action != null)
+              Press(
+                onTap: onAction,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  child: Text(
+                    action!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: c.accent,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
           height: 2,
           decoration: BoxDecoration(
-              color: c.ink, borderRadius: BorderRadius.circular(2))),
-      const SizedBox(height: 10),
-    ]);
+            color: c.ink,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
   }
 }
 
@@ -149,10 +171,17 @@ class KBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-          color: bg ?? c.ink, borderRadius: BorderRadius.circular(KDim.rBadge)),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w800, color: fg ?? c.bg)),
+        color: bg ?? c.ink,
+        borderRadius: BorderRadius.circular(KDim.rBadge),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: fg ?? c.bg,
+        ),
+      ),
     );
   }
 }
@@ -170,38 +199,53 @@ class PulseDot extends StatefulWidget {
 class _PulseDotState extends State<PulseDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _a = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1400))
-    ..repeat();
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
   @override
   void dispose() {
     _a.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: widget.size * 2.6,
       height: widget.size * 2.6,
-      child: Stack(alignment: Alignment.center, children: [
-        FadeTransition(
-          opacity: Tween(begin: .5, end: 0.0).animate(
-              CurvedAnimation(parent: _a, curve: Curves.easeOut)),
-          child: ScaleTransition(
-            scale: Tween(begin: .6, end: 1.9).animate(
-                CurvedAnimation(parent: _a, curve: Curves.easeOut)),
-            child: Container(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          FadeTransition(
+            opacity: Tween(
+              begin: .5,
+              end: 0.0,
+            ).animate(CurvedAnimation(parent: _a, curve: Curves.easeOut)),
+            child: ScaleTransition(
+              scale: Tween(
+                begin: .6,
+                end: 1.9,
+              ).animate(CurvedAnimation(parent: _a, curve: Curves.easeOut)),
+              child: Container(
                 width: widget.size * 1.6,
                 height: widget.size * 1.6,
-                decoration:
-                    BoxDecoration(color: widget.color, shape: BoxShape.circle)),
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
           ),
-        ),
-        Container(
+          Container(
             width: widget.size,
             height: widget.size,
             decoration: BoxDecoration(
-                color: widget.color, shape: BoxShape.circle)),
-      ]),
+              color: widget.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -213,7 +257,14 @@ class KBtn extends StatelessWidget {
   final VoidCallback? onTap;
   final bool busy;
   final Color? bg, fg;
-  const KBtn(this.label, {super.key, this.onTap, this.busy = false, this.bg, this.fg});
+  const KBtn(
+    this.label, {
+    super.key,
+    this.onTap,
+    this.busy = false,
+    this.bg,
+    this.fg,
+  });
   @override
   Widget build(BuildContext context) {
     final c = context.p;
@@ -231,12 +282,19 @@ class KBtn extends StatelessWidget {
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(fg ?? c.onAccent)))
-            : Text(label,
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(fg ?? c.onAccent),
+                ),
+              )
+            : Text(
+                label,
                 style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w800,
-                    letterSpacing: .2, color: fg ?? c.onAccent)),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .2,
+                  color: fg ?? c.onAccent,
+                ),
+              ),
       ),
     );
   }
@@ -259,9 +317,14 @@ class KBtnGhost extends StatelessWidget {
           borderRadius: BorderRadius.circular(KDim.rBtn),
           border: Border.all(color: c.line),
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w800, color: c.ink)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: c.ink,
+          ),
+        ),
       ),
     );
   }
@@ -273,50 +336,66 @@ void kToast(BuildContext context, String msg, {bool bad = false}) {
   final c = context.p;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(msg,
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
           textAlign: TextAlign.center,
           style: TextStyle(
-              fontSize: 13.5, fontWeight: FontWeight.w800, color: c.bg)),
-      backgroundColor: c.ink,
-      behavior: SnackBarBehavior.floating,
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 78),
-      duration: Duration(seconds: bad ? 5 : 2),
-    ));
+            fontSize: 13.5,
+            fontWeight: FontWeight.w800,
+            color: c.bg,
+          ),
+        ),
+        backgroundColor: c.ink,
+        behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 78),
+        duration: Duration(seconds: bad ? 5 : 2),
+      ),
+    );
 }
 
 /* ---------- feuille du bas (menu +, réponses) ---------- */
 
-Future<S?> kSheet<S>(BuildContext context,
-    {required String title, required List<Widget> children}) {
+Future<S?> kSheet<S>(
+  BuildContext context, {
+  required String title,
+  required List<Widget> children,
+}) {
   final c = context.p;
   return showModalBottomSheet<S>(
     context: context,
     backgroundColor: c.card,
     barrierColor: Colors.black.withValues(alpha: .45),
     shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     builder: (ctx) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 26),
-        child: Column(mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(
-            child: Container(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: c.line,
-                    borderRadius: BorderRadius.circular(99))),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Text(title, style: T.title(context.p)),
-          ),
-          ...children,
-        ]),
+                  color: c.line,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(title, style: T.title(context.p)),
+            ),
+            ...children,
+          ],
+        ),
       ),
     ),
   );
@@ -335,25 +414,27 @@ class KEmpty extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
                 color: c.soft,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: c.line)),
-            child: Icon(icon, size: 24, color: c.muted),
-          ),
-          const SizedBox(height: 12),
-          Text(text,
-              textAlign: TextAlign.center,
-              style: T.strong(c)),
-          if (sub != null) ...[
-            const SizedBox(height: 4),
-            Text(sub!, textAlign: TextAlign.center, style: T.caption(c)),
+                border: Border.all(color: c.line),
+              ),
+              child: Icon(icon, size: 24, color: c.muted),
+            ),
+            const SizedBox(height: 12),
+            Text(text, textAlign: TextAlign.center, style: T.strong(c)),
+            if (sub != null) ...[
+              const SizedBox(height: 4),
+              Text(sub!, textAlign: TextAlign.center, style: T.caption(c)),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -372,24 +453,29 @@ class KSkeleton extends StatefulWidget {
 class _KSkeletonState extends State<KSkeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _a = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900))
-    ..repeat(reverse: true);
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
   @override
   void dispose() {
     _a.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final c = context.p;
     return FadeTransition(
-      opacity: Tween(begin: .35, end: .75).animate(
-          CurvedAnimation(parent: _a, curve: Curves.easeInOut)),
+      opacity: Tween(
+        begin: .35,
+        end: .75,
+      ).animate(CurvedAnimation(parent: _a, curve: Curves.easeInOut)),
       child: Container(
         height: widget.height,
         decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(widget.radius)),
+          color: c.soft,
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
       ),
     );
   }
@@ -408,9 +494,10 @@ class IconBox extends StatelessWidget {
       width: 38,
       height: 38,
       decoration: BoxDecoration(
-          color: c.soft,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: c.line)),
+        color: c.soft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.line),
+      ),
       child: Icon(icon, size: size, color: c.ink),
     );
   }
@@ -443,11 +530,14 @@ class StatusChip extends StatelessWidget {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(99)),
-      child: Text(label,
-          style:
-              TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: fg)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: fg),
+      ),
     );
   }
 }
@@ -459,9 +549,10 @@ class KDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        height: 1,
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        color: context.p.line);
+      height: 1,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      color: context.p.line,
+    );
   }
 }
 
@@ -475,14 +566,16 @@ class ActionBtn extends StatefulWidget {
   final VoidCallback? after;
   final KBtnVariant variant;
   final double height;
-  const ActionBtn(this.label,
-      {super.key,
-      this.icon,
-      required this.job,
-      this.ok,
-      this.after,
-      this.variant = KBtnVariant.accent,
-      this.height = 44});
+  const ActionBtn(
+    this.label, {
+    super.key,
+    this.icon,
+    required this.job,
+    this.ok,
+    this.after,
+    this.variant = KBtnVariant.accent,
+    this.height = 44,
+  });
   @override
   State<ActionBtn> createState() => _ActionBtnState();
 }
@@ -529,38 +622,51 @@ class _ActionBtnState extends State<ActionBtn> {
             color: accent
                 ? c.accent
                 : danger
-                    ? c.soft
-                    : c.card,
+                ? c.soft
+                : c.card,
             borderRadius: BorderRadius.circular(KDim.rBtn),
             border: Border.all(
-                color: accent ? c.accent : danger ? c.line : c.line),
+              color: accent
+                  ? c.accent
+                  : danger
+                  ? c.line
+                  : c.line,
+            ),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (_busy) ...[
-              SizedBox(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_busy) ...[
+                SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation(accent ? c.onAccent : c.ink))),
-              const SizedBox(width: 8),
-            ] else if (widget.icon != null) ...[
-              Icon(widget.icon,
-                  size: 16, color: accent ? c.onAccent : c.ink),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Text(widget.label,
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(
+                      accent ? c.onAccent : c.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ] else if (widget.icon != null) ...[
+                Icon(widget.icon, size: 16, color: accent ? c.onAccent : c.ink),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  widget.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: .2,
-                      color: accent ? c.onAccent : c.ink)),
-            ),
-          ]),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .2,
+                    color: accent ? c.onAccent : c.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -574,8 +680,14 @@ class RouteRow extends StatelessWidget {
   final String label, sub;
   final VoidCallback onTap;
   final Widget? trailing;
-  const RouteRow(this.icon, this.label,
-      {super.key, required this.sub, required this.onTap, this.trailing});
+  const RouteRow(
+    this.icon,
+    this.label, {
+    super.key,
+    required this.sub,
+    required this.onTap,
+    this.trailing,
+  });
   @override
   Widget build(BuildContext context) {
     final c = context.p;
@@ -586,17 +698,22 @@ class RouteRow extends StatelessWidget {
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(children: [
-          IconBox(icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: T.strong(c).copyWith(fontSize: 14.5)),
-              Text(sub, style: T.caption(c)),
-            ]),
-          ),
-          trailing ?? Icon(Icons.chevron_right, size: 18, color: c.muted),
-        ]),
+        child: Row(
+          children: [
+            IconBox(icon),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: T.strong(c).copyWith(fontSize: 14.5)),
+                  Text(sub, style: T.caption(c)),
+                ],
+              ),
+            ),
+            trailing ?? Icon(Icons.chevron_right, size: 18, color: c.muted),
+          ],
+        ),
       ),
     );
   }
@@ -607,22 +724,32 @@ class RouteRow extends StatelessWidget {
 class RuleRow extends StatelessWidget {
   final String label, desc;
   final bool active;
-  const RuleRow(this.label, {super.key, required this.desc, required this.active});
+  const RuleRow(
+    this.label, {
+    super.key,
+    required this.desc,
+    required this.active,
+  });
   @override
   Widget build(BuildContext context) {
     final c = context.p;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: T.strong(c).copyWith(fontSize: 14.5)),
-            Text(desc, style: T.caption(c)),
-          ]),
-        ),
-        const SizedBox(width: 8),
-        StatusChip(active ? 'Actif' : 'Coupé', kind: active ? 1 : 0),
-      ]),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: T.strong(c).copyWith(fontSize: 14.5)),
+                Text(desc, style: T.caption(c)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          StatusChip(active ? 'Actif' : 'Coupé', kind: active ? 1 : 0),
+        ],
+      ),
     );
   }
 }
@@ -636,9 +763,13 @@ Widget runChip(BuildContext context, Map<String, dynamic> r) {
   }
   final cl = r.os('conclusion');
   if (cl == 'success') return const StatusChip('Réussi', kind: 1);
-  if (cl == 'failure' || cl == 'timed_out') return const StatusChip('Échec', kind: 3);
+  if (cl == 'failure' || cl == 'timed_out')
+    return const StatusChip('Échec', kind: 3);
   if (cl == 'cancelled') return const StatusChip('Annulé', kind: 0);
-  return StatusChip(cl == 'skipped' ? 'Ignoré' : (cl.isEmpty ? '?' : cl), kind: 0);
+  return StatusChip(
+    cl == 'skipped' ? 'Ignoré' : (cl.isEmpty ? '?' : cl),
+    kind: 0,
+  );
 }
 
 class RunRow extends StatelessWidget {
@@ -649,23 +780,30 @@ class RunRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    return Row(children: [
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(r.os('name').isEmpty ? 'Workflow' : r.os('name'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: T.strong(c).copyWith(fontSize: 14.5)),
-          Text(_desc(), style: T.caption(c)),
-        ]),
-      ),
-      const SizedBox(width: 8),
-      runChip(context, r),
-      if (withCancel && r.os('status') != 'completed') ...[
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                r.os('name').isEmpty ? 'Workflow' : r.os('name'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: T.strong(c).copyWith(fontSize: 14.5),
+              ),
+              Text(_desc(), style: T.caption(c)),
+            ],
+          ),
+        ),
         const SizedBox(width: 8),
-        _CancelBtn(id: r.oi('id'), after: after),
+        runChip(context, r),
+        if (withCancel && r.os('status') != 'completed') ...[
+          const SizedBox(width: 8),
+          _CancelBtn(id: r.oi('id'), after: after),
+        ],
       ],
-    ]);
+    );
   }
 
   String _desc() {
@@ -711,14 +849,18 @@ class _CancelBtnState extends State<_CancelBtn> {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: c.line)),
+          color: c.soft,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: c.line),
+        ),
         child: _busy
             ? Padding(
                 padding: const EdgeInsets.all(8),
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.ink)))
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(c.ink),
+                ),
+              )
             : Icon(Icons.close, size: 15, color: c.ink),
       ),
     );
