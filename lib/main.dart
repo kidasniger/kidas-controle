@@ -269,6 +269,10 @@ class _ShellState extends State<Shell> {
   /// relit l'historique et le contexte depuis le dépôt.
   final GlobalKey<AiChatScreenState> _aiKey = GlobalKey<AiChatScreenState>();
 
+  /// State du Journal : le bouton filtre de son en-tête affiche ou masque
+  /// les chips de filtre (maquette 09).
+  final GlobalKey<JournalScreenState> _logKey = GlobalKey<JournalScreenState>();
+
   @override
   void initState() {
     super.initState();
@@ -405,7 +409,23 @@ class _ShellState extends State<Shell> {
       'mod': () => const SubPage('Modération', child: ModerationScreen()),
       'med': () => const SubPage('Studio Médias', child: MediasScreen()),
       'bot': () => const SubPage('Bot & Règles', child: BotRulesScreen()),
-      'log': () => const SubPage("Journal d'activité", child: JournalScreen()),
+      'log': () => SubPage(
+        "Journal d'activité",
+        trailing: Press(
+          onTap: () => _logKey.currentState?.toggleFiltres(),
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: c.line),
+            ),
+            child: Icon(Icons.filter_list, size: 17, color: c.ink),
+          ),
+        ),
+        child: JournalScreen(key: _logKey),
+      ),
       'set': () => const SubPage('Réglages', child: SettingsScreen()),
     };
     await Navigator.of(context)
