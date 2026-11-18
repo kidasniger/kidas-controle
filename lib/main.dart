@@ -408,6 +408,7 @@ class _ShellState extends State<Shell> {
           child: Container(
             width: 34,
             height: 34,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: c.card,
               borderRadius: BorderRadius.circular(11),
@@ -428,6 +429,7 @@ class _ShellState extends State<Shell> {
           child: Container(
             width: 34,
             height: 34,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: c.card,
               borderRadius: BorderRadius.circular(11),
@@ -461,31 +463,24 @@ class _ShellState extends State<Shell> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
+            /* set-ic maquette : carré 32 chip, picto 15 */
             Container(
-              width: 38,
-              height: 38,
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: c.soft,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: c.line),
+                color: c.chip,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Picto(picto, size: 18),
+              child: Picto(picto, size: 15),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: c.ink,
-                    ),
-                  ),
-                  if (sub.isNotEmpty)
-                    Text(sub, style: TextStyle(fontSize: 11.5, color: c.muted)),
+                  Text(label, style: T.strong(c).copyWith(fontSize: 14.5)),
+                  if (sub.isNotEmpty) Text(sub, style: T.caption(c)),
                 ],
               ),
             ),
@@ -558,17 +553,25 @@ class _ShellState extends State<Shell> {
       padding: const EdgeInsets.fromLTRB(14, 8, 10, 10),
       child: Row(
         children: [
+          /* avatar.lg : cercle encré + anneau accent (maquette) */
           Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: c.ink, shape: BoxShape.circle),
-            child: Text(
-              _pageName.substring(0, 1).toUpperCase(),
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-                color: c.bg,
+            width: 47,
+            height: 47,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: c.accent, width: 1.5),
+            ),
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: c.ink, shape: BoxShape.circle),
+              child: Text(
+                _pageName.substring(0, 1).toUpperCase(),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: c.bg,
+                ),
               ),
             ),
           ),
@@ -585,8 +588,8 @@ class _ShellState extends State<Shell> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
                           color: c.ink,
                         ),
                       ),
@@ -599,17 +602,21 @@ class _ShellState extends State<Shell> {
                 Row(
                   children: [
                     if (_pageUser.isNotEmpty) ...[
-                      Text(
-                        '@$_pageUser',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: c.muted,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          '@$_pageUser',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: c.muted,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
                     ],
-                    PulseDot(c.accent, size: 5),
+                    PulseDot(c.accent, size: 6),
                     const SizedBox(width: 5),
                     Text(
                       'En ligne',
@@ -660,14 +667,12 @@ class _ShellState extends State<Shell> {
   Widget _ibtn(Palette c, String picto, VoidCallback f, {int badge = 0}) {
     return Press(
       onTap: f,
+      /* app-ic maquette : cercle plein chip, picto 17 */
       child: Container(
         width: 36,
         height: 36,
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(color: c.line),
-        ),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: c.chip, shape: BoxShape.circle),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -682,7 +687,7 @@ class _ShellState extends State<Shell> {
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: c.ink,
+                    color: c.accent,
                     borderRadius: BorderRadius.circular(99),
                   ),
                   constraints: const BoxConstraints(
@@ -692,10 +697,10 @@ class _ShellState extends State<Shell> {
                   alignment: Alignment.center,
                   child: Text(
                     badge > 99 ? '99+' : '$badge',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
-                      color: c.bg,
+                      color: Colors.white,
                     ),
                   ),
                 ),

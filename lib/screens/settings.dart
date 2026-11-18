@@ -354,6 +354,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     return Container(
       width: 32,
       height: 32,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: c.chip,
         borderRadius: BorderRadius.circular(10),

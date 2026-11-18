@@ -280,6 +280,7 @@ class JournalScreenState extends State<JournalScreen> {
           Container(
             width: 32,
             height: 32,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: acc ? c.accent.withValues(alpha: .14) : c.chip,
               shape: BoxShape.circle,

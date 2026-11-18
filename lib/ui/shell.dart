@@ -176,6 +176,7 @@ class SubPage extends StatelessWidget {
                         child: Container(
                           width: 34,
                           height: 34,
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: c.card,
                             borderRadius: BorderRadius.circular(11),

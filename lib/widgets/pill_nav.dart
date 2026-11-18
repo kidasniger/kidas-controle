@@ -77,6 +77,7 @@ class PillNav extends StatelessWidget {
       child: Container(
         width: 47,
         height: 47,
+        alignment: Alignment.center,
         margin: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
           color: c.accent,
