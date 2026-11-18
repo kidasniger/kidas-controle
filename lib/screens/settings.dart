@@ -375,7 +375,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         child: Row(
           children: [
-            _pastille(c, ic),
+            _pastille(c, picto),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
