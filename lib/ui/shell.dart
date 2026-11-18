@@ -14,6 +14,11 @@ class Bus {
   static final ValueNotifier<ThemeMode> themeMode = ValueNotifier(
     ThemeMode.system,
   );
+
+  /// Vrai une fois le jeton et les dépôts chargés du coffre : les écrans
+  /// qui lisent le dépôt au démarrage attendent ce signal pour relire
+  /// (sinon leurs lectures partent sans jeton et échouent en silence).
+  static final ValueNotifier<bool> cfgReady = ValueNotifier(false);
   static final ValueNotifier<bool> chercher = ValueNotifier(false);
   static final ValueNotifier<String> requete = ValueNotifier('');
   static bool external = false;

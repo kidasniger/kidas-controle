@@ -51,15 +51,29 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<String, dynamic>? st, cm, inbox;
     await Future.wait<dynamic>([
       Api.readObj('inbox/statistiques.json')
-          .then((v) { st = v; })
-          .catchError((Object e) { errs.add(Api.hint(e)); }),
+          .then((v) {
+            st = v;
+          })
+          .catchError((Object e) {
+            errs.add(Api.hint(e));
+          }),
       Api.readObj('inbox/commentaires.json')
-          .then((v) { cm = v; })
-          .catchError((Object e) { errs.add(Api.hint(e)); }),
+          .then((v) {
+            cm = v;
+          })
+          .catchError((Object e) {
+            errs.add(Api.hint(e));
+          }),
       Api.readObj('inbox/messages.json')
-          .then((v) { inbox = v; })
+          .then((v) {
+            inbox = v;
+          })
           .catchError((Object e) {}),
-      Moderation.charge().then((v) { _mod = v; }).catchError((Object e) {}),
+      Moderation.charge()
+          .then((v) {
+            _mod = v;
+          })
+          .catchError((Object e) {}),
     ]);
     if (!mounted) return;
     final fcm = cm, finbox = inbox;
@@ -95,8 +109,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _go(String title, Widget screen) {
     Fx.tick();
-    Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => SubPage(title, child: screen)));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => SubPage(title, child: screen)),
+    );
   }
 
   /* ---------- données dérivées ---------- */
@@ -115,7 +130,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String get _pageId {
     final p1 = _st?['page'];
-    if (p1 is Map<String, dynamic> && p1.os('id').isNotEmpty) return p1.os('id');
+    if (p1 is Map<String, dynamic> && p1.os('id').isNotEmpty)
+      return p1.os('id');
     final p2 = _cm?['page'];
     if (p2 is Map<String, dynamic>) return p2.os('id');
     return '';
@@ -132,13 +148,16 @@ class _HomeScreenState extends State<HomeScreen> {
     int activite(Map<String, dynamic> po) {
       var t = Api.iso(po.os('created_time'));
       final cc = po['comments'];
-      final da = cc is Map<String, dynamic> ? asArr(cc['data']) : const <dynamic>[];
+      final da = cc is Map<String, dynamic>
+          ? asArr(cc['data'])
+          : const <dynamic>[];
       for (final c in da) {
         final ct = Api.iso(asObj(c).os('created_time'));
         if (ct > t) t = ct;
       }
       return t;
     }
+
     out.sort((a, b) => activite(b).compareTo(activite(a)));
     return out;
   }
@@ -172,7 +191,9 @@ class _HomeScreenState extends State<HomeScreen> {
           final posts = _posts.where((p) {
             if (q.isEmpty) return true;
             if (_postTxt(p).toLowerCase().contains(q)) return true;
-            for (final x in Api.flatComments({'posts': [p]})) {
+            for (final x in Api.flatComments({
+              'posts': [p],
+            })) {
               if (x.c.os('message').toLowerCase().contains(q)) return true;
             }
             return false;
@@ -186,10 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _compose(c),
               const SizedBox(height: 10),
               _chips(c),
-              if (cherche) ...[
-                const SizedBox(height: 8),
-                _champRecherche(c),
-              ],
+              if (cherche) ...[const SizedBox(height: 8), _champRecherche(c)],
               if (_avisTodo > 0 && _vue == 0) ...[
                 const SizedBox(height: 10),
                 _bandeModeration(c),
@@ -223,67 +241,112 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return null;
     }
+
     final page = _st?['page'] is Map<String, dynamic>
         ? _st!['page'] as Map<String, dynamic>
         : <String, dynamic>{};
-    final abonnes = find('page_follows') != null && find('page_follows')!.vals.isNotEmpty
+    final abonnes =
+        find('page_follows') != null && find('page_follows')!.vals.isNotEmpty
         ? find('page_follows')!.vals.last
-        : (page['followers_count'] is num ? (page['followers_count'] as num).toDouble() : 0.0);
-    final nouveaux = sommeRecente(find('page_daily_follows_unique')?.vals ?? const [], 7);
+        : (page['followers_count'] is num
+              ? (page['followers_count'] as num).toDouble()
+              : 0.0);
+    final nouveaux = sommeRecente(
+      find('page_daily_follows_unique')?.vals ?? const [],
+      7,
+    );
     final visites = sommeRecente(find('page_views_total')?.vals ?? const [], 7);
-    final interactions = sommeRecente(find('page_post_engagements')?.vals ?? const [], 7);
+    final interactions = sommeRecente(
+      find('page_post_engagements')?.vals ?? const [],
+      7,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: c.line)),
-      child: Row(children: [
-        Expanded(
-            child: _kpi(c, abonnes <= 0 ? '—' : nf(abonnes), 'Abonnés',
-                nouveaux > 0 ? '+${nf(nouveaux)}' : '')),
-        _vdiv(c),
-        Expanded(
-            child: _kpi(c, visites > 0 ? nf(visites) : '—', 'Visites · 7 j', '')),
-        _vdiv(c),
-        Expanded(
-            child: _kpi(c, interactions > 0 ? nf(interactions) : '—',
-                'Interactions', '')),
-      ]),
+        color: c.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _kpi(
+              c,
+              abonnes <= 0 ? '—' : nf(abonnes),
+              'Abonnés',
+              nouveaux > 0 ? '+${nf(nouveaux)}' : '',
+            ),
+          ),
+          _vdiv(c),
+          Expanded(
+            child: _kpi(
+              c,
+              visites > 0 ? nf(visites) : '—',
+              'Visites · 7 j',
+              '',
+            ),
+          ),
+          _vdiv(c),
+          Expanded(
+            child: _kpi(
+              c,
+              interactions > 0 ? nf(interactions) : '—',
+              'Interactions',
+              '',
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _kpi(Palette c, String v, String label, String delta) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-      FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(v, style: T.kpi(c)),
-      ),
-      const SizedBox(height: 2),
-      FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(label.toUpperCase(),
-              style: T.micro(c).copyWith(fontSize: 9, letterSpacing: 1.26)),
-          if (delta.isNotEmpty) ...[
-            const SizedBox(width: 5),
-            Text(delta,
-                style: T.micro(c).copyWith(
-                    color: c.accent, fontSize: 9.5, letterSpacing: 0)),
-          ],
-        ]),
-      ),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(v, style: T.kpi(c)),
+        ),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: T.micro(c).copyWith(fontSize: 9, letterSpacing: 1.26),
+              ),
+              if (delta.isNotEmpty) ...[
+                const SizedBox(width: 5),
+                Text(
+                  delta,
+                  style: T
+                      .micro(c)
+                      .copyWith(
+                        color: c.accent,
+                        fontSize: 9.5,
+                        letterSpacing: 0,
+                      ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _vdiv(Palette c) {
     return Container(
-        width: 1,
-        height: 30,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        color: c.line);
+      width: 1,
+      height: 30,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: c.line,
+    );
   }
 
   /* ---------- barre de rédaction ---------- */
@@ -291,34 +354,44 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _compose(Palette c) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(children: [
-        avatarPage(c, 36),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Press(
-            onTap: () => _go('Composer', const ComposerScreen()),
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.centerLeft,
-              decoration: BoxDecoration(
+      child: Row(
+        children: [
+          avatarPage(
+            c,
+            36,
+            _pageName.isEmpty ? null : _pageName.substring(0, 1),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Press(
+              onTap: () => _go('Composer', const ComposerScreen()),
+              child: Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
                   color: c.card,
                   borderRadius: BorderRadius.circular(21),
-                  border: Border.all(color: c.line)),
-              child: Row(children: [
-                Expanded(
-                  child: Text(
-                      'Quoi de neuf, ${_pageName == "Ma Page" ? "Aboubacar" : _pageName} ?',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.muted)),
+                  border: Border.all(color: c.line),
                 ),
-                Icon(Icons.image_outlined, size: 16, color: c.muted),
-              ]),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Quoi de neuf, $_pageName ?',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: c.muted),
+                      ),
+                    ),
+                    Icon(Icons.image_outlined, size: 16, color: c.muted),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -353,28 +426,39 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
-                      color: _vue == i ? c.accent : c.card,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(
-                          color: _vue == i ? c.accent : c.line)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(labels[i].$1,
+                    color: _vue == i ? c.accent : c.card,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: _vue == i ? c.accent : c.line),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        labels[i].$1,
                         style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: _vue == i ? c.onAccent : c.ink)),
-                    if (labels[i].$2.isNotEmpty) ...[
-                      const SizedBox(width: 5),
-                      Text(labels[i].$2,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: _vue == i ? c.onAccent : c.ink,
+                        ),
+                      ),
+                      if (labels[i].$2.isNotEmpty) ...[
+                        const SizedBox(width: 5),
+                        Text(
+                          labels[i].$2,
                           style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w900,
-                              color: _vue == i ? c.onAccent : c.accent)),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w900,
+                            color: _vue == i ? c.onAccent : c.accent,
+                          ),
+                        ),
+                      ],
                     ],
-                  ]),
+                  ),
                 ),
               ),
             ),
@@ -386,32 +470,35 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _champRecherche(Palette c) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(children: [
-        Expanded(
-          child: KEdit(
-            text: Bus.requete.value,
-            hint: 'Chercher un post ou un commentaire...',
-            onChanged: (v) => Bus.requete.value = v,
+      child: Row(
+        children: [
+          Expanded(
+            child: KEdit(
+              text: Bus.requete.value,
+              hint: 'Chercher un post ou un commentaire...',
+              onChanged: (v) => Bus.requete.value = v,
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Press(
-          onTap: () {
-            Fx.tick();
-            Bus.requete.value = '';
-            Bus.chercher.value = false;
-          },
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
+          const SizedBox(width: 8),
+          Press(
+            onTap: () {
+              Fx.tick();
+              Bus.requete.value = '';
+              Bus.chercher.value = false;
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
                 color: c.soft,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: c.line)),
-            child: Icon(Icons.close, size: 17, color: c.ink),
+                border: Border.all(color: c.line),
+              ),
+              child: Icon(Icons.close, size: 17, color: c.ink),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -424,17 +511,25 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
-              color: c.soft, borderRadius: BorderRadius.circular(10)),
-          child: Row(children: [
-            Text('MODÉRATION — ', style: T.microInk(c)),
-            Text('$_avisTodo EN ATTENTE',
-                style: T.micro(c).copyWith(color: c.ink)),
-            const Spacer(),
-            Text("Urgent d'abord",
-                style: T.caption(c).copyWith(fontSize: 10.5)),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 14, color: c.muted),
-          ]),
+            color: c.soft,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Text('MODÉRATION — ', style: T.microInk(c)),
+              Text(
+                '$_avisTodo EN ATTENTE',
+                style: T.micro(c).copyWith(color: c.ink),
+              ),
+              const Spacer(),
+              Text(
+                "Urgent d'abord",
+                style: T.caption(c).copyWith(fontSize: 10.5),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 14, color: c.muted),
+            ],
+          ),
         ),
       ),
     );
@@ -452,13 +547,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: KEmpty(
-                  Icons.feed_outlined,
-                  Bus.requete.value.isEmpty
-                      ? 'Rien encore sur la Page.'
-                      : 'Aucun résultat pour cette recherche.',
-                  sub: Bus.requete.value.isEmpty
-                      ? "Lance « Surveiller » dans l'onglet Bot pour remplir le fil."
-                      : 'Essaie un autre mot.'),
+                Icons.feed_outlined,
+                Bus.requete.value.isEmpty
+                    ? 'Rien encore sur la Page.'
+                    : 'Aucun résultat pour cette recherche.',
+                sub: Bus.requete.value.isEmpty
+                    ? "Lance « Surveiller » dans l'onglet Bot pour remplir le fil."
+                    : 'Essaie un autre mot.',
+              ),
             ),
           ];
         }
@@ -482,8 +578,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Text(
-                        'Données du dernier cycle du bot : ${rel(_upd)}',
-                        style: T.caption(c)),
+                      'Données du dernier cycle du bot : ${rel(_upd)}',
+                      style: T.caption(c),
+                    ),
                   ),
               ],
             ),
@@ -503,30 +600,38 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: KCard(
           child: Text(
-              'Aucune statistique : lance « Statistiques » depuis l\'onglet Bot.',
-              style: T.body(c).copyWith(color: c.muted)),
+            'Aucune statistique : lance « Statistiques » depuis l\'onglet Bot.',
+            style: T.body(c).copyWith(color: c.muted),
+          ),
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: KCard(
-        child: Column(children: [
-          for (var i = 0; i < ms.length; i++) ...[
-            if (i > 0) const KDivider(),
-            Row(children: [
-              Expanded(child: Text(ms[i].name, style: T.body(c))),
-              Text(nf(ms[i].vals.last),
-                  style: T.strong(c).copyWith(fontSize: 15)),
-              if (ms[i].vals.length > 1) ...[
-                const SizedBox(width: 8),
-                Text(pct(ms[i].vals.last, ms[i].vals[ms[i].vals.length - 2]),
-                    style: T.caption(c)
-                        .copyWith(fontWeight: FontWeight.w800)),
-              ],
-            ]),
+        child: Column(
+          children: [
+            for (var i = 0; i < ms.length; i++) ...[
+              if (i > 0) const KDivider(),
+              Row(
+                children: [
+                  Expanded(child: Text(ms[i].name, style: T.body(c))),
+                  Text(
+                    nf(ms[i].vals.last),
+                    style: T.strong(c).copyWith(fontSize: 15),
+                  ),
+                  if (ms[i].vals.length > 1) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      pct(ms[i].vals.last, ms[i].vals[ms[i].vals.length - 2]),
+                      style: T.caption(c).copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
   }

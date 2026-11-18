@@ -297,7 +297,7 @@ class _PostCardState extends State<PostCard> {
     final name = widget.pageName;
     return Row(
       children: [
-        avatarPage(c, 40),
+        avatarPage(c, 40, name.isEmpty ? null : name.substring(0, 1)),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -927,15 +927,16 @@ class _PostCardState extends State<PostCard> {
 
 /* ---------- helpers visuels partagés (page + badges) ---------- */
 
-/// Avatar rond de la Page : initiale sur fond inversé.
-Widget avatarPage(Palette c, double size) {
+/// Avatar rond de la Page : initiale sur fond inversé. La lettre suit le
+/// nom réel de la Page ; sans nom, la marque « K » reste affichée.
+Widget avatarPage(Palette c, double size, [String? letter]) {
   return Container(
     width: size,
     height: size,
     alignment: Alignment.center,
     decoration: BoxDecoration(color: c.ink, shape: BoxShape.circle),
     child: Text(
-      'K',
+      (letter == null || letter.isEmpty) ? 'K' : letter.toUpperCase(),
       style: TextStyle(
         fontSize: size * .42,
         fontWeight: FontWeight.w900,

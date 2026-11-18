@@ -39,6 +39,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
   List<Brouillon> _brouillons = [];
   bool _draftBusy = true;
   List<_QueueEntree>? _fileItems;
+  String _pageName = '';
 
   @override
   void initState() {
@@ -49,6 +50,28 @@ class _ComposerScreenState extends State<ComposerScreen> {
     });
     _loadBrouillons();
     _loadQueue();
+    _loadPageName();
+  }
+
+  /// Nom réel de la Page (données du bot) pour l'aperçu Facebook.
+  Future<void> _loadPageName() async {
+    Map<String, dynamic>? pg;
+    try {
+      final st = await Api.readObj('inbox/statistiques.json');
+      final cm = await Api.readObj('inbox/commentaires.json');
+      for (final o in [st?['page'], cm?['page']]) {
+        if (o is Map<String, dynamic> && o.os('name').isNotEmpty) {
+          pg = o;
+          break;
+        }
+      }
+    } catch (_) {
+      // sans données, l'aperçu garde la marque KI DAS
+    }
+    if (!mounted) return;
+    setState(() {
+      _pageName = (pg == null || pg.os('name').isEmpty) ? '' : pg.os('name');
+    });
   }
 
   @override
@@ -809,7 +832,9 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    'K',
+                    _pageName.isEmpty
+                        ? 'K'
+                        : _pageName.substring(0, 1).toUpperCase(),
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
@@ -826,7 +851,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              'Aboubacar Sidik | KI DAS',
+                              _pageName.isEmpty ? 'KI DAS' : _pageName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: T.strong(c),

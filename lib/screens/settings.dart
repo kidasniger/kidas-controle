@@ -118,9 +118,11 @@ class SettingsScreenState extends State<SettingsScreen> {
     final subRegles = _regles.isEmpty
         ? 'Aucune règle pour le moment'
         : '$actives actives · $pause en pause';
-    final subSauv = _savedAt.isEmpty
-        ? '${_regles.length} règle(s) à mettre de côté'
-        : 'Dernière copie : ${_dateLisible(_savedAt)}';
+    final subSauv = _savedAt.isNotEmpty
+        ? 'Dernière : ${_dateLisible(_savedAt)}'
+        : _regles.isEmpty
+        ? 'Aucune règle à mettre de côté'
+        : '${_regles.length} règle${_regles.length > 1 ? 's' : ''} à mettre de côté';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 40),
@@ -399,7 +401,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     final sub = switch (modeIdx) {
       1 => 'Clair',
       2 => 'Sombre',
-      _ => 'Suit le système',
+      _ => 'Système',
     };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
@@ -418,10 +420,11 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 210,
+            width: 190,
             child: KSegmented(
               const ['Système', 'Clair', 'Sombre'],
               sel: modeIdx,
+              fontSize: 12,
               onSelect: (i) async {
                 Fx.tick();
                 final v = switch (i) {
@@ -597,123 +600,125 @@ class _ConnexionPageState extends State<_ConnexionPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
-      children: [
-        KSection('Jeton et dépôts'),
-        KCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Jeton (chiffré dans le coffre du téléphone)',
-                style: T.micro(c),
-              ),
-              const SizedBox(height: 6),
-              KEdit(controller: _tok, hint: 'github_pat_...', obscure: true),
-              const SizedBox(height: 12),
-              Text('Dépôt des données (privé)', style: T.micro(c)),
-              const SizedBox(height: 6),
-              KEdit(controller: _dr, hint: 'proprietaire/depot'),
-              const SizedBox(height: 12),
-              Text('Dépôt du code (public)', style: T.micro(c)),
-              const SizedBox(height: 6),
-              KEdit(controller: _mr, hint: 'proprietaire/depot'),
-              const SizedBox(height: 12),
-              Text("Date d'expiration du jeton (rappel)", style: T.micro(c)),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _expiry.isEmpty ? 'Aucune date' : _expiry,
-                      style: _expiry.isEmpty
-                          ? T.body(c).copyWith(color: c.muted)
-                          : T.body(c),
+    return SubPage(
+      'Jeton et dépôts',
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
+        children: [
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jeton (chiffré dans le coffre du téléphone)',
+                  style: T.micro(c),
+                ),
+                const SizedBox(height: 6),
+                KEdit(controller: _tok, hint: 'github_pat_...', obscure: true),
+                const SizedBox(height: 12),
+                Text('Dépôt des données (privé)', style: T.micro(c)),
+                const SizedBox(height: 6),
+                KEdit(controller: _dr, hint: 'proprietaire/depot'),
+                const SizedBox(height: 12),
+                Text('Dépôt du code (public)', style: T.micro(c)),
+                const SizedBox(height: 6),
+                KEdit(controller: _mr, hint: 'proprietaire/depot'),
+                const SizedBox(height: 12),
+                Text("Date d'expiration du jeton (rappel)", style: T.micro(c)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _expiry.isEmpty ? 'Aucune date' : _expiry,
+                        style: _expiry.isEmpty
+                            ? T.body(c).copyWith(color: c.muted)
+                            : T.body(c),
+                      ),
                     ),
-                  ),
-                  ActionBtn(
-                    'Choisir',
-                    height: 38,
-                    variant: KBtnVariant.ghost,
-                    icon: Icons.event_outlined,
-                    job: _pickDate,
-                  ),
-                  if (_expiry.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    _clearExpiry(c),
+                    ActionBtn(
+                      'Choisir',
+                      height: 38,
+                      variant: KBtnVariant.ghost,
+                      icon: Icons.event_outlined,
+                      job: _pickDate,
+                    ),
+                    if (_expiry.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      _clearExpiry(c),
+                    ],
                   ],
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ActionBtn('Enregistrer et tester', job: _save),
-              ),
-              if (_checks.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                for (final o in _checks)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(o['name']!, style: T.body(c)),
-                              if (o['msg']!.isNotEmpty)
-                                Text(o['msg']!, style: T.caption(c)),
-                            ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ActionBtn('Enregistrer et tester', job: _save),
+                ),
+                if (_checks.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  for (final o in _checks)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(o['name']!, style: T.body(c)),
+                                if (o['msg']!.isNotEmpty)
+                                  Text(o['msg']!, style: T.caption(c)),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        StatusChip(
-                          o['msg']!.isEmpty ? 'OK' : 'Échec',
-                          kind: o['msg']!.isEmpty ? 1 : 3,
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          StatusChip(
+                            o['msg']!.isEmpty ? 'OK' : 'Échec',
+                            kind: o['msg']!.isEmpty ? 1 : 3,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                ],
               ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        KSection('Droits du jeton'),
-        KCard(
-          child: Text(
-            "Sur les deux dépôts : Contents (écriture), Actions (écriture), Variables (écriture). "
-            'Sans Actions ni Variables, seuls Médias, Publier et Avis fonctionnent.',
-            style: T.body(c),
-          ),
-        ),
-        const SizedBox(height: 16),
-        KSection('Sécurité'),
-        KCard(
-          child: SizedBox(
-            width: double.infinity,
-            child: ActionBtn(
-              'Oublier le jeton sur ce téléphone',
-              icon: Icons.delete_outline,
-              variant: KBtnVariant.danger,
-              job: () async {
-                if (!await kConfirm(
-                  context,
-                  'Effacer le jeton de ce téléphone ?',
-                )) {
-                  throw Cancelled();
-                }
-                await Store.del('gh_token');
-                Api.tok = '';
-                if (!mounted) return;
-                Navigator.of(context).popUntil((r) => r.isFirst);
-              },
             ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 16),
+          KSection('Droits du jeton'),
+          KCard(
+            child: Text(
+              "Sur les deux dépôts : Contents (écriture), Actions (écriture), Variables (écriture). "
+              'Sans Actions ni Variables, seuls Médias, Publier et Avis fonctionnent.',
+              style: T.body(c),
+            ),
+          ),
+          const SizedBox(height: 16),
+          KSection('Sécurité'),
+          KCard(
+            child: SizedBox(
+              width: double.infinity,
+              child: ActionBtn(
+                'Oublier le jeton sur ce téléphone',
+                icon: Icons.delete_outline,
+                variant: KBtnVariant.danger,
+                job: () async {
+                  if (!await kConfirm(
+                    context,
+                    'Effacer le jeton de ce téléphone ?',
+                  )) {
+                    throw Cancelled();
+                  }
+                  await Store.del('gh_token');
+                  Api.tok = '';
+                  if (!mounted) return;
+                  Navigator.of(context).popUntil((r) => r.isFirst);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -773,6 +778,10 @@ class _SauvegardePageState extends State<_SauvegardePage> {
   }
 
   Future<void> _exporter() async {
+    if (_regles.isEmpty) {
+      kToast(context, "Aucune règle à copier pour l'instant.");
+      return;
+    }
     const enc = JsonEncoder.withIndent('  ');
     final s = enc.convert([for (final r in _regles) r.toMap()]);
     await Clipboard.setData(ClipboardData(text: s));
@@ -785,9 +794,10 @@ class _SauvegardePageState extends State<_SauvegardePage> {
       'Règles copiées en sauvegarde (${_regles.length})',
     );
     if (mounted) {
+      final n = _regles.length;
       kToast(
         context,
-        '${_regles.length} règle(s) copiée(s) : colle-les dans un fichier de secours.',
+        '$n règle${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} : colle-les dans un fichier de secours.',
       );
     }
     _charge();
@@ -852,60 +862,69 @@ class _SauvegardePageState extends State<_SauvegardePage> {
     await Regles.ecrire(rs);
     await Journal.ajoute('regle', 'Règles restaurées (${rs.length})');
     _charge();
-    if (mounted) kToast(context, '${rs.length} règle(s) restaurée(s).');
+    if (mounted) {
+      kToast(
+        context,
+        '${rs.length} règle${rs.length > 1 ? 's' : ''} restaurée${rs.length > 1 ? 's' : ''}.',
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
-      children: [
-        KSection('Sauvegarde des règles'),
-        KCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${_regles.length} règle(s) dans glm/regles.json. Copie-les en JSON pour les garder de côté, puis restaure-les après une perte ou sur un autre téléphone.',
-                style: T.caption(c),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: ActionBtn(
-                      'Copier le JSON',
-                      height: 38,
-                      variant: KBtnVariant.ghost,
-                      icon: Icons.copy_outlined,
-                      job: _exporter,
+    return SubPage(
+      'Sauvegarde des règles',
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
+        children: [
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _regles.isEmpty
+                      ? "Aucune règle dans glm/regles.json pour l'instant. Crée des règles dans Bot & Règles, puis reviens ici pour les copier en JSON ou les restaurer sur un autre téléphone."
+                      : '${_regles.length} règle${_regles.length > 1 ? 's' : ''} dans glm/regles.json. Copie-les en JSON pour les garder de côté, puis restaure-les après une perte ou sur un autre téléphone.',
+                  style: T.caption(c),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ActionBtn(
+                        'Copier le JSON',
+                        height: 38,
+                        variant: KBtnVariant.ghost,
+                        icon: Icons.copy_outlined,
+                        job: _exporter,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ActionBtn(
-                      'Restaurer',
-                      height: 38,
-                      variant: KBtnVariant.ghost,
-                      icon: Icons.paste_outlined,
-                      job: _importer,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ActionBtn(
+                        'Restaurer',
+                        height: 38,
+                        variant: KBtnVariant.ghost,
+                        icon: Icons.paste_outlined,
+                        job: _importer,
+                      ),
                     ),
+                  ],
+                ),
+                if (_savedAt.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Dernière : ${_dateLisible(_savedAt)}',
+                    style: T.caption(c).copyWith(color: c.muted),
                   ),
                 ],
-              ),
-              if (_savedAt.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'Dernière copie : ${_dateLisible(_savedAt)}',
-                  style: T.caption(c).copyWith(color: c.muted),
-                ),
               ],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -979,53 +998,55 @@ class _AProposPageState extends State<_AProposPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
-      children: [
-        KSection('À propos'),
-        KCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'KI DAS — Contrôle de Page Facebook',
-                style: T.title(c).copyWith(fontSize: 15.5),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Version installée : ${_version.isEmpty ? '...' : _version}',
-                style: T.body(c),
-              ),
-              const SizedBox(height: 12),
-              KSwitchRow(
-                'Vérifier au démarrage',
-                desc: 'Cherche une nouvelle version à chaque ouverture',
-                value: _auto,
-                job: (v) async {
-                  if (v) {
-                    await Store.del('upd_auto');
-                  } else {
-                    await Store.set('upd_auto', '0');
-                  }
-                  if (mounted) setState(() => _auto = v);
-                },
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: _checking
-                    ? const KSkeleton(44, radius: 12)
-                    : ActionBtn(
-                        'Rechercher une mise à jour',
-                        icon: Icons.refresh,
-                        job: _checkUpdate,
-                      ),
-              ),
-            ],
+    return SubPage(
+      'À propos',
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
+        children: [
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'KI DAS — Contrôle de Page Facebook',
+                  style: T.title(c).copyWith(fontSize: 15.5),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Version installée : ${_version.isEmpty ? '...' : _version}',
+                  style: T.body(c),
+                ),
+                const SizedBox(height: 12),
+                KSwitchRow(
+                  'Vérifier au démarrage',
+                  desc: 'Cherche une nouvelle version à chaque ouverture',
+                  value: _auto,
+                  job: (v) async {
+                    if (v) {
+                      await Store.del('upd_auto');
+                    } else {
+                      await Store.set('upd_auto', '0');
+                    }
+                    if (mounted) setState(() => _auto = v);
+                  },
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: _checking
+                      ? const KSkeleton(44, radius: 12)
+                      : ActionBtn(
+                          'Rechercher une mise à jour',
+                          icon: Icons.refresh,
+                          job: _checkUpdate,
+                        ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 }

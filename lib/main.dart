@@ -111,6 +111,7 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
       await Store.set('theme_mode', all['theme_mode']!);
     }
     Api.loadCfg(all);
+    Bus.cfgReady.value = true;
     Bus.themeMode.value = Bus.parse(all['theme_mode'] ?? 'system');
     await Fx.init();
     if (!mounted) return;
@@ -278,6 +279,15 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     _loadPage();
+    // la lecture du nom réel échoue si le jeton n'est pas encore sorti du
+    // coffre : on relit dès que la configuration est prête (Bus.cfgReady)
+    Bus.cfgReady.addListener(_loadPage);
+  }
+
+  @override
+  void dispose() {
+    Bus.cfgReady.removeListener(_loadPage);
+    super.dispose();
   }
 
   /// Nom réel de la Page (données du bot) pour l'en-tête d'identité.
@@ -321,6 +331,7 @@ class _ShellState extends State<Shell> {
   void _refresh() {
     Api.resetCache();
     setState(() => _gen++);
+    _loadPage();
   }
 
   /* ---------- bouton + : le composer en plein écran ---------- */
@@ -553,7 +564,7 @@ class _ShellState extends State<Shell> {
             alignment: Alignment.center,
             decoration: BoxDecoration(color: c.ink, shape: BoxShape.circle),
             child: Text(
-              'K',
+              _pageName.substring(0, 1).toUpperCase(),
               style: TextStyle(
                 fontSize: 19,
                 fontWeight: FontWeight.w900,
