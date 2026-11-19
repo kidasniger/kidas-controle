@@ -398,10 +398,38 @@ class _PostCardState extends State<PostCard> {
           Expanded(
             child: _act(c, Icons.thumb_up_outlined, "J'aime", () async {
               Fx.tick();
-              kToast(
-                context,
-                "Les J'aime ne se publient pas depuis l'application : clique sur « Voir sur Facebook ».",
-              );
+              final pid = widget.post.os('id');
+              if (pid.isEmpty) {
+                if (mounted) {
+                  kToast(
+                    context,
+                    'Publication sans identifiant : J\'aime impossible.',
+                    bad: true,
+                  );
+                }
+                return;
+              }
+              try {
+                await Api.updateJson('posts/actions.json', true, (cur) {
+                  final a = (cur is List ? cur : <dynamic>[]).toList();
+                  a.add({
+                    'post_id': pid,
+                    'action': 'like',
+                    'status': 'pending',
+                  });
+                  return a;
+                }, "J'aime (appli de contrôle)");
+                await Journal.ajoute('reponse', "J'aime envoyé au bot");
+                if (mounted) {
+                  kToast(
+                    context,
+                    "J'aime mis en file : appliqué au prochain cycle du bot.",
+                  );
+                }
+                widget.onChanged();
+              } catch (e) {
+                if (mounted) kToast(context, Api.hint(e), bad: true);
+              }
             }),
           ),
           Expanded(

@@ -30,6 +30,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
   bool _busy = true;
 
   final TextEditingController _testCtl = TextEditingController();
+  final TextEditingController _mpCtl = TextEditingController();
   Regle? _testRes;
   bool _testDone = false;
 
@@ -107,6 +108,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
   @override
   void dispose() {
     _testCtl.dispose();
+    _mpCtl.dispose();
     super.dispose();
   }
 
@@ -154,6 +156,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
         ..addAll(errs);
       _busy = false;
     });
+    _mpCtl.text = asObj(bot?.cfg['aimes']).os('message');
   }
 
   Future<void> _loadRegles() async {
@@ -175,14 +178,47 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
     return o is! Map<String, dynamic> || o.ob('actif', true);
   }
 
-  Future<void> _setNested(String key, bool v) async {
+  Future<void> _setNested(String key, bool v, {String libelle = 'GLM'}) async {
     await Api.updateJson('glm/config.json', false, (cur) {
       final c = asObj(cur);
       final o = asObj(c[key]);
       o['actif'] = v;
       c[key] = o;
       return c;
-    }, 'GLM $key ${v ? 'activé' : 'désactivé'}');
+    }, '$libelle ${v ? 'activé' : 'désactivé'}');
+  }
+
+  /* ---------- message privé facultatif envoyé après le like auto ---------- */
+
+  Future<void> _enregistrerMp() async {
+    final t = _mpCtl.text.trim();
+    try {
+      await Api.updateJson('glm/config.json', false, (cur) {
+        final o = asObj(cur);
+        final a = asObj(o['aimes']);
+        if (t.isEmpty) {
+          a.remove('message');
+        } else {
+          a['message'] = t;
+        }
+        o['aimes'] = a;
+        return o;
+      }, 'Message privé auto-like ${t.isEmpty ? 'retiré' : 'enregistré'}');
+      await Journal.ajoute(
+        'bot',
+        t.isEmpty
+            ? 'Message privé auto-like retiré'
+            : 'Message privé auto-like enregistré',
+      );
+      if (mounted) {
+        kToast(
+          context,
+          t.isEmpty ? 'Like sans message privé.' : 'Message privé enregistré.',
+        );
+      }
+    } catch (e) {
+      if (mounted) kToast(context, Api.hint(e), bad: true);
+    }
   }
 
   /* ---------- interrupteur global (en-tête, maquette) ---------- */
@@ -434,6 +470,43 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                   desc: 'Le bot like et répond aux commentaires',
                   value: _nested('reponses'),
                   job: (v) => _setNested('reponses', v),
+                ),
+                const KDivider(),
+                KSwitchRow(
+                  'Auto-like des publications',
+                  desc: 'Le bot like les nouvelles publications',
+                  value:
+                      ((bs.cfg['aimes'] as Map<String, dynamic>?) ?? const {})
+                          .ob('actif', false),
+                  job: (v) => _setNested('aimes', v, libelle: 'Auto-like'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Message privé après le like', style: T.micro(c)),
+                const SizedBox(height: 6),
+                KEdit(
+                  controller: _mpCtl,
+                  hint: 'Laisser vide = like sans message',
+                  minLines: 3,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Envoyé par Messenger à l'auteur d'une publication "
+                  '(jamais à ta Page). Messenger ne passe que si la personne '
+                  'a déjà écrit à la Page — sinon le like part seul.',
+                  style: T.caption(c),
+                ),
+                const SizedBox(height: 10),
+                ActionBtn(
+                  'Enregistrer le message',
+                  variant: KBtnVariant.ghost,
+                  job: _enregistrerMp,
                 ),
               ],
             ),
