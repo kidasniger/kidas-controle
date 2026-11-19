@@ -6,6 +6,7 @@ import '../core/api.dart';
 import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/palette.dart';
+import '../core/store.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
 import '../ui/forms.dart';
@@ -89,9 +90,9 @@ class _HomeScreenState extends State<HomeScreen> {
             inbox = v;
           })
           .catchError((Object e) {}),
-      Api.readObj('posts/avance.json')
+      Api.readJson('posts/avance.json')
           .then((v) {
-            avance = v is List ? v : const [];
+            avance = v is List ? List<dynamic>.from(v) : const <dynamic>[];
           })
           .catchError((Object e) {}),
       Moderation.charge()
@@ -820,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Afficher plus (${posts.length - _limite} restantes)',
                       icon: Icons.expand_more_outlined,
                       variant: KBtnVariant.ghost,
-                      job: () => setState(() => _limite += 15),
+                      job: () async => setState(() => _limite += 15),
                     ),
                   ),
                 if (_upd.isNotEmpty)
