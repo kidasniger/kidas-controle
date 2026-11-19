@@ -508,6 +508,7 @@ class _ShellState extends State<Shell> {
             children: [
               if (_tab == 0 && Api.tok.isNotEmpty) _header(c),
               if (_tab == 0 && Api.tok.isNotEmpty) _banniereJeton(c),
+              const BandeauHorsLigne(),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: KAnim.med,

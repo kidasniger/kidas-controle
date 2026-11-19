@@ -208,6 +208,7 @@ class SubPage extends StatelessWidget {
                 ],
               ),
             ),
+            const BandeauHorsLigne(),
             Expanded(child: child),
           ],
         ),

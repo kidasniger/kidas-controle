@@ -751,6 +751,7 @@ class _ConnexionPageState extends State<ConnexionPage> {
                     throw Cancelled();
                   }
                   await Store.del('gh_token');
+                  await HorsLigne.oublieTout();
                   Api.tok = '';
                   if (!mounted) return;
                   Navigator.of(context).popUntil((r) => r.isFirst);

@@ -4,7 +4,10 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:http/http.dart' as http;
+
+import 'store.dart';
 
 /// Accès GitHub (API REST) + modèles partagés par les écrans.
 /// Port fidèle de Api.java (v1 Java) — mêmes chemins, mêmes messages d'erreur.
@@ -213,13 +216,29 @@ class Api {
     return FileData(o.os('sha'), txt);
   }
 
-  static Future<dynamic> readJson(String path) async {
-    final f = await getFile(data, path);
-    if (f == null || f.text.trim().isEmpty) return null;
+  /// Décodage souple : JSON invalide → null (comportement historique).
+  static dynamic _decode(String s) {
     try {
-      return jsonDecode(f.text);
+      return jsonDecode(s);
     } catch (_) {
       return null;
+    }
+  }
+
+  static Future<dynamic> readJson(String path) async {
+    try {
+      final f = await getFile(data, path);
+      final v = (f == null || f.text.trim().isEmpty) ? null : _decode(f.text);
+      HorsLigne.enLigne();
+      unawaited(HorsLigne.garde(path, v));
+      return v;
+    } on ApiError catch (e) {
+      /* réseau tombé (délai ou indisponible) : on sert la dernière copie.
+         Une erreur de droits (401, 403…) reste une erreur visible. */
+      if (e.status != 0) rethrow;
+      final v = await HorsLigne.repli(path);
+      if (v == null) rethrow;
+      return v;
     }
   }
 
@@ -771,4 +790,80 @@ class Cmt {
   final Map<String, dynamic> c;
   final Map<String, dynamic> post;
   Cmt(this.c, this.post);
+}
+
+/* ---------- mode hors-ligne ---------- */
+
+/// Mode hors-ligne : chaque fichier lu dans le dépôt de données est gardé
+/// en copie locale chiffrée (Store). Si le réseau tombe, la dernière copie
+/// est servie aux écrans et le bandeau « Hors ligne · données de HH:MM »
+/// s'affiche avec l'heure de cette copie. Une erreur de droits (401, 403…)
+/// reste une erreur visible : seul le réseau tombé déclenche le repli.
+class HorsLigne {
+  static const _prefixe = 'hl.';
+  static const _tailleMax = 900000; // garde-fou : fichier trop gros non gardé
+
+  /// Un repli a servi des données : le bandeau doit être visible.
+  static final ValueNotifier<bool> coupure = ValueNotifier(false);
+
+  /// Heure (HH:MM local) de la dernière copie servie.
+  static final ValueNotifier<String> heure = ValueNotifier('');
+
+  /// Lecture en ligne réussie : les données affichées sont à jour.
+  static void enLigne() {
+    if (coupure.value) coupure.value = false;
+  }
+
+  static void _servi(int ts) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    heure.value =
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    coupure.value = true;
+  }
+
+  /// Garde une copie du fichier lu (à froid : jamais bloquante).
+  static Future<void> garde(String path, dynamic v) async {
+    try {
+      final cle = '$_prefixe${path.replaceAll('/', '__')}';
+      if (v == null) {
+        await Store.del(cle);
+        return;
+      }
+      final o = {'ts': DateTime.now().millisecondsSinceEpoch, 'data': v};
+      final s = jsonEncode(o);
+      if (s.length > _tailleMax) return;
+      await Store.set(cle, s);
+    } catch (_) {
+      /* copie facultative : jamais bloquante */
+    }
+  }
+
+  /// Sert la dernière copie connue du fichier (null si aucune).
+  static Future<dynamic> repli(String path) async {
+    try {
+      final cle = '$_prefixe${path.replaceAll('/', '__')}';
+      final s = await Store.get(cle);
+      if (s.isEmpty) return null;
+      final o = jsonDecode(s);
+      if (o is! Map<String, dynamic> || o['ts'] is! int) return null;
+      _servi(o['ts'] as int);
+      return o['data'];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Purge : à la déconnexion, les copies du compte précédent ne servent plus.
+  static Future<void> oublieTout() async {
+    try {
+      final all = await Store.all();
+      for (final k in all.keys) {
+        if (k.startsWith(_prefixe)) await Store.del(k);
+      }
+    } catch (_) {
+      /* purge facultative */
+    }
+    coupure.value = false;
+    heure.value = '';
+  }
 }

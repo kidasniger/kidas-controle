@@ -13,6 +13,56 @@ class Cancelled implements Exception {
   String toString() => 'Annulé.';
 }
 
+/* ---------- bandeau hors-ligne ---------- */
+
+/// Bandeau « Hors ligne · données de HH:MM » : visible tant que le dernier
+/// chargement des écrans a servi une copie locale (réseau tombé). Une lecture
+/// en ligne réussie le fait disparaître.
+class BandeauHorsLigne extends StatelessWidget {
+  const BandeauHorsLigne({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final c = context.p;
+    return ValueListenableBuilder<bool>(
+      valueListenable: HorsLigne.coupure,
+      builder: (_, coupe, __) => coupe
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+              child: ValueListenableBuilder<String>(
+                valueListenable: HorsLigne.heure,
+                builder: (_, h, ___) => Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.soft,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: c.line),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.cloud_off_outlined, size: 14, color: c.muted),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          h.isEmpty
+                              ? 'Hors ligne — dernière donnée connue'
+                              : 'Hors ligne · données de $h',
+                          style: T.caption(c).copyWith(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+}
+
 /* ---------- presse : échelle + ressort + haptique ---------- */
 
 class Press extends StatefulWidget {
