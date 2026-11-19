@@ -250,6 +250,31 @@ class Api {
     return v is Map<String, dynamic> ? v : null;
   }
 
+  /* ---------- santé du bot (dépôt du bot, lecture seule) ---------- */
+
+  /// Dépôt privé du bot : glm_boucle y écrit le rapport de santé
+  /// (bot/sante.json). L'appli ne fait que le lire — jamais d'écriture ici,
+  /// c'est le bot seul qui possède ce dépôt.
+  static const botData = 'kidasniger/facebook-data';
+
+  /// Lecture d'un fichier du dépôt du bot, avec le même repli hors-ligne
+  /// que readJson (clés préfixées « bot/ » pour éviter toute collision avec
+  /// les copies du dépôt de données de l'appli).
+  static Future<dynamic> readBotJson(String path) async {
+    try {
+      final f = await getFile(botData, path);
+      final v = (f == null || f.text.trim().isEmpty) ? null : _decode(f.text);
+      HorsLigne.enLigne();
+      unawaited(HorsLigne.garde('bot/$path', v));
+      return v;
+    } on ApiError catch (e) {
+      if (e.status != 0) rethrow;
+      final v = await HorsLigne.repli('bot/$path');
+      if (v == null) rethrow;
+      return v;
+    }
+  }
+
   /// Réessaie jusqu'à 5 fois sur 409/422 (conflit) avec back-off.
   static Future<T> retry<T>(Future<T> Function(int attempt) f) async {
     Object? last;

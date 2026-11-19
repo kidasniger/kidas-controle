@@ -29,6 +29,10 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
   final List<String> _errs = [];
   bool _busy = true;
 
+  /* santé du bot : rapport écrit par glm_boucle dans son dépôt (bot/sante.json) */
+  Map<String, dynamic>? _sante;
+  bool _santeAbsente = false;
+
   final TextEditingController _testCtl = TextEditingController();
   final TextEditingController _mpCtl = TextEditingController();
   Regle? _testRes;
@@ -143,6 +147,18 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
           })
           .catchError((Object e) {
             errs.add(Api.hint(e));
+            return null;
+          }),
+      /* santé : une erreur ici reste discrète (panneau, pas bandeau rouge) */
+      Api.readBotJson('bot/sante.json')
+          .then((v) {
+            _sante = v is Map<String, dynamic> ? v : null;
+            _santeAbsente = _sante == null;
+            return null;
+          })
+          .catchError((Object e) {
+            _sante = null;
+            _santeAbsente = false;
             return null;
           }),
     ]);
@@ -414,6 +430,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
           Padding(padding: const EdgeInsets.only(bottom: 8), child: ErrBox(e)),
         _pageHead(c, bs),
         if (bs != null) ...[_heros(c, bs, pause), const SizedBox(height: 14)],
+        if (!_busy) ..._santePanel(c),
         KSection('Règles'),
         if (_reglesBusy)
           const KCard(child: KSkeleton(60))
@@ -607,6 +624,151 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
         ],
       ),
     );
+  }
+
+  /* ---------- panneau santé du bot ---------- */
+
+  String _hh(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  /// Ligne « libellé à gauche, valeur à droite » (éventuellement chip d'état).
+  Widget _santeLigne(Palette c, String k, String v, {int chip = 0}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(k, style: T.body(c).copyWith(color: c.muted)),
+        ),
+        Text(v, style: T.strong(c)),
+        if (chip > 0) ...[
+          const SizedBox(width: 8),
+          StatusChip(chip == 3 ? 'Lourd' : 'Chargé', kind: chip),
+        ],
+      ],
+    );
+  }
+
+  /// Panneau santé : dernier passage du bot, quota Facebook annoncé par son
+  /// API, session en cours, file d'attente et erreurs récentes (rapport
+  /// écrit par glm_boucle). Toute la lecture est non bloquante.
+  List<Widget> _santePanel(Palette c) {
+    final s = _sante;
+    final out = <Widget>[KSection('Santé du bot')];
+    if (s == null) {
+      out.add(
+        KCard(
+          child: Text(
+            _santeAbsente
+                ? 'Pas encore de rapport — le bot écrira son premier '
+                      'à son prochain cycle.'
+                : 'Rapport indisponible (droits ou réseau).',
+            style: T.body(c).copyWith(color: c.muted),
+          ),
+        ),
+      );
+      out.add(const SizedBox(height: 14));
+      return out;
+    }
+    final maj = DateTime.tryParse(s.os('mis_a_jour'))?.toLocal();
+    final frais =
+        maj != null &&
+        DateTime.now().difference(maj) < const Duration(minutes: 30);
+    final quota = asObj(s['quota']);
+    final qp = quota.oi('pct');
+    final attente = quota.oi('attente_min');
+    final sess = asObj(s['session']);
+    final file = asObj(s['file']);
+    final erreurs = s['erreurs'] is List
+        ? (s['erreurs'] as List).whereType<Map<String, dynamic>>().toList()
+        : const <Map<String, dynamic>>[];
+    final rep = sess.oi('reponses');
+    final cyc = sess.oi('cycles');
+    out.add(
+      KCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                PulseDot(frais ? c.accent : c.heroMut),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    maj == null
+                        ? 'Dernier passage · ?'
+                        : 'Dernier passage · ${_hh(maj)}',
+                    style: TextStyle(
+                      fontFamily: kDisp,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: c.ink,
+                    ),
+                  ),
+                ),
+                StatusChip(frais ? 'Actif' : 'Silencieux', kind: frais ? 4 : 5),
+              ],
+            ),
+            if (!frais) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Le bot n\'a rien écrit depuis plus de 30 min — session '
+                'terminée, quota saturé ou Actions à l\'arrêt.',
+                style: T.caption(c).copyWith(color: c.muted),
+              ),
+            ],
+            const KDivider(),
+            _santeLigne(
+              c,
+              'Quota Facebook',
+              '$qp %${attente > 0 ? ' · pause $attente min' : ''}',
+              chip: qp >= 75 ? 3 : (qp >= 50 ? 5 : 0),
+            ),
+            const KDivider(),
+            _santeLigne(
+              c,
+              'Cette session',
+              '$rep réponse${rep > 1 ? 's' : ''} · $cyc cycle${cyc > 1 ? 's' : ''}',
+            ),
+            const KDivider(),
+            _santeLigne(
+              c,
+              "File d'attente",
+              '${file.oi('en_attente')} en attente',
+            ),
+            const KDivider(),
+            if (erreurs.isEmpty)
+              Text(
+                'Aucune erreur récente.',
+                style: T.caption(c).copyWith(color: c.muted),
+              )
+            else ...[
+              Text('ERREURS RÉCENTES', style: T.micro(c)),
+              const SizedBox(height: 6),
+              for (final e in erreurs.take(3))
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Builder(
+                    builder: (_) {
+                      final d = DateTime.tryParse(e.os('at'))?.toLocal();
+                      final origine = e.os('origine');
+                      final detail = e.os('detail');
+                      return Text(
+                        '${d == null ? '' : '${_hh(d)} · '}'
+                        '${origine.isEmpty ? '' : '$origine · '}'
+                        '$detail',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: T.caption(c),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+    out.add(const SizedBox(height: 14));
+    return out;
   }
 
   /* badge SI / ALORS (maquette kw) */
