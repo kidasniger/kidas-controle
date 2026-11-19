@@ -260,6 +260,98 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
     'Longueur des réponses : ${_longueurLabels[i]}',
   );
 
+  /* ---------- heures de silence (glm/config.json, clé horaires) ---------- */
+
+  Map<String, dynamic> _horaires() => asObj(_bot?.cfg['horaires']);
+
+  String _hVal(String cle, String defaut) => _horaires().os(cle, defaut);
+
+  /* rendu immédiat : mutation locale du cfg déjà chargé (comme _cfgLocal) */
+  void _horairesLocal(String cle, dynamic valeur) {
+    final b = _bot;
+    if (b == null) return;
+    final h = asObj(b.cfg['horaires']);
+    h[cle] = valeur;
+    if (h['actif'] == true) {
+      if (h['debut'] is! String || (h['debut'] as String).isEmpty) h['debut'] = '22:00';
+      if (h['fin'] is! String || (h['fin'] as String).isEmpty) h['fin'] = '07:00';
+    }
+    b.cfg['horaires'] = h;
+  }
+
+  Future<void> _setHoraires(String cle, dynamic valeur, String libelle) async {
+    try {
+      await Api.updateJson('glm/config.json', false, (cur) {
+        final o = asObj(cur);
+        final h = asObj(o['horaires']);
+        h[cle] = valeur;
+        if (h['actif'] == true) {
+          /* plage par défaut si rien n'est encore réglé + fuseau du téléphone
+             au moment du réglage : le bot convertit à chaque cycle */
+          if (h['debut'] is! String || (h['debut'] as String).isEmpty) h['debut'] = '22:00';
+          if (h['fin'] is! String || (h['fin'] as String).isEmpty) h['fin'] = '07:00';
+          h['decalage_min'] = DateTime.now().timeZoneOffset.inMinutes;
+        }
+        o['horaires'] = h;
+        return o;
+      }, libelle);
+      await Journal.ajoute('bot', libelle);
+      if (!mounted) return;
+      setState(() => _horairesLocal(cle, valeur));
+      kToast(context, '$libelle enregistré.');
+    } catch (e) {
+      if (mounted) kToast(context, Api.hint(e), bad: true);
+    }
+  }
+
+  TimeOfDay _heureOu(String s, TimeOfDay defaut) {
+    final i = s.indexOf(':');
+    if (i <= 0) return defaut;
+    final h = int.tryParse(s.substring(0, i));
+    final m = int.tryParse(s.substring(i + 1));
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) return defaut;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  Future<void> _choisirHeure(String cle, String defaut, String prefixe) async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: _heureOu(_hVal(cle, ''), _heureOu(defaut, TimeOfDay.now())),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: ctx.p.accent,
+            brightness: Theme.of(ctx).brightness,
+          ),
+        ),
+        child: child ?? const SizedBox(),
+      ),
+    );
+    if (t == null || !mounted) return;
+    final v =
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    await _setHoraires(cle, v, '$prefixe $v');
+  }
+
+  Widget _ligneHeure(String titre, String heure, VoidCallback job) {
+    final c = context.p;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: job,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(child: Text(titre, style: T.body(c))),
+            Text(heure, style: T.body(c)),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: c.muted),
+          ],
+        ),
+      ),
+    );
+  }
+
   /* ---------- message privé facultatif envoyé après le like auto ---------- */
 
   Future<void> _enregistrerMp() async {
@@ -570,6 +662,35 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                     ],
                   ),
                 ),
+                const KDivider(),
+                KSwitchRow(
+                  'Heures de silence',
+                  desc: 'Pendant la plage, le bot ne répond plus tout seul',
+                  value: _horaires().ob('actif', false),
+                  job: (v) => _setHoraires(
+                      'actif', v, 'Heures de silence ${v ? 'activées' : 'désactivées'}'),
+                ),
+                if (_horaires().ob('actif', false)) ...[
+                  const KDivider(),
+                  _ligneHeure(
+                      'De',
+                      _hVal('debut', '22:00'),
+                      () => _choisirHeure('debut', '22:00', 'Début du silence')),
+                  const KDivider(),
+                  _ligneHeure(
+                      'À',
+                      _hVal('fin', '07:00'),
+                      () => _choisirHeure('fin', '07:00', 'Fin du silence')),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+                    child: Text(
+                      "Heures du téléphone, enregistrées avec le réglage. Les "
+                      "commentaires attendent la fin de la plage ; l'app, les "
+                      'caches et les envois en file continuent pendant le silence.',
+                      style: T.caption(c),
+                    ),
+                  ),
+                ],
                 const KDivider(),
                 KSwitchRow(
                   'Auto-like des publications',
