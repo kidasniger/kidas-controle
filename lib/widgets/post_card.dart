@@ -26,6 +26,7 @@ class PostCard extends StatefulWidget {
   final String pageId;
   final Moderation mod;
   final VoidCallback onChanged;
+  final bool nouveau;
   const PostCard({
     super.key,
     required this.post,
@@ -33,6 +34,7 @@ class PostCard extends StatefulWidget {
     required this.pageId,
     required this.mod,
     required this.onChanged,
+    this.nouveau = false,
   });
   @override
   State<PostCard> createState() => _PostCardState();
@@ -146,6 +148,33 @@ class _PostCardState extends State<PostCard> {
     widget.onChanged();
   }
 
+  Future<void> _fileAction(String action, String libelle) async {
+    try {
+      await Api.updateJson('posts/actions.json', true, (cur) {
+        final a = (cur is List ? cur : <dynamic>[]).toList();
+        a.add({
+          'post_id': widget.post.os('id'),
+          'action': action,
+          'status': 'pending',
+        });
+        return a;
+      }, '$libelle (appli de contrôle)');
+      await Journal.ajoute(
+        'reponse',
+        libelle,
+        detail: _postTexte.length > 120
+            ? '${_postTexte.substring(0, 120)}…'
+            : _postTexte,
+      );
+      if (mounted) {
+        kToast(context, 'Demande mise en file : appliquée au prochain cycle du bot.');
+      }
+      widget.onChanged();
+    } catch (e) {
+      if (mounted) kToast(context, Api.hint(e), bad: true);
+    }
+  }
+
   Future<void> _kebab() async {
     final action = await kSheet<String>(
       context,
@@ -163,6 +192,20 @@ class _PostCardState extends State<PostCard> {
           Icons.shield_outlined,
           'Modérer les commentaires',
           'mod',
+        ),
+        _sheetRow(context, Icons.push_pin_outlined, 'Épingler', 'pin'),
+        _sheetRow(context, Icons.push_pin, 'Désépingler', 'unpin'),
+        _sheetRow(
+          context,
+          Icons.visibility_off_outlined,
+          'Masquer la publication',
+          'hide',
+        ),
+        _sheetRow(
+          context,
+          Icons.delete_outline,
+          'Supprimer la publication',
+          'del',
         ),
       ],
     );
@@ -187,6 +230,28 @@ class _PostCardState extends State<PostCard> {
               const SubPage('Modération', child: ModerationScreen()),
         ),
       );
+    } else if (action == 'pin') {
+      await _fileAction('pin', 'Épingler la publication');
+    } else if (action == 'unpin') {
+      await _fileAction('unpin', 'Désépingler la publication');
+    } else if (action == 'hide') {
+      if (!mounted) return;
+      if (await kConfirm(
+        context,
+        'Masquer cette publication ? Elle disparaît du fil public ; '
+        'tu pourras la réafficher depuis Facebook.',
+      )) {
+        await _fileAction('hide', 'Publication masquée');
+      }
+    } else if (action == 'del') {
+      if (!mounted) return;
+      if (await kConfirm(
+        context,
+        'Supprimer cette publication sur Facebook ? '
+        'Action irréversible : le bot l\'exécutera au prochain cycle.',
+      )) {
+        await _fileAction('delete', 'Publication supprimée');
+      }
     }
   }
 
@@ -325,6 +390,17 @@ class _PostCardState extends State<PostCard> {
                   ),
                   const SizedBox(width: 5),
                   Icon(Icons.public_outlined, size: 12, color: c.muted),
+                  if (widget.nouveau) ...[
+                    const SizedBox(width: 7),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: c.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -351,6 +427,70 @@ class _PostCardState extends State<PostCard> {
 
   /* ----- compteur : J'aime à gauche, commentaires · partages à droite ----- */
 
+  Map<String, dynamic> get _types {
+    final rt = widget.post['reactions_types'];
+    return rt is Map<String, dynamic> && rt.isNotEmpty
+        ? rt
+        : <String, dynamic>{};
+  }
+
+  Future<void> _feuilleReactions() async {
+    final c = context.p;
+    const ic = {
+      'like': Icons.thumb_up_outlined,
+      'love': Icons.favorite_outlined,
+      'care': Icons.volunteer_activism_outlined,
+      'haha': Icons.sentiment_very_satisfied_outlined,
+      'wow': Icons.auto_awesome_outlined,
+      'sad': Icons.sentiment_dissatisfied_outlined,
+      'angry': Icons.mood_bad_outlined,
+      'thankful': Icons.handshake_outlined,
+    };
+    const noms = {
+      'like': "J'aime",
+      'love': "J'adore",
+      'care': 'Bienveillant',
+      'haha': 'Haha',
+      'wow': 'Wow',
+      'sad': 'Triste',
+      'angry': 'Grr',
+      'thankful': 'Reconnaissant',
+    };
+    final entrees = _types.entries
+        .where((e) => e.value is num && (e.value as num) > 0)
+        .toList()
+      ..sort((a, b) => (b.value as num).compareTo(a.value as num));
+    if (entrees.isEmpty || !mounted) return;
+    await kSheet<int>(
+      context,
+      title: 'Réactions à la publication',
+      children: [
+        for (final e in entrees)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                Icon(ic[e.key] ?? Icons.thumb_up_outlined, size: 18,
+                    color: c.accent),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Text(
+                    noms[e.key] ?? e.key,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: c.ink,
+                    ),
+                  ),
+                ),
+                Text(nf(e.value), style: T.strong(c)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _compteur(Palette c, List<Cmt> tous) {
     var n = 0;
     for (final x in tous) {
@@ -360,18 +500,25 @@ class _PostCardState extends State<PostCard> {
     final partages = widget.post.oi('shares_total');
     const tf = [FontFeature.tabularFigures()];
     if (likes <= 0 && n == 0 && partages <= 0) return const SizedBox(height: 4);
+    final zoneLikes = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.thumb_up_alt_outlined, size: 14, color: c.muted),
+        const SizedBox(width: 6),
+        Text(
+          nf(likes),
+          style: T.caption(c).copyWith(fontSize: 12, fontFeatures: tf),
+        ),
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 9, 16, 7),
       child: Row(
         children: [
-          if (likes > 0) ...[
-            Icon(Icons.thumb_up_alt_outlined, size: 14, color: c.muted),
-            const SizedBox(width: 6),
-            Text(
-              nf(likes),
-              style: T.caption(c).copyWith(fontSize: 12, fontFeatures: tf),
-            ),
-          ],
+          if (likes > 0)
+            (_types.isEmpty
+                ? zoneLikes
+                : Press(onTap: _feuilleReactions, child: zoneLikes)),
           const Spacer(),
           Text(
             [
