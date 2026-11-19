@@ -9,12 +9,16 @@ val runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
 
 android {
     namespace = "com.kidas.controle"
-    compileSdk = flutter.compileSdkVersion
+    /* flutter_local_notifications 23 et androidx.core 1.19 exigent le SDK 37
+       (flutter.compileSdkVersion reste à 36 avec Flutter 3.50). */
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        /* exigé par flutter_local_notifications (java.time) */
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -60,4 +64,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
