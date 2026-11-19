@@ -204,6 +204,62 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
     }, '$libelle ${v ? 'activé' : 'désactivé'}');
   }
 
+  /* ton et longueur des réponses automatiques (glm/config.json, clé reponses) */
+
+  static const _tons = ['chaleureux', 'neutre', 'direct'];
+  static const _tonLabels = ['Chaleureux', 'Neutre', 'Direct'];
+  static const _longueurs = ['courte', 'normale', 'detaillee'];
+  static const _longueurLabels = ['Courte', 'Normale', 'Détaillée'];
+
+  String _valReponses(String cle, String defaut) =>
+      asObj(_bot?.cfg['reponses']).os(cle, defaut);
+
+  int _idxTon() {
+    final i = _tons.indexOf(_valReponses('ton', 'chaleureux'));
+    return i < 0 ? 0 : i;
+  }
+
+  int _idxLongueur() {
+    final i = _longueurs.indexOf(_valReponses('longueur', 'normale'));
+    return i < 0 ? 1 : i;
+  }
+
+  /* rendu immédiat du sélecteur : mutation locale du cfg déjà chargé */
+  void _cfgLocal(String cle, String valeur) {
+    final b = _bot;
+    if (b == null) return;
+    final r = asObj(b.cfg['reponses']);
+    r[cle] = valeur;
+    b.cfg['reponses'] = r;
+  }
+
+  Future<void> _setReponses(String cle, String valeur, String libelle) async {
+    try {
+      await Api.updateJson('glm/config.json', false, (cur) {
+        final o = asObj(cur);
+        final r = asObj(o['reponses']);
+        r[cle] = valeur;
+        o['reponses'] = r;
+        return o;
+      }, libelle);
+      await Journal.ajoute('bot', libelle);
+      if (!mounted) return;
+      setState(() => _cfgLocal(cle, valeur));
+      kToast(context, '$libelle enregistré.');
+    } catch (e) {
+      if (mounted) kToast(context, Api.hint(e), bad: true);
+    }
+  }
+
+  Future<void> _setTon(int i) =>
+      _setReponses('ton', _tons[i], 'Ton des réponses : ${_tonLabels[i]}');
+
+  Future<void> _setLongueur(int i) => _setReponses(
+    'longueur',
+    _longueurs[i],
+    'Longueur des réponses : ${_longueurLabels[i]}',
+  );
+
   /* ---------- message privé facultatif envoyé après le like auto ---------- */
 
   Future<void> _enregistrerMp() async {
@@ -487,6 +543,32 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                   desc: 'Le bot like et répond aux commentaires',
                   value: _nested('reponses'),
                   job: (v) => _setNested('reponses', v),
+                ),
+                const KDivider(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ton des réponses', style: T.body(c)),
+                      const SizedBox(height: 8),
+                      KSegmented(
+                        _tonLabels,
+                        sel: _idxTon(),
+                        onSelect: _setTon,
+                        fontSize: 12.5,
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Longueur des réponses', style: T.body(c)),
+                      const SizedBox(height: 8),
+                      KSegmented(
+                        _longueurLabels,
+                        sel: _idxLongueur(),
+                        onSelect: _setLongueur,
+                        fontSize: 12.5,
+                      ),
+                    ],
+                  ),
                 ),
                 const KDivider(),
                 KSwitchRow(
