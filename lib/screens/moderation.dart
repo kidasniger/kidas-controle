@@ -141,6 +141,15 @@ class _ModerationScreenState extends State<ModerationScreen> {
         return a;
       }, 'Suppression de commentaire (appli de contrôle)');
     } catch (e) {
+      /* notifications locales : la mise en file a échoué */
+      if (Notifs.activ.value) {
+        unawaited(
+          Notifs.montre(
+            "File d'attente",
+            "Échec de l'envoi au bot — vérifie ta connexion.",
+          ),
+        );
+      }
       if (mounted) kToast(context, Api.hint(e), bad: true);
       return;
     }
