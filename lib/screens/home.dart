@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
 import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/palette.dart';
-import '../core/store.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
 import '../ui/forms.dart';
@@ -36,27 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _errs = [];
   bool _busy = true;
 
-  /* fil paginé, programmations visibles et nouveautés depuis la dernière visite */
-  int _limite = 15;
-  List<Map<String, dynamic>> _avance = const [];
-  String _vu = '';
-  bool _aDefile = false;
-  final GlobalKey _cleNouveau = GlobalKey();
-
   @override
   void initState() {
     super.initState();
     _load();
-    unawaited(_preparerVisite());
-  }
-
-  /* La dernière ouverture sert de repère aux points « nouveau ». Elle est
-     enregistrée tout de suite : la prochaine ouverture repartira de cette date. */
-  Future<void> _preparerVisite() async {
-    final v = await Store.get('accueil.vu');
-    if (!mounted) return;
-    setState(() => _vu = v);
-    await Store.set('accueil.vu', DateTime.now().toUtc().toIso8601String());
   }
 
   @override
@@ -69,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _busy = _st == null && _cm == null);
     final errs = <String>[];
     Map<String, dynamic>? st, cm, inbox;
-    List<dynamic> avance = const [];
     await Future.wait<dynamic>([
       Api.readObj('inbox/statistiques.json')
           .then((v) {
@@ -88,11 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
       Api.readObj('inbox/messages.json')
           .then((v) {
             inbox = v;
-          })
-          .catchError((Object e) {}),
-      Api.readJson('posts/avance.json')
-          .then((v) {
-            avance = v is List ? List<dynamic>.from(v) : const <dynamic>[];
           })
           .catchError((Object e) {}),
       Moderation.charge()
@@ -121,10 +95,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _st = st;
       _cm = cm;
-      _avance = [
-        for (final e in avance)
-          if (e is Map<String, dynamic> && asObj(e).os('status') == 'pending') asObj(e),
-      ];
       _avisTodo = avisTodo;
       _msgTodo = msgTodo;
       _upd = upd;
@@ -167,23 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return '';
   }
 
-  /* activité d'une publication : date de création ou du dernier commentaire */
-  int _activite(Map<String, dynamic> po) {
-    var t = Api.iso(po.os('created_time'));
-    final cc = po['comments'];
-    final da = cc is Map<String, dynamic> ? asArr(cc['data']) : const <dynamic>[];
-    for (final c in da) {
-      final ct = Api.iso(asObj(c).os('created_time'));
-      if (ct > t) t = ct;
-    }
-    return t;
-  }
-
-  bool _estNouveau(Map<String, dynamic> p) {
-    final vu = Api.iso(_vu);
-    return vu > 0 && _activite(p) > vu;
-  }
-
   List<Map<String, dynamic>> get _posts {
     final cm = _cm;
     if (cm == null) return const [];
@@ -192,7 +145,20 @@ class _HomeScreenState extends State<HomeScreen> {
       final po = asObj(p);
       if (po.isNotEmpty) out.add(po);
     }
-    out.sort((a, b) => _activite(b).compareTo(_activite(a)));
+    int activite(Map<String, dynamic> po) {
+      var t = Api.iso(po.os('created_time'));
+      final cc = po['comments'];
+      final da = cc is Map<String, dynamic>
+          ? asArr(cc['data'])
+          : const <dynamic>[];
+      for (final c in da) {
+        final ct = Api.iso(asObj(c).os('created_time'));
+        if (ct > t) t = ct;
+      }
+      return t;
+    }
+
+    out.sort((a, b) => activite(b).compareTo(activite(a)));
     return out;
   }
 
@@ -232,25 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             return false;
           }).toList();
-          if (_vue == 0 && posts.any(_estNouveau) && !_aDefile) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final ctx = _cleNouveau.currentContext;
-              if (ctx == null) return;
-              _aDefile = true;
-              Scrollable.ensureVisible(
-                ctx,
-                duration: const Duration(milliseconds: 450),
-                alignment: 0.02,
-              );
-            });
-          }
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(0, 6, 0, 96),
             children: [
               _kpis(c),
-              const SizedBox(height: 10),
-              _salutation(c),
               const SizedBox(height: 10),
               _compose(c),
               const SizedBox(height: 10),
@@ -259,10 +211,6 @@ class _HomeScreenState extends State<HomeScreen> {
               if (_avisTodo > 0 && _vue == 0) ...[
                 const SizedBox(height: 10),
                 _bandeModeration(c),
-              ],
-              if (_avance.isNotEmpty && _vue == 0) ...[
-                const SizedBox(height: 10),
-                _prog(c),
               ],
               for (final e in _errs.take(2))
                 Padding(
@@ -587,190 +535,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /* ---------- salutation et date du jour ---------- */
-
-  Widget _salutation(Palette c) {
-    final n = DateTime.now();
-    final bon = n.hour >= 5 && n.hour < 18 ? 'Bonjour' : 'Bonsoir';
-    const jours = [
-      'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
-    ];
-    const mois = [
-      'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '$bon, $_pageName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: T.strong(c).copyWith(fontSize: 15),
-            ),
-          ),
-          Text(
-            '${jours[n.weekday - 1]} ${n.day} ${mois[n.month - 1]}',
-            style: T.caption(c),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /* ---------- publications programmées ---------- */
-
-  Widget _prog(Palette c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Press(
-        onTap: _feuilleProg,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Text('PROGRAMMÉES — ', style: T.microInk(c)),
-              Text(
-                '${_avance.length} EN FILE',
-                style: T.micro(c).copyWith(color: c.ink),
-              ),
-              const Spacer(),
-              Text(
-                'Voir et annuler',
-                style: T.caption(c).copyWith(fontSize: 10.5),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right, size: 14, color: c.muted),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _progTexte(Map<String, dynamic> e) {
-    final t = e.os('message');
-    if (t.isNotEmpty) return t;
-    if (e.os('image_path').isNotEmpty || e.os('video_path').isNotEmpty) {
-      return 'Publication avec média';
-    }
-    return '(sans texte)';
-  }
-
-  Future<void> _feuilleProg() async {
-    final c = context.p;
-    final items = List<Map<String, dynamic>>.from(_avance);
-    await kSheet<int>(
-      context,
-      title: 'Publications programmées',
-      children: [
-        for (var i = 0; i < items.length; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              children: [
-                IconBox(Icons.schedule_outlined),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fdate(Api.iso(items[i].os('publish_at'))),
-                        style:
-                            T.micro(c).copyWith(color: c.accent, fontSize: 10),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        _progTexte(items[i]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: c.ink,
-                        ),
-                      ),
-                      if (items[i].containsKey('claimed_at')) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          "En cours d'envoi par le bot...",
-                          style: T.caption(c).copyWith(fontSize: 10.5),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (!items[i].containsKey('claimed_at'))
-                  Press(
-                    onTap: () {
-                      Fx.tick();
-                      Navigator.pop(context);
-                      _annulerProg(items[i]);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: c.soft,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: c.line),
-                      ),
-                      child: Text(
-                        'Annuler',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: c.ink,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _annulerProg(Map<String, dynamic> cible) async {
-    try {
-      await Api.updateJson('posts/avance.json', true, (cur) {
-        final a = (cur is List ? cur : <dynamic>[]).toList();
-        for (var j = 0; j < a.length; j++) {
-          final e = asObj(a[j]);
-          if (e.os('status') == 'pending' &&
-              e.os('publish_at') == cible.os('publish_at') &&
-              e.os('message') == cible.os('message') &&
-              e.os('image_path') == cible.os('image_path') &&
-              e.os('video_path') == cible.os('video_path')) {
-            a.removeAt(j);
-            break;
-          }
-        }
-        return a;
-      }, 'Programmation annulée');
-      await Journal.ajoute(
-        'post',
-        'Programmation annulée',
-        detail: _progTexte(cible),
-      );
-      if (mounted) kToast(context, 'Programmation annulée.');
-      _load();
-    } catch (e) {
-      if (mounted) kToast(context, Api.hint(e), bad: true);
-    }
-  }
-
   /* ---------- contenu selon le filtre ---------- */
 
   List<Widget> _contenu(Palette c, List<Map<String, dynamic>> posts) {
@@ -794,34 +558,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ];
         }
-        final liste = posts.take(_limite).toList();
-        final premierNouveau = liste.indexWhere(_estNouveau);
         return [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Column(
               children: [
-                for (var i = 0; i < liste.length; i++)
+                for (final p in posts.take(15))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: PostCard(
-                      key: i == premierNouveau ? _cleNouveau : null,
-                      post: liste[i],
+                      post: p,
                       pageName: _pageName,
                       pageId: _pageId,
                       mod: _mod,
-                      nouveau: _estNouveau(liste[i]),
                       onChanged: _load,
-                    ),
-                  ),
-                if (posts.length > _limite)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2, bottom: 8),
-                    child: ActionBtn(
-                      'Afficher plus (${posts.length - _limite} restantes)',
-                      icon: Icons.expand_more_outlined,
-                      variant: KBtnVariant.ghost,
-                      job: () async => setState(() => _limite += 15),
                     ),
                   ),
                 if (_upd.isNotEmpty)
