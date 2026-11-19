@@ -35,6 +35,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
 
   final TextEditingController _testCtl = TextEditingController();
   final TextEditingController _mpCtl = TextEditingController();
+  final TextEditingController _motsCtl = TextEditingController();
   Regle? _testRes;
   bool _testDone = false;
 
@@ -113,6 +114,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
   void dispose() {
     _testCtl.dispose();
     _mpCtl.dispose();
+    _motsCtl.dispose();
     super.dispose();
   }
 
@@ -173,6 +175,13 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
       _busy = false;
     });
     _mpCtl.text = asObj(bot?.cfg['aimes']).os('message');
+    final mots = asObj(bot?.cfg['moderation'])['mots'];
+    _motsCtl.text = mots is List
+        ? [
+            for (final m in mots)
+              if (m is String && m.trim().isNotEmpty) m.trim(),
+          ].join('\n')
+        : '';
   }
 
   Future<void> _loadRegles() async {
@@ -379,6 +388,40 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
           context,
           t.isEmpty ? 'Like sans message privé.' : 'Message privé enregistré.',
         );
+      }
+    } catch (e) {
+      if (mounted) kToast(context, Api.hint(e), bad: true);
+    }
+  }
+
+  /* ---------- mots interdits (glm/config.json, clé moderation) ---------- */
+
+  Future<void> _enregistrerMots() async {
+    final mots = [
+      for (final l in _motsCtl.text.split('\n'))
+        if (l.trim().isNotEmpty) l.trim(),
+    ];
+    try {
+      await Api.updateJson('glm/config.json', false, (cur) {
+        final o = asObj(cur);
+        final m = asObj(o['moderation']);
+        m['actif'] = mots.isNotEmpty;
+        if (mots.isEmpty) {
+          m.remove('mots');
+        } else {
+          m['mots'] = mots;
+        }
+        o['moderation'] = m;
+        return o;
+      }, mots.isEmpty ? 'Mots interdits désactivés' : 'Mots interdits : ${mots.length} mot(s)');
+      await Journal.ajoute(
+        'bot',
+        mots.isEmpty
+            ? 'Filtre de mots interdits désactivé'
+            : 'Filtre de mots interdits : ${mots.length} mot(s)',
+      );
+      if (mounted) {
+        kToast(context, mots.isEmpty ? 'Filtre désactivé.' : 'Filtre enregistré.');
       }
     } catch (e) {
       if (mounted) kToast(context, Api.hint(e), bad: true);
@@ -727,6 +770,34 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                   'Enregistrer le message',
                   variant: KBtnVariant.ghost,
                   job: _enregistrerMp,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mots interdits', style: T.micro(c)),
+                const SizedBox(height: 6),
+                KEdit(
+                  controller: _motsCtl,
+                  hint: 'Un mot ou une expression par ligne',
+                  minLines: 3,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Un commentaire qui contient l'un de ces mots ne reçoit plus "
+                  "de réponse automatique : il t'attend dans À traiter. Liste "
+                  'vide = le bot répond à tout (sauf heures de silence).',
+                  style: T.caption(c),
+                ),
+                const SizedBox(height: 10),
+                ActionBtn(
+                  'Enregistrer les mots',
+                  variant: KBtnVariant.ghost,
+                  job: _enregistrerMots,
                 ),
               ],
             ),
