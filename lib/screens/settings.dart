@@ -579,6 +579,7 @@ class ConnexionPage extends StatefulWidget {
 
 class _ConnexionPageState extends State<ConnexionPage> {
   late final TextEditingController _tok = TextEditingController(text: Api.tok);
+  late final TextEditingController _nouveau = TextEditingController();
   late final TextEditingController _dr = TextEditingController(text: Api.data);
   late final TextEditingController _mr = TextEditingController(text: Api.mgr);
   String _expiry = Api.exp;
@@ -587,6 +588,7 @@ class _ConnexionPageState extends State<ConnexionPage> {
   @override
   void dispose() {
     _tok.dispose();
+    _nouveau.dispose();
     _dr.dispose();
     _mr.dispose();
     super.dispose();
@@ -652,6 +654,20 @@ class _ConnexionPageState extends State<ConnexionPage> {
     } else {
       await Store.set('cfg_exp', _expiry);
     }
+    await _tests();
+    if (!mounted) return;
+    final echecs = _checks.where((o) => o['msg']!.isNotEmpty).length;
+    kToast(
+      context,
+      echecs == 0
+          ? 'Connexion enregistrée et testée.'
+          : 'Enregistré, mais $echecs test(s) en échec — détail en haut de page.',
+      bad: echecs > 0,
+    );
+  }
+
+  /* les 3 tests de droits, partagés entre enregistrement et renouvellement */
+  Future<void> _tests() async {
     final names = [
       'Données : lecture (${Api.data})',
       'Actions : lecture (${Api.mgr})',
@@ -681,6 +697,36 @@ class _ConnexionPageState extends State<ConnexionPage> {
     );
   }
 
+  /* ---------- renouvellement du jeton en un tap ---------- */
+
+  Future<void> _renouvelle() async {
+    Fx.tick();
+    final t = _nouveau.text.trim();
+    if (t.isEmpty) throw Exception('Colle le nouveau jeton.');
+    Api.tok = t;
+    _tok.text = t;
+    Api.exp = _expiry;
+    Api.resetCache();
+    await Store.set('gh_token', Api.tok);
+    if (_expiry.isEmpty) {
+      await Store.del('cfg_exp');
+    } else {
+      await Store.set('cfg_exp', _expiry);
+    }
+    await _tests();
+    await Journal.ajoute('app', 'Jeton GitHub renouvelé');
+    if (!mounted) return;
+    setState(() => _nouveau.clear());
+    final echecs = _checks.where((o) => o['msg']!.isNotEmpty).length;
+    kToast(
+      context,
+      echecs == 0
+          ? 'Nouveau jeton opérationnel — dépôts et réglages conservés.'
+          : 'Jeton remplacé, mais $echecs test(s) en échec — détail en haut de page.',
+      bad: echecs > 0,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.p;
@@ -689,6 +735,89 @@ class _ConnexionPageState extends State<ConnexionPage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
         children: [
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Renouveler le jeton',
+                  style: T.title(c).copyWith(fontSize: 17),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Colle un nouveau jeton : il remplace l'ancien, les dépôts et "
+                  'les réglages sont conservés, le test se relance tout seul.',
+                  style: T.body(c).copyWith(color: c.muted, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                Text('NOUVEAU JETON', style: T.micro(c)),
+                const SizedBox(height: 6),
+                KEdit(
+                  controller: _nouveau,
+                  hint: 'github_pat_...',
+                  obscure: true,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _expiry.isEmpty
+                            ? 'Expiration : non renseignée'
+                            : 'Expiration : $_expiry',
+                        style: _expiry.isEmpty
+                            ? T.body(c).copyWith(color: c.muted)
+                            : T.body(c),
+                      ),
+                    ),
+                    ActionBtn(
+                      'Choisir',
+                      height: 38,
+                      variant: KBtnVariant.ghost,
+                      icon: Icons.event_outlined,
+                      job: _pickDate,
+                    ),
+                  ],
+                ),
+                if (_expiry.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _chipExp(c),
+                ],
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ActionBtn('Renouveler et tester', job: _renouvelle),
+                ),
+                if (_checks.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  for (final o in _checks)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(o['name']!, style: T.body(c)),
+                                if (o['msg']!.isNotEmpty)
+                                  Text(o['msg']!, style: T.caption(c)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          StatusChip(
+                            o['msg']!.isEmpty ? 'OK' : 'Échec',
+                            kind: o['msg']!.isEmpty ? 1 : 3,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           KCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,32 +871,6 @@ class _ConnexionPageState extends State<ConnexionPage> {
                   width: double.infinity,
                   child: ActionBtn('Enregistrer et tester', job: _save),
                 ),
-                if (_checks.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  for (final o in _checks)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(o['name']!, style: T.body(c)),
-                                if (o['msg']!.isNotEmpty)
-                                  Text(o['msg']!, style: T.caption(c)),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          StatusChip(
-                            o['msg']!.isEmpty ? 'OK' : 'Échec',
-                            kind: o['msg']!.isEmpty ? 1 : 3,
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
               ],
             ),
           ),
