@@ -26,7 +26,7 @@ class Notifs {
     try {
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
       await _plugin.initialize(
-        const InitializationSettings(android: android),
+        settings: const InitializationSettings(android: android),
       );
       pret = true;
     } catch (_) {
@@ -48,7 +48,7 @@ class Notifs {
     try {
       await _plugin
           .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin,
+            AndroidFlutterLocalNotificationsPlugin
           >()
           ?.requestNotificationsPermission();
     } catch (_) {
@@ -90,7 +90,7 @@ class Notifs {
     await montre(
       'Modération',
       '${neufs.length} commentaire${neufs.length > 1 ? 's' : ''} '
-      'urgent${neufs.length > 1 ? 's' : ''} à traiter.',
+          'urgent${neufs.length > 1 ? 's' : ''} à traiter.',
     );
   }
 
@@ -104,10 +104,10 @@ class Notifs {
         priority: Priority.defaultPriority,
       );
       await _plugin.show(
-        DateTime.now().millisecondsSinceEpoch % 2147483647,
-        titre,
-        corps,
-        const NotificationDetails(android: d),
+        id: DateTime.now().millisecondsSinceEpoch % 2147483647,
+        title: titre,
+        body: corps,
+        notificationDetails: const NotificationDetails(android: d),
       );
     } catch (_) {
       /* jamais bloquant */
