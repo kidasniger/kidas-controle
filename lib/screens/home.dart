@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _preparerVisite() async {
     final v = await Store.get('accueil.vu');
     if (!mounted) return;
-    setState(() => _vu = v ?? '');
+    setState(() => _vu = v);
     await Store.set('accueil.vu', DateTime.now().toUtc().toIso8601String());
   }
 
