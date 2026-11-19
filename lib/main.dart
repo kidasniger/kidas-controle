@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 import 'core/api.dart';
 import 'core/fx.dart';
 import 'core/native.dart';
+import 'core/notifs.dart';
 import 'core/palette.dart';
 import 'core/store.dart';
 import 'core/updater.dart';
@@ -112,6 +113,8 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
     }
     Api.loadCfg(all);
     Bus.cfgReady.value = true;
+    /* notifications locales : alerte jeton au plus une fois par jour */
+    Notifs.auDemarrage();
     Bus.themeMode.value = Bus.parse(all['theme_mode'] ?? 'system');
     await Fx.init();
     if (!mounted) return;

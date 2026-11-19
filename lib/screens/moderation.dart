@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
 import '../core/data.dart';
 import '../core/fx.dart';
+import '../core/notifs.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
@@ -44,6 +47,15 @@ class _ModerationScreenState extends State<ModerationScreen> {
         _mod = mod;
         _busy = false;
       });
+      /* notifications locales : nouveaux urgents, une fois chacun */
+      unawaited(
+        Notifs.urgents(
+          _aTraiter
+              .where((x) => _mod.estUrgent(x.id, x.text))
+              .map((x) => x.id)
+              .toList(),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);

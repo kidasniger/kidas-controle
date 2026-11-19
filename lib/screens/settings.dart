@@ -7,6 +7,7 @@ import '../core/api.dart';
 import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/native.dart';
+import '../core/notifs.dart';
 import '../core/palette.dart';
 import '../core/store.dart';
 import '../core/updater.dart';
@@ -191,7 +192,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
         ]),
         /* groupe Apparence */
-        _groupe(c, [_ligneTheme(c, modeIdx), _ligneSons(c)]),
+        _groupe(c, [_ligneTheme(c, modeIdx), _ligneSons(c), _ligneNotifs(c)]),
         /* groupe Sécurité */
         _groupe(c, [
           _ligne(
@@ -494,6 +495,51 @@ class SettingsScreenState extends State<SettingsScreen> {
                 onChanged: (v) {
                   Fx.tick();
                   Fx.setSons(v);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ligneNotifs(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: Notifs.activ,
+        builder: (_, on, __) => Row(
+          children: [
+            _pastille(c, 'bell'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Notifications',
+                    style: T.strong(c).copyWith(fontSize: 14.5),
+                  ),
+                  Text(
+                    'Commentaires urgents et jeton Facebook',
+                    style: T.caption(c),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Transform.scale(
+              scale: .9,
+              child: Switch.adaptive(
+                value: on,
+                activeThumbColor: c.accent,
+                activeTrackColor: c.accent.withValues(alpha: .35),
+                inactiveTrackColor: c.line,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (v) {
+                  Fx.tick();
+                  Notifs.set(v);
                 },
               ),
             ),

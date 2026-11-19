@@ -22,6 +22,8 @@ dependencies:
   path_provider: ^2.1.4
   # sélection de médias (upload dans media/)
   file_picker: ^13.3.3
+  # notifications locales (commentaires urgents, jeton)
+  flutter_local_notifications: ^23.0.3
 
 dev_dependencies:
   flutter_test:
