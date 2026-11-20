@@ -3,6 +3,14 @@ name: Compiler l'APK
 on:
   push:
     branches: [main]
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'analysis_options.yaml'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       notes:
