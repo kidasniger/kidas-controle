@@ -49,17 +49,23 @@ class Diagnostics {
     }
 
     try {
-      await Api.req('GET', '/user');
-      checks.add(const DiagnosticCheck(
-        id: 'token',
-        title: 'Authentification GitHub',
-        level: DiagnosticLevel.success,
-        detail: 'Le jeton est accepté.',
+      final raw = await Api.req('GET', '/repos/${Api.mgr}');
+      final repo = jsonDecode(raw);
+      final fullName = repo is Map ? (repo['full_name'] ?? '').toString() : '';
+      checks.add(DiagnosticCheck(
+        id: 'repository',
+        title: 'Authentification et dépôt du bot',
+        level: fullName.isNotEmpty
+            ? DiagnosticLevel.success
+            : DiagnosticLevel.warning,
+        detail: fullName.isNotEmpty
+            ? 'Accès GitHub confirmé : $fullName'
+            : 'Réponse du dépôt inattendue.',
       ));
     } catch (error) {
       checks.add(DiagnosticCheck(
-        id: 'token',
-        title: 'Authentification GitHub',
+        id: 'repository',
+        title: 'Authentification et dépôt du bot',
         level: DiagnosticLevel.error,
         detail: Api.hint(error),
       ));
@@ -67,23 +73,23 @@ class Diagnostics {
     }
 
     try {
-      final raw = await Api.req('GET', '/repos/${Api.mgr}');
+      final raw = await Api.req('GET', '/repos/${Api.data}');
       final repo = jsonDecode(raw);
       final fullName = repo is Map ? (repo['full_name'] ?? '').toString() : '';
       checks.add(DiagnosticCheck(
-        id: 'repository',
-        title: 'Dépôt du bot',
+        id: 'data',
+        title: 'Dépôt de données',
         level: fullName.isNotEmpty
             ? DiagnosticLevel.success
             : DiagnosticLevel.warning,
         detail: fullName.isNotEmpty
             ? 'Accès confirmé : $fullName'
-            : 'Dépôt accessible, réponse inattendue.',
+            : 'Réponse du dépôt inattendue.',
       ));
     } catch (error) {
       checks.add(DiagnosticCheck(
-        id: 'repository',
-        title: 'Dépôt du bot',
+        id: 'data',
+        title: 'Dépôt de données',
         level: DiagnosticLevel.error,
         detail: Api.hint(error),
       ));
@@ -107,9 +113,9 @@ class Diagnostics {
         checks.add(DiagnosticCheck(
           id: 'workflow',
           title: 'Dernière exécution du bot',
-          level: status == 'completed' && conclusion != 'success'
-              ? DiagnosticLevel.warning
-              : DiagnosticLevel.success,
+          level: status == 'completed' && conclusion == 'success'
+              ? DiagnosticLevel.success
+              : DiagnosticLevel.warning,
           detail: detail,
         ));
       } else {
