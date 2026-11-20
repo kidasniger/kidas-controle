@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/api.dart';
+import 'maintenance.dart';
 import '../core/data.dart';
 import '../core/fx.dart';
 import '../core/native.dart';
@@ -193,6 +194,35 @@ class SettingsScreenState extends State<SettingsScreen> {
         ]),
         /* groupe Apparence */
         _groupe(c, [_ligneTheme(c, modeIdx), _ligneSons(c), _ligneNotifs(c)]),
+        /* groupe Diagnostic et maintenance */
+        _groupe(c, [
+          _ligne(
+            c,
+            'activity',
+            'Diagnostic des services',
+            'Connexion GitHub, accès au dépôt et dernier workflow',
+            onTap: () async {
+              Fx.tick();
+              await _push(const SubPage(
+                'Diagnostic des services',
+                child: DiagnosticsScreen(),
+              ));
+            },
+          ),
+          _ligne(
+            c,
+            'save',
+            'Sauvegarde des paramètres',
+            'Exporter ou restaurer les préférences sans les secrets',
+            onTap: () async {
+              Fx.tick();
+              await _push(const SubPage(
+                'Sauvegarde des paramètres',
+                child: SettingsBackupScreen(),
+              ));
+            },
+          ),
+        ]),
         /* groupe Sécurité */
         _groupe(c, [
           _ligne(
