@@ -139,11 +139,10 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
     setState(() => _busy = true);
     try {
       final file = await AppBackup.create();
-      final destination = await FilePicker.platform.saveFile(
+      final destination = await FilePicker.saveFile(
         fileName: file.uri.pathSegments.last,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
         bytes: await file.readAsBytes(),
+        mimeType: 'application/json',
       );
       if (!mounted) return;
       setState(() => _lastFile = destination ?? file.path);
@@ -162,13 +161,12 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
   }
 
   Future<void> _restore() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
-      withData: true,
     );
-    if (result == null || result.files.isEmpty) return;
-    final bytes = result.files.single.bytes;
+    if (files.isEmpty) return;
+    final bytes = await files.single.readAsBytes();
     if (bytes == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
