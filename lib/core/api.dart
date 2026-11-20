@@ -537,7 +537,7 @@ class Api {
   static Future<Bot> botState() async {
     final b = Bot();
     Map<String, dynamic>? cfg;
-    String? live, auto;
+    String? live;
     String runsRaw = '';
     await Future.wait<dynamic>([
       readObj('glm/config.json')
