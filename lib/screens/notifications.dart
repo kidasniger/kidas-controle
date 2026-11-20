@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/fx.dart';
 import '../core/notification_center.dart';
 import '../core/palette.dart';
 import '../ui/common.dart';
