@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -267,7 +269,9 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
+  Timer? _liveRefreshTimer;
+  bool _foreground = true;
   // onglets de la maquette : 0 Accueil, 1 Boîte, 3 Bot, 4 Stats (2 = bouton +)
   int _tab = 0;
   int _gen = 0; // incrémente au bouton rafraîchir
@@ -285,8 +289,13 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadPage();
     NotificationCenter.load();
+    // Synchronisation active : santé du bot + rechargement de l'écran ouvert.
+    _liveRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (_foreground && mounted && Api.tok.isNotEmpty) _refresh();
+    });
     // la lecture du nom réel échoue si le jeton n'est pas encore sorti du
     // coffre : on relit dès que la configuration est prête (Bus.cfgReady)
     Bus.cfgReady.addListener(_loadPage);
@@ -294,8 +303,22 @@ class _ShellState extends State<Shell> {
 
   @override
   void dispose() {
+    _liveRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     Bus.cfgReady.removeListener(_loadPage);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _foreground = true;
+      if (mounted && Api.tok.isNotEmpty) _refresh();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _foreground = false;
+    }
   }
 
   /// Nom réel de la Page (données du bot) pour l'en-tête d'identité.
