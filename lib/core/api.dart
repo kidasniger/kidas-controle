@@ -537,8 +537,7 @@ class Api {
   static Future<Bot> botState() async {
     final b = Bot();
     Map<String, dynamic>? cfg;
-    String? live, auto;
-    List<dynamic> wl = const [];
+    String? live;
     String runsRaw = '';
     await Future.wait<dynamic>([
       readObj('glm/config.json')
@@ -551,27 +550,17 @@ class Api {
             live = v;
           })
           .catchError((Object e) {}),
-      getVar('AUTO_REPONSES')
-          .then((v) {
-            auto = v;
-          })
-          .catchError((Object e) {}),
-      workflows(false)
-          .then((v) {
-            wl = v;
-          })
-          .catchError((Object e) {}),
       req('GET', '/repos/$mgr/actions/workflows/glm-live.yml/runs?per_page=10')
           .then((v) {
             runsRaw = v;
           })
           .catchError((Object e) {}),
     ]);
-    if (cfg != null) b.cfg = cfg!;
+    if (cfg != null) {
+      b.cfg = cfg!;
+      b.auto = asObj(cfg!['reponses']).ob('actif', true) ? 'on' : 'off';
+    }
     b.live = live;
-    b.auto = auto;
-    final v = wfByFile(wl, 'glm-veille.yml');
-    b.veille = v?.os('state');
     final rr = asObj(jsonDecodeSafe(runsRaw));
     for (final r in asArr(rr['workflow_runs'])) {
       if (asObj(r).os('status') != 'completed') b.running++;
@@ -790,7 +779,7 @@ class Api {
 
 class Bot {
   Map<String, dynamic> cfg = {};
-  String? live, auto, veille;
+  String? live, auto;
   int running = 0;
   bool hardOff = false, softOff = false;
   String state = 'wait';
