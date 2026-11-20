@@ -77,7 +77,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
-          ErrBox(_error!),
+          KCard(child: Text(_error!)),
         ],
         if (_report != null) ...[
           const SizedBox(height: 14),
@@ -88,14 +88,14 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 children: [
                   Icon(
                     switch (check.level) {
-                      DiagnosticLevel.success => Icons.check_circle_rounded,
-                      DiagnosticLevel.warning => Icons.warning_amber_rounded,
-                      DiagnosticLevel.error => Icons.error_rounded,
+                      CheckLevel.success => Icons.check_circle_rounded,
+                      CheckLevel.warning => Icons.warning_amber_rounded,
+                      CheckLevel.error => Icons.error_rounded,
                     },
                     color: switch (check.level) {
-                      DiagnosticLevel.success => Colors.green,
-                      DiagnosticLevel.warning => Colors.orange,
-                      DiagnosticLevel.error => Colors.red,
+                      CheckLevel.success => Colors.green,
+                      CheckLevel.warning => Colors.orange,
+                      CheckLevel.error => Colors.red,
                     },
                   ),
                   const SizedBox(width: 12),
