@@ -524,18 +524,6 @@ class _ComposerScreenState extends State<ComposerScreen> {
       a.add(entry);
       return a;
     }, 'Nouveau post (appli de contrôle)');
-    var launched = false;
-    if (launch) {
-      try {
-        await Api.dispatch(
-          file == 'posts/queue.json' ? 'publier.yml' : 'publier-avance.yml',
-          null,
-        );
-        launched = true;
-      } catch (_) {
-        launched = false;
-      }
-    }
     await Journal.ajoute(
       'post',
       'Post mis en file',
@@ -550,10 +538,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
     setState(() {});
     _loadQueue();
     final okMsg = launch
-        ? (launched
-              ? 'Mis en file et lancé.'
-              : 'Mis en file, mais pas lancé : traité sous 5 à 10 min.')
-        : 'Mis en file (traité sous 5 à 10 min).';
+        ? 'Mis en file : le bot central le prendra au prochain cycle.'
+        : 'Enregistré : le bot central le prendra au prochain cycle.';
     if (!mounted) return;
     kToast(context, okMsg);
   }
