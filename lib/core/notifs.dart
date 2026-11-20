@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api.dart';
 import 'store.dart';
+import 'notification_center.dart';
 
 /// Notifications locales : commentaires urgents détectés à l'ouverture de
 /// la Modération, jeton Facebook bientôt expiré au démarrage. Réglage
@@ -95,6 +96,11 @@ class Notifs {
   }
 
   static Future<void> montre(String titre, String corps) async {
+    await NotificationCenter.add(
+      title: titre,
+      body: corps,
+      category: titre == 'Jeton Facebook' ? 'security' : 'moderation',
+    );
     try {
       const d = AndroidNotificationDetails(
         _canal,
