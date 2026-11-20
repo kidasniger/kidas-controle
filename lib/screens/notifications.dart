@@ -68,6 +68,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (_filter == 'unread') return !item.read;
           if (_filter == 'security') return item.category == 'security';
           if (_filter == 'moderation') return item.category == 'moderation';
+          if (_filter == 'bot') return item.category == 'bot';
           return true;
         }).toList();
 
@@ -118,6 +119,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ('all', 'Tout'),
                     ('unread', 'Non lues'),
                     ('moderation', 'Modération'),
+                    ('bot', 'Bot'),
                     ('security', 'Sécurité'),
                   ])
                     Padding(
@@ -166,9 +168,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               borderRadius: BorderRadius.circular(11),
                             ),
                             child: Picto(
-                              item.category == 'security' ? 'shield' : 'bell',
+                              item.category == 'security'
+                                  ? 'shield'
+                                  : item.category == 'bot'
+                                      ? 'bot'
+                                      : 'bell',
                               size: 16,
-                              color: item.category == 'security' ? c.accent : c.ink,
+                              color: item.category == 'security' || item.category == 'bot'
+                                  ? c.accent
+                                  : c.ink,
                             ),
                           ),
                           const SizedBox(width: 10),
