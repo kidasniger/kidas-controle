@@ -139,8 +139,14 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
     setState(() => _busy = true);
     try {
       final file = await AppBackup.create();
+      final destination = await FilePicker.platform.saveFile(
+        fileName: file.uri.pathSegments.last,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: await file.readAsBytes(),
+      );
       if (!mounted) return;
-      setState(() => _lastFile = file.path);
+      setState(() => _lastFile = destination ?? file.path);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sauvegarde créée sur cet appareil.')),
       );
