@@ -642,7 +642,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                   desc: 'Interrupteur général dans glm/config.json',
                   value:
                       !bs.cfg.containsKey('actif') || bs.cfg.ob('actif', true),
-                  job: (v) => Api.updateJson('glm/config.json', false, (cur) {
+                  job: (v) => Api.updateJson('glm/config.json', true, (cur) {
                     final o = asObj(cur);
                     o['actif'] = v;
                     return o;
