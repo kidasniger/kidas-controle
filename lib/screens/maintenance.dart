@@ -145,7 +145,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
         mimeType: 'application/json',
       );
       if (!mounted) return;
-      setState(() => _lastFile = destination ?? file.path);
+      setState(() => _lastFile = destination?.toString() ?? file.path);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sauvegarde créée sur cet appareil.')),
       );
@@ -167,14 +167,6 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
     );
     if (files.isEmpty) return;
     final bytes = await files.single.readAsBytes();
-    if (bytes == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de lire ce fichier.')),
-        );
-      }
-      return;
-    }
     setState(() => _busy = true);
     try {
       final temp = File(
