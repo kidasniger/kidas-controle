@@ -6,6 +6,7 @@ import 'core/api.dart';
 import 'core/fx.dart';
 import 'core/native.dart';
 import 'core/notifs.dart';
+import 'core/notification_center.dart';
 import 'core/palette.dart';
 import 'core/store.dart';
 import 'core/updater.dart';
@@ -17,6 +18,7 @@ import 'screens/journal.dart';
 import 'screens/home.dart';
 import 'screens/medias.dart';
 import 'screens/moderation.dart';
+import 'screens/notifications.dart';
 import 'screens/settings.dart';
 import 'screens/stats.dart';
 import 'screens/welcome.dart';
@@ -736,13 +738,25 @@ class _ShellState extends State<Shell> {
       valueListenable: Bus.avis,
       builder: (_, a, __) => ValueListenableBuilder<int>(
         valueListenable: Bus.msg,
-        builder: (_, m, ___) {
-          final n = a + m;
-          return _ibtn(c, 'bell', () {
-            Fx.tick();
-            if (_tab != 1) setState(() => _tab = 1);
-          }, badge: n);
-        },
+        builder: (_, m, ___) => ValueListenableBuilder<List<NotificationEntry>>(
+          valueListenable: NotificationCenter.entries,
+          builder: (_, entries, ____) {
+            final n = a + m + entries.where((item) => !item.read).length;
+            return _ibtn(c, 'bell', () async {
+              Fx.tick();
+              await NotificationCenter.load();
+              if (!mounted) return;
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SubPage(
+                    'Notifications',
+                    child: NotificationsScreen(),
+                  ),
+                ),
+              );
+            }, badge: n);
+          },
+        ),
       ),
     );
   }
