@@ -11,12 +11,73 @@ class BotNotificationSync {
   static const _errorsKey = 'bot_notifs_errors_v1';
   static const _sessionKey = 'bot_notifs_session_v1';
   static const _responsesKey = 'bot_notifs_responses_v1';
+  static const _repliesKey = 'bot_notifs_reply_ids_v1';
   static bool _running = false;
+
+  /// Identifiants des réponses réellement visibles dans le cache Facebook.
+  /// Le cache est produit après relecture Graph API, pas à partir d'une intention d'envoi.
+  static Set<String> collectConfirmedReplyIds(Map<String, dynamic> cache) {
+    final page = cache['page'];
+    final pageId = page is Map ? page['id']?.toString() ?? '' : '';
+    if (pageId.isEmpty) return <String>{};
+    final posts = cache['posts'];
+    if (posts is! List) return <String>{};
+    final ids = <String>{};
+    for (final post in posts.whereType<Map>()) {
+      final comments = post['comments'];
+      final roots = comments is Map ? comments['data'] : null;
+      if (roots is! List) continue;
+      for (final root in roots.whereType<Map>()) {
+        final children = root['comments'];
+        final replies = children is Map ? children['data'] : null;
+        if (replies is! List) continue;
+        for (final reply in replies.whereType<Map>()) {
+          final author = reply['from'];
+          final authorId = author is Map ? author['id']?.toString() ?? '' : '';
+          final id = reply['id']?.toString() ?? '';
+          if (authorId == pageId && id.isNotEmpty) ids.add(id);
+        }
+      }
+    }
+    return ids;
+  }
+
+  static Future<void> _syncConfirmedReplies() async {
+    final cache = await Api.readObj('inbox/commentaires.json');
+    if (cache == null) return;
+    final current = collectConfirmedReplyIds(cache);
+    final knownRaw = await Store.get(_repliesKey);
+    final known = knownRaw.isEmpty
+        ? <String>{}
+        : (jsonDecode(knownRaw) as List).whereType<String>().toSet();
+    // Premier passage : créer une référence sans notifier tout l'historique.
+    if (knownRaw.isEmpty) {
+      await Store.set(_repliesKey, jsonEncode(current.toList()));
+      return;
+    }
+    final fresh = current.difference(known);
+    if (fresh.isNotEmpty) {
+      await Notifs.montre(
+        'Réponse du bot publiée',
+        '${fresh.length} nouvelle${fresh.length > 1 ? 's' : ''} réponse${fresh.length > 1 ? 's' : ''} confirmée${fresh.length > 1 ? 's' : ''} sur Facebook.',
+        category: 'bot',
+      );
+    }
+    known.addAll(current);
+    final saved = known.toList();
+    if (saved.length > 500) saved.removeRange(0, saved.length - 500);
+    await Store.set(_repliesKey, jsonEncode(saved));
+  }
 
   static Future<void> sync() async {
     if (_running || Api.tok.isEmpty) return;
     _running = true;
     try {
+      try {
+        await _syncConfirmedReplies();
+      } catch (_) {
+        // Le cache des commentaires peut être temporairement indisponible.
+      }
       final raw = await Api.readBotJson('bot/sante.json');
       if (raw is! Map<String, dynamic>) return;
       final session = raw['session'] is Map
