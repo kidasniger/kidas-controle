@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
 import 'core/api.dart';
+import 'core/bot_notification_sync.dart';
 import 'core/fx.dart';
 import 'core/native.dart';
 import 'core/notifs.dart';
@@ -116,7 +117,8 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
     Api.loadCfg(all);
     Bus.cfgReady.value = true;
     /* notifications locales : alerte jeton au plus une fois par jour */
-    Notifs.auDemarrage();
+    await Notifs.auDemarrage();
+    await BotNotificationSync.sync();
     Bus.themeMode.value = Bus.parse(all['theme_mode'] ?? 'system');
     await Fx.init();
     if (!mounted) return;
@@ -337,6 +339,7 @@ class _ShellState extends State<Shell> {
   void _refresh() {
     Api.resetCache();
     setState(() => _gen++);
+    BotNotificationSync.sync();
     _loadPage();
   }
 
