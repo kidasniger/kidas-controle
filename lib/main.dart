@@ -284,6 +284,7 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     _loadPage();
+    NotificationCenter.load();
     // la lecture du nom réel échoue si le jeton n'est pas encore sorti du
     // coffre : on relit dès que la configuration est prête (Bus.cfgReady)
     Bus.cfgReady.addListener(_loadPage);
