@@ -1495,6 +1495,10 @@ class _LaunchBtnState extends State<_LaunchBtn> {
                 if (widget.file == 'audit.yml') {
                   await Api.startAudit();
                 } else {
+                  if (widget.file == 'glm-live.yml' &&
+                      (await Api.botState()).running > 0) {
+                    throw Exception('Le bot central est déjà actif.');
+                  }
                   await Api.dispatch(widget.file, null);
                 }
                 await Future.delayed(const Duration(milliseconds: 1500));
