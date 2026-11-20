@@ -63,24 +63,12 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
       ],
     },
     {
-      'groupe': 'Publication',
+      'groupe': 'Bot central',
       'items': [
         {
-          'f': 'dispatcher.yml',
-          'n': 'Traiter les files',
-          'd': 'Lance ce qui est en attente',
-        },
-        {'f': 'publier.yml', 'n': 'Publier (texte)', 'd': ''},
-        {
-          'f': 'publier-avance.yml',
-          'n': 'Publier (média / programmé)',
-          'd': '',
-        },
-        {'f': 'repondre.yml', 'n': 'Envoyer les réponses', 'd': ''},
-        {
-          'f': 'actions-posts.yml',
-          'n': 'Modifier / supprimer des posts',
-          'd': '',
+          'f': 'glm-live.yml',
+          'n': 'Démarrer le bot central',
+          'd': 'Likes, commentaires, publications, programmation, Messenger et actions sur les posts',
         },
       ],
     },
@@ -468,10 +456,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
           return o;
         }, 'Réactivation GLM');
       }
-      final vw = Api.wfByFile(_wl, 'glm-veille.yml');
-      if (vw != null && vw.os('state') == 'active') {
-        await Api.dispatch('glm-veille.yml', null);
-      } else {
+      if (bs.running == 0) {
         await Api.dispatch('glm-live.yml', {
           'dry_run': 'false',
           'minutes': '330',
@@ -1252,7 +1237,6 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
   /* ---------- verrous GitHub ---------- */
 
   Widget _hardLocks(Palette c, Bot bs) {
-    final vw = Api.wfByFile(_wl, 'glm-veille.yml');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1269,23 +1253,11 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
               const KDivider(),
               KSwitchRow(
                 'Variable AUTO_REPONSES',
-                desc: 'Désactive le workflow de réponses automatiques',
+                desc: 'Active ou désactive les réponses automatiques du bot central',
                 value: bs.auto != 'off',
                 job: (v) => Api.setVar('AUTO_REPONSES', v ? 'on' : 'off'),
               ),
-              if (vw != null) ...[
-                const KDivider(),
-                KSwitchRow(
-                  'Veille GLM',
-                  desc: "Relance une session toutes les 10 minutes si aucune n'est active",
-                  value: vw.os('state') == 'active',
-                  job: (v) => Api.req(
-                    'PUT',
-                    '/repos/${Api.mgr}/actions/workflows/${vw.oi('id')}/'
-                        '${v ? 'enable' : 'disable'}',
-                  ),
-                ),
-              ],
+
             ],
           ),
         ),
