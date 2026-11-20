@@ -46,13 +46,13 @@ void main() {
           DiagnosticCheck(
             id: 'token',
             title: 'GitHub',
-            level: DiagnosticLevel.success,
+            level: CheckLevel.success,
             detail: 'OK',
           ),
           DiagnosticCheck(
             id: 'workflow',
             title: 'Bot',
-            level: DiagnosticLevel.warning,
+            level: CheckLevel.warning,
             detail: 'En attente',
           ),
         ],
@@ -68,7 +68,7 @@ void main() {
           DiagnosticCheck(
             id: 'token',
             title: 'GitHub',
-            level: DiagnosticLevel.error,
+            level: CheckLevel.error,
             detail: 'Jeton invalide',
           ),
         ],
