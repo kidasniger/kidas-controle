@@ -96,11 +96,15 @@ class Notifs {
   }
 
   static Future<void> montre(String titre, String corps) async {
-    await NotificationCenter.add(
-      title: titre,
-      body: corps,
-      category: titre == 'Jeton Facebook' ? 'security' : 'moderation',
-    );
+    try {
+      await NotificationCenter.add(
+        title: titre,
+        body: corps,
+        category: titre == 'Jeton Facebook' ? 'security' : 'moderation',
+      );
+    } catch (_) {
+      // L'historique local ne doit jamais bloquer une alerte native.
+    }
     try {
       const d = AndroidNotificationDetails(
         _canal,
