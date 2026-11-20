@@ -198,7 +198,7 @@ class SettingsScreenState extends State<SettingsScreen> {
         _groupe(c, [
           _ligne(
             c,
-            'activity',
+            'info',
             'Diagnostic des services',
             'Connexion GitHub, accès au dépôt et dernier workflow',
             onTap: () async {
