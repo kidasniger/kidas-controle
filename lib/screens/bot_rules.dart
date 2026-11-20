@@ -429,7 +429,6 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
         throw Cancelled();
       }
       await Api.setVar('GLM_LIVE', 'off');
-      await Api.setVar('AUTO_REPONSES', 'off');
       for (final s in const ['in_progress', 'queued']) {
         final raw = await Api.req(
           'GET',
@@ -448,7 +447,6 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
       if (mounted) kToast(context, 'Bot arrêté.');
     } else {
       await Api.setVar('GLM_LIVE', 'on');
-      await Api.setVar('AUTO_REPONSES', 'on');
       if (bs.cfg.containsKey('actif') && !bs.cfg.ob('actif', true)) {
         await Api.updateJson('glm/config.json', false, (cur) {
           final o = asObj(cur);
@@ -1246,7 +1244,7 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
             children: [
               KSwitchRow(
                 'Variable GLM_LIVE',
-                desc: 'Désactive GLM Live et la veille quand elle vaut off',
+                desc: 'Arrête le bot central et empêche son redémarrage automatique',
                 value: bs.live != 'off',
                 job: (v) => Api.setVar('GLM_LIVE', v ? 'on' : 'off'),
               ),
@@ -1255,7 +1253,13 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                 'Variable AUTO_REPONSES',
                 desc: 'Active ou désactive les réponses automatiques du bot central',
                 value: bs.auto != 'off',
-                job: (v) => Api.setVar('AUTO_REPONSES', v ? 'on' : 'off'),
+                job: (v) => Api.updateJson('glm/config.json', false, (cur) {
+                  final o = asObj(cur);
+                  final r = asObj(o['reponses']);
+                  r['actif'] = v;
+                  o['reponses'] = r;
+                  return o;
+                }, 'Réglage des réponses automatiques'),
               ),
 
             ],
