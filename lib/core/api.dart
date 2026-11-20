@@ -782,7 +782,7 @@ class Api {
 
 class Bot {
   Map<String, dynamic> cfg = {};
-  String? live, auto, veille;
+  String? live, auto;
   int running = 0;
   bool hardOff = false, softOff = false;
   String state = 'wait';
