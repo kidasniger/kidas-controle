@@ -117,6 +117,10 @@ class Api {
     r.headers['Accept'] = accept ?? 'application/vnd.github+json';
     r.headers['X-GitHub-Api-Version'] = '2022-11-28';
     r.headers['User-Agent'] = 'kidas-controle';
+    // Les fichiers de l'inbox changent à chaque cycle du bot : ne jamais
+    // réutiliser une réponse HTTP mise en cache par un intermédiaire.
+    r.headers['Cache-Control'] = 'no-cache, no-store, max-age=0';
+    r.headers['Pragma'] = 'no-cache';
     return r;
   }
 
@@ -193,7 +197,7 @@ class Api {
   /* ---------- fichiers du dépôt de données ---------- */
 
   static Future<FileData?> getFile(String repo, String path) async {
-    final url = '/repos/$repo/contents/${cp(path)}';
+    final url = '/repos/$repo/contents/${cp(path)}?ref=main';
     String t;
     try {
       t = await req('GET', url);
