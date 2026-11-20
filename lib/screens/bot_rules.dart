@@ -1250,8 +1250,8 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
               ),
               const KDivider(),
               KSwitchRow(
-                'Variable AUTO_REPONSES',
-                desc: 'Active ou désactive les réponses automatiques du bot central',
+                'Réponses automatiques',
+                desc: 'Réglage appliqué au prochain cycle du bot central',
                 value: bs.auto != 'off',
                 job: (v) => Api.updateJson('glm/config.json', false, (cur) {
                   final o = asObj(cur);
@@ -1314,6 +1314,10 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
                     'Lancer GLM Live',
                     icon: Icons.play_arrow_rounded,
                     job: () async {
+                      final bot = await Api.botState();
+                      if (bot.running > 0) {
+                        throw Exception('Le bot central est déjà actif.');
+                      }
                       final m = int.tryParse(min.text.trim()) ?? 2;
                       final minutes = m.clamp(1, 330);
                       await Api.dispatch('glm-live.yml', {
