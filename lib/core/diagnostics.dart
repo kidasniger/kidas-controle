@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'api.dart';
 
-enum DiagnosticLevel { success, warning, error }
+enum CheckLevel { success, warning, error }
 
 class DiagnosticCheck {
   final String id;
   final String title;
-  final DiagnosticLevel level;
+  final CheckLevel level;
   final String detail;
 
   const DiagnosticCheck({
@@ -25,10 +25,10 @@ class DiagnosticReport {
   const DiagnosticReport({required this.checkedAt, required this.checks});
 
   bool get hasErrors =>
-      checks.any((check) => check.level == DiagnosticLevel.error);
+      checks.any((check) => check.level == CheckLevel.error);
 
   bool get isHealthy => checks.every(
-        (check) => check.level == DiagnosticLevel.success,
+        (check) => check.level == CheckLevel.success,
       );
 }
 
@@ -42,7 +42,7 @@ class Diagnostics {
       checks.add(const DiagnosticCheck(
         id: 'token',
         title: 'Jeton GitHub',
-        level: DiagnosticLevel.error,
+        level: CheckLevel.error,
         detail: 'Aucun jeton configuré. Ouvre les réglages.',
       ));
       return DiagnosticReport(checkedAt: checkedAt, checks: checks);
@@ -56,8 +56,8 @@ class Diagnostics {
         id: 'repository',
         title: 'Authentification et dépôt du bot',
         level: fullName.isNotEmpty
-            ? DiagnosticLevel.success
-            : DiagnosticLevel.warning,
+            ? CheckLevel.success
+            : CheckLevel.warning,
         detail: fullName.isNotEmpty
             ? 'Accès GitHub confirmé : $fullName'
             : 'Réponse du dépôt inattendue.',
@@ -66,7 +66,7 @@ class Diagnostics {
       checks.add(DiagnosticCheck(
         id: 'repository',
         title: 'Authentification et dépôt du bot',
-        level: DiagnosticLevel.error,
+        level: CheckLevel.error,
         detail: Api.hint(error),
       ));
       return DiagnosticReport(checkedAt: checkedAt, checks: checks);
@@ -80,8 +80,8 @@ class Diagnostics {
         id: 'data',
         title: 'Dépôt de données',
         level: fullName.isNotEmpty
-            ? DiagnosticLevel.success
-            : DiagnosticLevel.warning,
+            ? CheckLevel.success
+            : CheckLevel.warning,
         detail: fullName.isNotEmpty
             ? 'Accès confirmé : $fullName'
             : 'Réponse du dépôt inattendue.',
@@ -90,7 +90,7 @@ class Diagnostics {
       checks.add(DiagnosticCheck(
         id: 'data',
         title: 'Dépôt de données',
-        level: DiagnosticLevel.error,
+        level: CheckLevel.error,
         detail: Api.hint(error),
       ));
     }
@@ -114,15 +114,15 @@ class Diagnostics {
           id: 'workflow',
           title: 'Dernière exécution du bot',
           level: status == 'completed' && conclusion == 'success'
-              ? DiagnosticLevel.success
-              : DiagnosticLevel.warning,
+              ? CheckLevel.success
+              : CheckLevel.warning,
           detail: detail,
         ));
       } else {
         checks.add(const DiagnosticCheck(
           id: 'workflow',
           title: 'Dernière exécution du bot',
-          level: DiagnosticLevel.warning,
+          level: CheckLevel.warning,
           detail: 'Aucune exécution récente trouvée.',
         ));
       }
@@ -130,7 +130,7 @@ class Diagnostics {
       checks.add(DiagnosticCheck(
         id: 'workflow',
         title: 'Dernière exécution du bot',
-        level: DiagnosticLevel.error,
+        level: CheckLevel.error,
         detail: Api.hint(error),
       ));
     }
