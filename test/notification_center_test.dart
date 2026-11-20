@@ -54,6 +54,7 @@ void main() {
       expect(item.read, isFalse);
     });
   });
+  botNotificationSyncTests();
 }
 
 void botNotificationSyncTests() {
