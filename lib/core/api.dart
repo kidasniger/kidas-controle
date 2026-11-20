@@ -550,20 +550,17 @@ class Api {
             live = v;
           })
           .catchError((Object e) {}),
-      getVar('AUTO_REPONSES')
-          .then((v) {
-            auto = v;
-          })
-          .catchError((Object e) {}),
       req('GET', '/repos/$mgr/actions/workflows/glm-live.yml/runs?per_page=10')
           .then((v) {
             runsRaw = v;
           })
           .catchError((Object e) {}),
     ]);
-    if (cfg != null) b.cfg = cfg!;
+    if (cfg != null) {
+      b.cfg = cfg!;
+      b.auto = asObj(cfg!['reponses']).ob('actif', true) ? 'on' : 'off';
+    }
     b.live = live;
-    b.auto = auto;
     final rr = asObj(jsonDecodeSafe(runsRaw));
     for (final r in asArr(rr['workflow_runs'])) {
       if (asObj(r).os('status') != 'completed') b.running++;
