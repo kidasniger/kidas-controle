@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
@@ -23,7 +25,7 @@ class BoiteScreen extends StatefulWidget {
   State<BoiteScreen> createState() => _BoiteScreenState();
 }
 
-class _BoiteScreenState extends State<BoiteScreen> {
+class _BoiteScreenState extends State<BoiteScreen> with WidgetsBindingObserver {
   List<UnifiedItem> _items = const [];
   Moderation _mod = const Moderation();
   List<dynamic> _msgQueue = const [];
@@ -33,10 +35,13 @@ class _BoiteScreenState extends State<BoiteScreen> {
   String _q = '';
   final Set<String> _ouverts = {};
   bool _busy = true;
+  bool _loading = false;
+  Timer? _syncTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // depuis l'accueil : chip Avis (1) ou Messages (2)
     _filtre = switch (widget.filtreInitial) {
       1 => 3,
@@ -44,10 +49,30 @@ class _BoiteScreenState extends State<BoiteScreen> {
       _ => 0,
     };
     _load();
+    // La boîte suit le rythme du bot sans supprimer l'historique.
+    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        _load();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() => _busy = _items.isEmpty);
+    if (_loading) return;
+    _loading = true;
+    if (mounted) setState(() => _busy = _items.isEmpty);
     try {
       final (items, upd) = await Boite.charge();
       final mod = await Moderation.charge();
@@ -72,6 +97,8 @@ class _BoiteScreenState extends State<BoiteScreen> {
       if (!mounted) return;
       setState(() => _busy = false);
       kToast(context, Api.hint(e), bad: true);
+    } finally {
+      _loading = false;
     }
   }
 
