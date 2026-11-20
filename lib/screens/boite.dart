@@ -579,17 +579,11 @@ class _ReplyBoxAvisState extends State<ReplyBoxAvis> {
       a.add({'comment_id': widget.cid, 'message': t, 'status': 'pending'});
       return a;
     }, 'Réponse (appli de contrôle)');
-    var lance = false;
-    try {
-      await Api.dispatch('repondre.yml', null);
-      lance = true;
-    } catch (_) {/* traité sous 5 à 10 min */}
     await Journal.ajoute('reponse', 'Réponse à ${widget.nom}',
         detail: t.length > 120 ? '${t.substring(0, 120)}…' : t);
     setState(() => _sent = true);
     if (mounted) {
-      kToast(context,
-          lance ? 'Réponse mise en file et lancée.' : 'Réponse mise en file : traitée sous 5 à 10 min.');
+      kToast(context, 'Réponse mise en file : le bot central la prendra au prochain cycle.');
     }
     widget.onSent();
   }
