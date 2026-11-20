@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kidas_controle/core/notification_center.dart';
+import 'package:kidas_controle/core/bot_notification_sync.dart';
 
 void main() {
   group('NotificationEntry', () {
@@ -54,3 +55,44 @@ void main() {
     });
   });
 }
+
+void botNotificationSyncTests() {
+  group('BotNotificationSync', () {
+    test('ne retient que les réponses publiées par la Page', () {
+      final ids = BotNotificationSync.collectConfirmedReplyIds({
+        'page': {'id': 'page-1'},
+        'posts': [
+          {
+            'comments': {
+              'data': [
+                {
+                  'id': 'root-1',
+                  'comments': {
+                    'data': [
+                      {'id': 'reply-1', 'from': {'id': 'page-1'}},
+                      {'id': 'reply-2', 'from': {'id': 'person-2'}},
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      expect(ids, {'reply-1'});
+    });
+
+    test('tolère un cache incomplet', () {
+      expect(BotNotificationSync.collectConfirmedReplyIds({}), isEmpty);
+      expect(
+        BotNotificationSync.collectConfirmedReplyIds({
+          'page': {'id': 'page-1'},
+          'posts': [],
+        }),
+        isEmpty,
+      );
+    });
+  });
+}
+
