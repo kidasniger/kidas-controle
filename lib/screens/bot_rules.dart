@@ -584,244 +584,382 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
 
   /* ---------- rendu ---------- */
 
+  Widget _foldSection(
+    Palette c, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required List<Widget> children,
+    bool expanded = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.line),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: expanded,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+          leading: Icon(icon, color: c.accent, size: 21),
+          title: Text(title, style: T.strong(c).copyWith(fontSize: 14.5)),
+          subtitle: subtitle == null
+              ? null
+              : Text(subtitle, style: T.caption(c)),
+          iconColor: c.accent,
+          collapsedIconColor: c.muted,
+          children: children,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_busy && _bot == null && _runs.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(12),
-        children: [
-          const KSkeleton(120),
-          const SizedBox(height: 12),
-          const KSkeleton(90),
-          const SizedBox(height: 12),
-          const KSkeleton(90),
+        children: const [
+          KSkeleton(110),
+          SizedBox(height: 12),
+          KSkeleton(76),
+          SizedBox(height: 12),
+          KSkeleton(76),
         ],
       );
     }
+
     final c = context.p;
     final bs = _bot;
     final pause = _regles.where((r) => !r.actif).length;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-      children: [
-        for (final e in _errs.take(2))
-          Padding(padding: const EdgeInsets.only(bottom: 8), child: ErrBox(e)),
-        _pageHead(c, bs),
-        if (bs != null) ...[_heros(c, bs, pause), const SizedBox(height: 14)],
-        if (!_busy) ..._santePanel(c),
-        KSection('Règles'),
-        if (_reglesBusy)
-          const KCard(child: KSkeleton(60))
-        else if (_regles.isEmpty)
-          KCard(
-            child: Text(
-              'Aucune règle : le bot répond à tout avec l\'IA. '
-              'Ajoute des règles pour les cas évidents (prix, livraison...) '
-              'et laisse l\'IA gérer le reste.',
-              style: T.body(c).copyWith(color: c.muted),
+    final repliesOn = bs == null ? false : _nested('reponses');
+    final postsOn = bs == null ? false : _nested('posts');
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([_load(), _loadRegles()]);
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
+        children: [
+          for (final e in _errs.take(2))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ErrBox(e),
             ),
-          )
-        else
-          for (final r in _regles) ...[
-            _ruleCard(c, r),
-            const SizedBox(height: 10),
+          _pageHead(c, bs),
+          if (bs != null) ...[
+            _heros(c, bs, pause),
+            const SizedBox(height: 12),
           ],
-        const SizedBox(height: 14),
-        _testeur(c),
-        const SizedBox(height: 12),
-        ActionBtn(
-          'Nouvelle règle',
-          icon: Icons.add,
-          variant: KBtnVariant.ghost,
-          job: _ajouterRegle,
-        ),
-        if (bs != null) ...[
-          const SizedBox(height: 16),
-          KSection('Interrupteurs'),
-          KCard(
-            child: Column(
+
+          // Les réglages essentiels restent visibles en premier.
+          _foldSection(
+            c,
+            icon: Icons.rule_rounded,
+            title: 'Règles automatiques',
+            subtitle: _reglesBusy
+                ? 'Chargement…'
+                : '${_regles.length} règle(s) · ${_regles.length - pause} active(s)',
+            expanded: true,
+            children: [
+              if (_reglesBusy)
+                const KCard(child: KSkeleton(56))
+              else if (_regles.isEmpty)
+                KCard(
+                  child: Text(
+                    'Aucune règle personnalisée. Le bot utilise alors sa réponse IA habituelle.',
+                    style: T.body(c).copyWith(color: c.muted),
+                  ),
+                )
+              else
+                for (final r in _regles) ...[
+                  _ruleCard(c, r),
+                  const SizedBox(height: 8),
+                ],
+              _testeur(c),
+              const SizedBox(height: 8),
+              ActionBtn(
+                'Ajouter une règle',
+                icon: Icons.add_rounded,
+                variant: KBtnVariant.ghost,
+                job: _ajouterRegle,
+              ),
+            ],
+          ),
+
+          if (bs != null)
+            _foldSection(
+              c,
+              icon: Icons.tune_rounded,
+              title: 'Comportement du bot',
+              subtitle: 'Réponses, publications et horaires',
               children: [
-                KSwitchRow(
-                  'GLM (tout)',
-                  desc: 'Interrupteur général dans glm/config.json',
-                  value:
-                      !bs.cfg.containsKey('actif') || bs.cfg.ob('actif', true),
-                  job: (v) => Api.updateJson('glm/config.json', true, (cur) {
-                    final o = asObj(cur);
-                    o['actif'] = v;
-                    return o;
-                  }, 'GLM ${v ? 'activé' : 'désactivé'}'),
-                ),
-                const KDivider(),
-                KSwitchRow(
-                  'Publications automatiques',
-                  desc: 'Posts planifiés par GLM',
-                  value: _nested('posts'),
-                  job: (v) => _setNested('posts', v),
-                ),
-                const KDivider(),
-                KSwitchRow(
-                  'Réponses automatiques',
-                  desc: 'Le bot like et répond aux commentaires',
-                  value: _nested('reponses'),
-                  job: (v) => _setNested('reponses', v),
-                ),
-                const KDivider(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+                KCard(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Ton des réponses', style: T.body(c)),
-                      const SizedBox(height: 8),
-                      KSegmented(
-                        _tonLabels,
-                        sel: _idxTon(),
-                        onSelect: _setTon,
-                        fontSize: 12.5,
+                      KSwitchRow(
+                        'Bot intelligent',
+                        desc: 'Active ou désactive le moteur GLM',
+                        value: !bs.cfg.containsKey('actif') ||
+                            bs.cfg.ob('actif', true),
+                        job: (v) => Api.updateJson(
+                          'glm/config.json',
+                          true,
+                          (cur) {
+                            final o = asObj(cur);
+                            o['actif'] = v;
+                            return o;
+                          },
+                          'GLM ${v ? 'activé' : 'désactivé'}',
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      Text('Longueur des réponses', style: T.body(c)),
-                      const SizedBox(height: 8),
-                      KSegmented(
-                        _longueurLabels,
-                        sel: _idxLongueur(),
-                        onSelect: _setLongueur,
-                        fontSize: 12.5,
+                      const KDivider(),
+                      KSwitchRow(
+                        'Réponses automatiques',
+                        desc: 'Likes et réponses aux commentaires',
+                        value: repliesOn,
+                        job: (v) => _setNested(
+                          'reponses',
+                          v,
+                          libelle: 'Réponses automatiques',
+                        ),
+                      ),
+                      const KDivider(),
+                      KSwitchRow(
+                        'Publications automatiques',
+                        desc: 'Posts planifiés par GLM',
+                        value: postsOn,
+                        job: (v) => _setNested('posts', v),
+                      ),
+                      const KDivider(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Ton des réponses', style: T.body(c)),
+                            const SizedBox(height: 8),
+                            KSegmented(
+                              _tonLabels,
+                              sel: _idxTon(),
+                              onSelect: _setTon,
+                              fontSize: 12.5,
+                            ),
+                            const SizedBox(height: 14),
+                            Text('Longueur des réponses', style: T.body(c)),
+                            const SizedBox(height: 8),
+                            KSegmented(
+                              _longueurLabels,
+                              sel: _idxLongueur(),
+                              onSelect: _setLongueur,
+                              fontSize: 12.5,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const KDivider(),
+                      KSwitchRow(
+                        'Heures de silence',
+                        desc: 'Suspend les réponses pendant une plage horaire',
+                        value: _horaires().ob('actif', false),
+                        job: (v) => _setHoraires(
+                          'actif',
+                          v,
+                          'Heures de silence ${v ? 'activées' : 'désactivées'}',
+                        ),
+                      ),
+                      if (_horaires().ob('actif', false)) ...[
+                        const KDivider(),
+                        _ligneHeure(
+                          'Début du silence',
+                          _hVal('debut', '22:00'),
+                          () => _choisirHeure(
+                            'debut',
+                            '22:00',
+                            'Début du silence',
+                          ),
+                        ),
+                        const KDivider(),
+                        _ligneHeure(
+                          'Fin du silence',
+                          _hVal('fin', '07:00'),
+                          () => _choisirHeure(
+                            'fin',
+                            '07:00',
+                            'Fin du silence',
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+                          child: Text(
+                            'Les heures suivent le fuseau du téléphone. Les commentaires attendent la fin de la plage.',
+                            style: T.caption(c),
+                          ),
+                        ),
+                      ],
+                      const KDivider(),
+                      KSwitchRow(
+                        'Auto-like des publications',
+                        desc: 'Aime les nouvelles publications',
+                        value: asObj(bs.cfg['aimes']).ob('actif', false),
+                        job: (v) => _setNested(
+                          'aimes',
+                          v,
+                          libelle: 'Auto-like',
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const KDivider(),
-                KSwitchRow(
-                  'Heures de silence',
-                  desc: 'Pendant la plage, le bot ne répond plus tout seul',
-                  value: _horaires().ob('actif', false),
-                  job: (v) => _setHoraires(
-                      'actif', v, 'Heures de silence ${v ? 'activées' : 'désactivées'}'),
+                KCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Message privé après un like', style: T.micro(c)),
+                      const SizedBox(height: 7),
+                      KEdit(
+                        controller: _mpCtl,
+                        hint: 'Facultatif — laisser vide pour ne rien envoyer',
+                        minLines: 2,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Messenger ne permet l’envoi que si la personne a déjà écrit à la Page.',
+                        style: T.caption(c),
+                      ),
+                      const SizedBox(height: 8),
+                      ActionBtn(
+                        'Enregistrer',
+                        variant: KBtnVariant.ghost,
+                        job: _enregistrerMp,
+                      ),
+                    ],
+                  ),
                 ),
-                if (_horaires().ob('actif', false)) ...[
-                  const KDivider(),
-                  _ligneHeure(
-                      'De',
-                      _hVal('debut', '22:00'),
-                      () => _choisirHeure('debut', '22:00', 'Début du silence')),
-                  const KDivider(),
-                  _ligneHeure(
-                      'À',
-                      _hVal('fin', '07:00'),
-                      () => _choisirHeure('fin', '07:00', 'Fin du silence')),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
-                    child: Text(
-                      "Heures du téléphone, enregistrées avec le réglage. Les "
-                      "commentaires attendent la fin de la plage ; l'app, les "
-                      'caches et les envois en file continuent pendant le silence.',
-                      style: T.caption(c),
+              ],
+            ),
+
+          if (bs != null)
+            _foldSection(
+              c,
+              icon: Icons.shield_outlined,
+              title: 'Modération et sécurité',
+              subtitle: 'Filtre des mots et prévention des réponses',
+              children: [
+                KCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Mots ou expressions à filtrer', style: T.micro(c)),
+                      const SizedBox(height: 7),
+                      KEdit(
+                        controller: _motsCtl,
+                        hint: 'Un mot ou une expression par ligne',
+                        minLines: 3,
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        'Les commentaires contenant ces termes sont laissés dans À traiter.',
+                        style: T.caption(c),
+                      ),
+                      const SizedBox(height: 8),
+                      ActionBtn(
+                        'Enregistrer le filtre',
+                        variant: KBtnVariant.ghost,
+                        job: _enregistrerMots,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+          _foldSection(
+            c,
+            icon: Icons.monitor_heart_outlined,
+            title: 'État et diagnostics',
+            subtitle: 'Santé, quota Facebook et erreurs récentes',
+            children: [
+              if (!_busy) ..._santePanel(c).skip(1),
+              if (bs != null) ...[
+                const SizedBox(height: 4),
+                KCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Diagnostic Meta', style: T.strong(c)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Vérifie le token, les permissions et l’accès à la Page.',
+                        style: T.caption(c),
+                      ),
+                      const SizedBox(height: 8),
+                      _wfRow(c, const {
+                        'f': 'diagnostic-token-meta.yml',
+                        'n': 'Lancer le diagnostic',
+                        'd': 'Vérification de la connexion Meta',
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          if (bs != null)
+            _foldSection(
+              c,
+              icon: Icons.build_circle_outlined,
+              title: 'Outils et opérations',
+              subtitle: 'Lancer une tâche ou une session manuelle',
+              children: [
+                _manual(c),
+                for (final g in _catalog) ...[
+                  KSection(g['groupe'] as String),
+                  KCard(
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < (g['items'] as List).length; i++) ...[
+                          if (i > 0) const KDivider(),
+                          _wfRow(
+                            c,
+                            (g['items'] as List)[i] as Map<String, dynamic>,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
-                const KDivider(),
-                KSwitchRow(
-                  'Auto-like des publications',
-                  desc: 'Le bot like les nouvelles publications',
-                  value:
-                      ((bs.cfg['aimes'] as Map<String, dynamic>?) ?? const {})
-                          .ob('actif', false),
-                  job: (v) => _setNested('aimes', v, libelle: 'Auto-like'),
-                ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          KCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          if (_runs.isNotEmpty)
+            _foldSection(
+              c,
+              icon: Icons.history_rounded,
+              title: 'Historique des exécutions',
+              subtitle: '${_runs.length} exécution(s) récentes',
               children: [
-                Text('Message privé après le like', style: T.micro(c)),
-                const SizedBox(height: 6),
-                KEdit(
-                  controller: _mpCtl,
-                  hint: 'Laisser vide = like sans message',
-                  minLines: 3,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Envoyé par Messenger à l'auteur d'une publication "
-                  '(jamais à ta Page). Messenger ne passe que si la personne '
-                  'a déjà écrit à la Page — sinon le like part seul.',
-                  style: T.caption(c),
-                ),
-                const SizedBox(height: 10),
-                ActionBtn(
-                  'Enregistrer le message',
-                  variant: KBtnVariant.ghost,
-                  job: _enregistrerMp,
+                KCard(
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < _runs.length && i < 8; i++) ...[
+                        if (i > 0) const KDivider(),
+                        RunRow(asObj(_runs[i]), withCancel: true, after: _load),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          KCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mots interdits', style: T.micro(c)),
-                const SizedBox(height: 6),
-                KEdit(
-                  controller: _motsCtl,
-                  hint: 'Un mot ou une expression par ligne',
-                  minLines: 3,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Un commentaire qui contient l'un de ces mots ne reçoit plus "
-                  "de réponse automatique : il t'attend dans À traiter. Liste "
-                  'vide = le bot répond à tout (sauf heures de silence).',
-                  style: T.caption(c),
-                ),
-                const SizedBox(height: 10),
-                ActionBtn(
-                  'Enregistrer les mots',
-                  variant: KBtnVariant.ghost,
-                  job: _enregistrerMots,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _hardLocks(c, bs),
-          const SizedBox(height: 16),
-          _manual(c),
         ],
-        for (final g in _catalog) ...[
-          KSection(g['groupe'] as String),
-          KCard(
-            child: Column(
-              children: [
-                for (var i = 0; i < (g['items'] as List).length; i++) ...[
-                  if (i > 0) const KDivider(),
-                  _wfRow(c, (g['items'] as List)[i] as Map<String, dynamic>),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        if (_runs.isNotEmpty) ...[
-          KSection('Exécutions récentes'),
-          KCard(
-            child: Column(
-              children: [
-                for (var i = 0; i < _runs.length && i < 8; i++) ...[
-                  if (i > 0) const KDivider(),
-                  RunRow(asObj(_runs[i]), withCancel: true, after: _load),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
