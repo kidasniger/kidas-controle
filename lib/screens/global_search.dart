@@ -57,7 +57,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       final drafts = results[1] as List<Brouillon>;
       final events = results[2] as List<JournalEvent>;
       final index = GlobalSearch.build(inbox: inbox.$1, drafts: drafts, events: events);
-      if (mounted) setState(() { _index = index; _loading = false; });
+      if (mounted) setState(() { _index = index; _draftsCache = drafts; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.toString(); });
     }
@@ -101,11 +101,14 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             builder: (_) => ConversationDetailScreen(conversationId: id),
           ));
         }
+        return;
+        }
       case 'commentaire':
       case 'publication':
         await Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => const SubPage('Boîte de réception', child: BoiteScreen(filtreInitial: 1)),
         ));
+        return;
       case 'brouillon':
         final draftId = hit.id.substring('draft:'.length);
         final draft = _indexDraft(draftId);
@@ -118,10 +121,12 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             builder: (_) => const SubPage('Composer', child: ComposerScreen()),
           ));
         }
+        return;
       case 'activite':
         await Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => const SubPage('Journal', child: JournalScreen()),
         ));
+        return;
     }
   }
 
