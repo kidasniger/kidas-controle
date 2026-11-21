@@ -12,6 +12,7 @@ import '../ui/forms.dart';
 import '../ui/shell.dart' show Bus, SubPage;
 import '../widgets/post_card.dart' show avatarInitiales, etiquette;
 import 'settings.dart';
+import 'conversation_detail.dart';
 
 /// Boîte unifiée, comme sur la maquette : titre, recherche, filtres
 /// (Tout / Non lus / Urgents / Avis / Messages), sections « Non lus » et
@@ -365,8 +366,14 @@ class _BoiteScreenState extends State<BoiteScreen> with WidgetsBindingObserver {
       Press(
         onTap: () {
           Fx.tick();
-          setState(() =>
-              ouvert ? _ouverts.remove(it.id) : _ouverts.add(it.id));
+          if (it.kind == 'msg') {
+            Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => ConversationDetailScreen(conversationId: it.id),
+            )).then((_) => _load());
+          } else {
+            setState(() =>
+                ouvert ? _ouverts.remove(it.id) : _ouverts.add(it.id));
+          }
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
