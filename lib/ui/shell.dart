@@ -80,7 +80,7 @@ Future<void> kUpdateFlow(BuildContext context, UpdInfo info) async {
               info.mandatory
                   ? 'Mise à jour obligatoire'
                   : 'Mise à jour disponible',
-              style: T.title(c),
+              style: T.title(c).copyWith(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -163,7 +163,7 @@ class SubPage extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Column(
                 children: [
                   Row(
@@ -174,18 +174,18 @@ class SubPage extends StatelessWidget {
                           Navigator.of(context).pop();
                         },
                         child: Container(
-                          width: 34,
-                          height: 34,
+                          width: 42,
+                          height: 42,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: c.card,
-                            borderRadius: BorderRadius.circular(11),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: c.line),
                           ),
                           child: Picto('back', size: 17, color: c.ink),
                         ),
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           title,
@@ -197,11 +197,11 @@ class SubPage extends StatelessWidget {
                       if (trailing != null) trailing!,
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Container(
-                    height: 2,
+                    height: 1,
                     decoration: BoxDecoration(
-                      color: c.ink,
+                      color: c.line,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
