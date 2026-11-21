@@ -19,6 +19,7 @@ import 'screens/bot_rules.dart';
 import 'screens/composer.dart';
 import 'screens/journal.dart';
 import 'screens/home.dart';
+import 'screens/global_search.dart';
 import 'screens/medias.dart';
 import 'screens/moderation.dart';
 import 'screens/notifications.dart';
@@ -667,9 +668,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ),
           _ibtn(c, 'search', () {
             Fx.tick();
-            Bus.requete.value = '';
-            Bus.chercher.value = !Bus.chercher.value;
-            if (_tab != 0) setState(() => _tab = 0);
+            Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const GlobalSearchScreen(),
+            ));
           }),
           const SizedBox(width: 6),
           _cloche(c),
