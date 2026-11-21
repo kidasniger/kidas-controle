@@ -268,40 +268,98 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
         const Positioned.fill(child: Shell()),
         if (!_ready || _locked)
           Positioned.fill(
-            child: Container(
-              color: c.bg,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: c.bg,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [c.bg, c.card, c.bg],
+                ),
+              ),
               child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 92,
-                      height: 92,
-                      decoration: BoxDecoration(
-                        color: c.ink,
-                        borderRadius: BorderRadius.circular(26),
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 104,
+                        height: 104,
+                        decoration: BoxDecoration(
+                          color: c.ink,
+                          borderRadius: BorderRadius.circular(32),
+                          boxShadow: [
+                            BoxShadow(
+                              color: c.accent.withValues(alpha: .22),
+                              blurRadius: 34,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Text(
+                              'K',
+                              style: TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -3,
+                                color: c.bg,
+                              ),
+                            ),
+                            Positioned(
+                              right: 13,
+                              bottom: 13,
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: c.accent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: c.ink, width: 2),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Center(
-                        child: Text(
-                          'K',
-                          style: TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w900,
-                            color: c.bg,
+                      const SizedBox(height: 28),
+                      Text(
+                        'KIDAS',
+                        style: T.hero(c).copyWith(
+                          color: c.ink,
+                          fontSize: 30,
+                          letterSpacing: 2.2,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        'CONTRÔLE DE VOTRE PAGE',
+                        style: T.micro(c).copyWith(letterSpacing: 2.0),
+                      ),
+                      const SizedBox(height: 38),
+                      SizedBox(
+                        width: 156,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            minHeight: 4,
+                            backgroundColor: c.line,
+                            valueColor: AlwaysStoppedAnimation(c.accent),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text('KI DAS Contrôle', style: T.hero(c)),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ton bot, sous contrôle',
-                      style: T.body(c).copyWith(color: c.muted),
-                    ),
-                    const SizedBox(height: 34),
-                    SizedBox(width: 120, child: KSkeleton(4, radius: 2)),
-                  ],
+                      const SizedBox(height: 14),
+                      Text(
+                        _locked && _ready
+                            ? 'Authentification sécurisée…'
+                            : 'Préparation de votre espace…',
+                        style: T.caption(c),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

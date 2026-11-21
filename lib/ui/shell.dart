@@ -153,6 +153,7 @@ class SubPage extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
   const SubPage(this.title, {super.key, required this.child, this.trailing});
+
   @override
   Widget build(BuildContext context) {
     final c = context.p;
@@ -162,49 +163,55 @@ class SubPage extends StatelessWidget {
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 13),
+              decoration: BoxDecoration(
+                color: c.bg,
+                border: Border(bottom: BorderSide(color: c.line)),
+              ),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Press(
-                        onTap: () {
-                          Fx.tick();
-                          Navigator.of(context).pop();
-                        },
-                        child: Container(
-                          width: 42,
-                          height: 42,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: c.card,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: c.line),
-                          ),
-                          child: Picto('back', size: 17, color: c.ink),
-                        ),
+                  Press(
+                    onTap: () {
+                      Fx.tick();
+                      Navigator.of(context).pop();
+                    },
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: c.card,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: c.line),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: T.title(c),
-                        ),
-                      ),
-                      if (trailing != null) trailing!,
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    height: 1,
-                    decoration: BoxDecoration(
-                      color: c.line,
-                      borderRadius: BorderRadius.circular(2),
+                      child: Icon(Icons.arrow_back_rounded,
+                          size: 19, color: c.ink),
                     ),
                   ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: T.title(c).copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text('ESPACE DE GESTION',
+                            style: T.micro(c).copyWith(fontSize: 9)),
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 8),
+                    trailing!,
+                  ],
                 ],
               ),
             ),

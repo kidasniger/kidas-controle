@@ -132,12 +132,14 @@ class KCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? c.card,
         borderRadius: BorderRadius.circular(radius),
-        border: border ?? Border.all(color: c.line.withValues(alpha: .9)),
+        border: border ?? Border.all(color: c.line.withValues(alpha: .85)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? .12 : .035),
-            blurRadius: 18,
-            offset: const Offset(0, 5),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark ? .16 : .045,
+            ),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -156,10 +158,18 @@ class KHero extends StatelessWidget {
     final c = context.p;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: c.heroBg,
-        borderRadius: BorderRadius.circular(KDim.rCard),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: c.accent.withValues(alpha: .18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .10),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: child,
     );
@@ -202,15 +212,16 @@ class KSection extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 10),
         Container(
-          height: 1,
+          height: 2,
+          width: 34,
           decoration: BoxDecoration(
-            color: c.line,
-            borderRadius: BorderRadius.circular(2),
+            color: c.accent,
+            borderRadius: BorderRadius.circular(99),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
       ],
     );
   }
@@ -548,12 +559,12 @@ class IconBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.p;
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: c.accent.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: c.accent.withValues(alpha: .10)),
+        color: c.accent.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: c.accent.withValues(alpha: .14)),
       ),
       child: Icon(icon, size: size, color: c.accent),
     );
@@ -586,10 +597,11 @@ class StatusChip extends StatelessWidget {
       bg = c.accent;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: fg.withValues(alpha: .10)),
       ),
       child: Text(
         label,
