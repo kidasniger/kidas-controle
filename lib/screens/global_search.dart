@@ -102,11 +102,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           ));
         }
         return;
-        }
       case 'commentaire':
       case 'publication':
         await Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => const SubPage('Boîte de réception', child: BoiteScreen(filtreInitial: 1)),
+          builder: (_) => SubPage('Boîte de réception', child: BoiteScreen(filtreInitial: 1, rechercheInitiale: hit.body.isNotEmpty ? hit.body : hit.title)),
         ));
         return;
       case 'brouillon':
@@ -133,7 +132,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   Brouillon? _indexDraft(String id) {
     // Les brouillons sont chargés à la demande pour éviter de conserver
     // une deuxième copie mutable de leur contenu dans l'index.
-    return _draftsCache.where((d) => d.id == id).firstOrNull;
+    for (final draft in _draftsCache) {
+      if (draft.id == id) return draft;
+    }
+    return null;
   }
 
   List<Brouillon> _draftsCache = const [];
