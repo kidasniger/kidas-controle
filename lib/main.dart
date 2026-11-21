@@ -23,6 +23,7 @@ import 'screens/global_search.dart';
 import 'screens/medias.dart';
 import 'screens/moderation.dart';
 import 'screens/notifications.dart';
+import 'screens/reports.dart';
 import 'screens/settings.dart';
 import 'screens/stats.dart';
 import 'screens/welcome.dart';
@@ -424,6 +425,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ),
         _sheetRow(
           context,
+          'chart',
+          'Rapports d’activité',
+          'reports',
+          sub: 'Bilans journaliers et hebdomadaires',
+        ),
+        _sheetRow(
+          context,
           'gear',
           'Réglages',
           'set',
@@ -473,6 +481,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ),
         child: JournalScreen(key: _logKey),
       ),
+      'reports': () => const SubPage('Rapports', child: ReportsScreen()),
       'set': () => const SubPage('Réglages', child: SettingsScreen()),
     };
     await Navigator.of(context)
