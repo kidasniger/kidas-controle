@@ -35,12 +35,12 @@ class Palette {
   });
 
   static const dark = Palette(
-    bg: Color(0xFF0B1020),
-    card: Color(0xFF121B2B),
-    soft: Color(0xFF1B2940),
+    bg: Color(0xFF0A1020),
+    card: Color(0xFF111C2E),
+    soft: Color(0xFF1A2940),
     ink: Color(0xFFF3F6FC),
     muted: Color(0xFF9AA9BF),
-    line: Color(0xFF26354C),
+    line: Color(0xFF263750),
     card2: Color(0xFF17243A),
     chip: Color(0xFF1B2940),
     heroBg: Color(0xFFF3F6FC),
@@ -58,12 +58,12 @@ class Palette {
   );
 
   static const light = Palette(
-    bg: Color(0xFFF4F7FC),
+    bg: Color(0xFFF5F7FB),
     card: Color(0xFFFFFFFF),
-    soft: Color(0xFFEAF0F8),
-    ink: Color(0xFF182338),
-    muted: Color(0xFF64748B),
-    line: Color(0xFFE1E8F2),
+    soft: Color(0xFFF0F4FA),
+    ink: Color(0xFF17243A),
+    muted: Color(0xFF65758B),
+    line: Color(0xFFE4EAF2),
     card2: Color(0xFFEDF2F9),
     chip: Color(0xFFEAF0F8),
     heroBg: Color(0xFF182338),
@@ -94,26 +94,26 @@ const kBody = 'Inter';
 
 class T {
   static TextStyle micro(Palette c) => TextStyle(
-      fontSize: 10, height: 1.25, fontWeight: FontWeight.w700,
+      fontSize: 10, height: 1.3, fontWeight: FontWeight.w700,
       letterSpacing: 1.6, color: c.muted);
   static TextStyle microInk(Palette c) => TextStyle(
       fontSize: 10, height: 1.25, fontWeight: FontWeight.w700,
       letterSpacing: 1.6, color: c.ink);
   static TextStyle caption(Palette c) =>
-      TextStyle(fontSize: 11.5, height: 1.35, color: c.muted);
+      TextStyle(fontSize: 12, height: 1.4, color: c.muted);
   static TextStyle body(Palette c) =>
-      TextStyle(fontSize: 13, height: 1.5, color: c.ink);
+      TextStyle(fontSize: 13.5, height: 1.55, color: c.ink);
   static TextStyle strong(Palette c) => TextStyle(
-      fontSize: 13, height: 1.4, fontWeight: FontWeight.w700, color: c.ink);
+      fontSize: 13.5, height: 1.45, fontWeight: FontWeight.w700, color: c.ink);
   static TextStyle title(Palette c) => TextStyle(
-      fontFamily: kDisp, fontSize: 15.5, height: 1.2,
+      fontFamily: kDisp, fontSize: 16, height: 1.25,
       fontWeight: FontWeight.w700, letterSpacing: -.2, color: c.ink);
   static TextStyle kpi(Palette c) => TextStyle(
       fontFamily: kDisp, fontSize: 15, height: 1.1,
       fontWeight: FontWeight.w800, letterSpacing: -.15, color: c.ink,
       fontFeatures: const [FontFeature.tabularFigures()]);
   static TextStyle hero(Palette c) => TextStyle(
-      fontFamily: kDisp, fontSize: 26, height: 1.12,
+      fontFamily: kDisp, fontSize: 27, height: 1.15,
       fontWeight: FontWeight.w800, letterSpacing: -.5, color: c.heroInk);
 }
 
@@ -128,8 +128,8 @@ class KAnim {
 
 /// Rayons et espacements standard.
 class KDim {
-  static const rCard = 16.0;
-  static const rBtn = 12.0;
+  static const rCard = 18.0;
+  static const rBtn = 13.0;
   static const rBadge = 99.0;
-  static const pad = 12.0;
+  static const pad = 14.0;
 }
