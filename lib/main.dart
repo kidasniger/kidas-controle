@@ -390,6 +390,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       children: [
         _sheetRow(
           context,
+          'gear',
+          'Réglages',
+          'set',
+          sub: 'Apparence, connexion, sécurité',
+        ),
+        _sheetRow(
+          context,
           'spark',
           'Assistant IA',
           'ia',
@@ -429,13 +436,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           'Rapports d’activité',
           'reports',
           sub: 'Bilans journaliers et hebdomadaires',
-        ),
-        _sheetRow(
-          context,
-          'gear',
-          'Réglages',
-          'set',
-          sub: 'Apparence, connexion, sécurité',
         ),
       ],
     );
