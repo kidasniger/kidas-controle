@@ -234,7 +234,7 @@ class Api {
       final f = await getFile(data, path);
       final v = (f == null || f.text.trim().isEmpty) ? null : _decode(f.text);
       HorsLigne.enLigne();
-      unawaited(HorsLigne.garde(path, v));
+      await HorsLigne.garde(path, v);
       return v;
     } on ApiError catch (e) {
       /* réseau tombé (délai ou indisponible) : on sert la dernière copie.
@@ -269,7 +269,7 @@ class Api {
       final f = await getFile(botData, path);
       final v = (f == null || f.text.trim().isEmpty) ? null : _decode(f.text);
       HorsLigne.enLigne();
-      unawaited(HorsLigne.garde('bot/$path', v));
+      await HorsLigne.garde('bot/$path', v);
       return v;
     } on ApiError catch (e) {
       if (e.status != 0) rethrow;
@@ -827,9 +827,29 @@ class HorsLigne {
   /// Heure (HH:MM local) de la dernière copie servie.
   static final ValueNotifier<String> heure = ValueNotifier('');
 
+  /// Âge maximal d'une copie utilisée uniquement en cas de coupure réseau.
+  /// Au-delà de six heures, on préfère signaler l'indisponibilité plutôt que
+  /// présenter des données anciennes comme si elles étaient actuelles.
+  static const Duration dureeMaxCache = Duration(hours: 6);
+  static const Duration toleranceHorloge = Duration(minutes: 2);
+
+  /// Validation pure pour les tests et le repli hors ligne.
+  static bool cacheValide(dynamic raw, {DateTime? maintenant}) {
+    if (raw is! Map || raw['ts'] is! int || !raw.containsKey('data')) {
+      return false;
+    }
+    final now = maintenant ?? DateTime.now();
+    final age = now.millisecondsSinceEpoch - (raw['ts'] as int);
+    return age >= -toleranceHorloge.inMilliseconds &&
+        age <= dureeMaxCache.inMilliseconds;
+  }
+
   /// Lecture en ligne réussie : les données affichées sont à jour.
   static void enLigne() {
-    if (coupure.value) coupure.value = false;
+    if (coupure.value) {
+      coupure.value = false;
+      heure.value = '';
+    }
   }
 
   static void _servi(int ts) {
@@ -839,32 +859,62 @@ class HorsLigne {
     coupure.value = true;
   }
 
-  /// Garde une copie du fichier lu (à froid : jamais bloquante).
+  /// Garde la version fraîche et remplace immédiatement l'ancienne copie.
+  /// Les copies expirées de tous les chemins sont aussi purgées à chaque collecte.
   static Future<void> garde(String path, dynamic v) async {
     try {
       final cle = '$_prefixe${path.replaceAll('/', '__')}';
       if (v == null) {
         await Store.del(cle);
-        return;
+      } else {
+        final o = {'ts': DateTime.now().millisecondsSinceEpoch, 'data': v};
+        final s = jsonEncode(o);
+        if (s.length > _tailleMax) {
+          // Ne pas conserver une ancienne version si la version actuelle
+          // dépasse la limite de stockage hors ligne.
+          await Store.del(cle);
+        } else {
+          await Store.set(cle, s);
+        }
       }
-      final o = {'ts': DateTime.now().millisecondsSinceEpoch, 'data': v};
-      final s = jsonEncode(o);
-      if (s.length > _tailleMax) return;
-      await Store.set(cle, s);
+      await purgePerimees();
     } catch (_) {
       /* copie facultative : jamais bloquante */
     }
   }
 
-  /// Sert la dernière copie connue du fichier (null si aucune).
+  /// Supprime les copies invalides ou âgées de plus de six heures.
+  static Future<void> purgePerimees() async {
+    try {
+      final all = await Store.all();
+      for (final entry in all.entries) {
+        if (!entry.key.startsWith(_prefixe)) continue;
+        var valid = false;
+        try {
+          valid = cacheValide(jsonDecode(entry.value));
+        } catch (_) {
+          valid = false;
+        }
+        if (!valid) await Store.del(entry.key);
+      }
+    } catch (_) {
+      /* purge facultative */
+    }
+  }
+
+  /// Sert une copie récente uniquement ; supprime immédiatement toute copie périmée.
   static Future<dynamic> repli(String path) async {
     try {
       final cle = '$_prefixe${path.replaceAll('/', '__')}';
       final s = await Store.get(cle);
       if (s.isEmpty) return null;
       final o = jsonDecode(s);
-      if (o is! Map<String, dynamic> || o['ts'] is! int) return null;
-      _servi(o['ts'] as int);
+      if (!cacheValide(o)) {
+        await Store.del(cle);
+        return null;
+      }
+      final ts = (o as Map)['ts'] as int;
+      _servi(ts);
       return o['data'];
     } catch (_) {
       return null;

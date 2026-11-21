@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/bot_notification_sync.dart';
 import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
@@ -21,6 +22,10 @@ class _StatsScreenState extends State<StatsScreen> {
   Dash? _d;
   bool _busy = true;
   String? _err;
+  Map<String, dynamic>? _health;
+  dynamic _likes;
+  String? _healthError;
+  String? _likesError;
   int _periode = 30; // fenêtre des courbes : 7 ou 30 jours
 
   @override
@@ -33,9 +38,32 @@ class _StatsScreenState extends State<StatsScreen> {
     setState(() => _busy = true);
     try {
       final d = await Api.dash();
+      Map<String, dynamic>? health;
+      dynamic likes;
+      String? healthError;
+      String? likesError;
+      try {
+        final raw = await Api.readBotJson('bot/sante.json');
+        if (raw is Map<String, dynamic>) {
+          health = raw;
+        } else {
+          healthError = 'Rapport de santé indisponible.';
+        }
+      } catch (error) {
+        healthError = Api.hint(error);
+      }
+      try {
+        likes = await Api.readBotJson('glm/aimes-commentaires.json');
+      } catch (error) {
+        likesError = Api.hint(error);
+      }
       if (!mounted) return;
       setState(() {
         _d = d;
+        _health = health;
+        _likes = likes;
+        _healthError = healthError;
+        _likesError = likesError;
         _busy = false;
       });
       final cm = d.cm;
@@ -173,6 +201,8 @@ class _StatsScreenState extends State<StatsScreen> {
     var nCartes = 0;
 
     kids.add(_heros(c, pg, suiv));
+    kids.add(const SizedBox(height: 12));
+    kids.add(_carteRapport(c));
     if (suiv != null && suiv.vals.length >= 2) {
       nCartes++;
       kids.add(const SizedBox(height: 12));
@@ -467,6 +497,74 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Rapport opérationnel fondé sur le cache Facebook relu et les registres du bot.
+  Widget _carteRapport(Palette c) {
+    final comments = Api.flatComments(_d?.cm).length;
+    final replies = BotNotificationSync.collectConfirmedReplyIds(
+      _d?.cm ?? <String, dynamic>{},
+    ).length;
+    final faitsRaw = _likes is Map ? (_likes as Map)['faits'] : null;
+    final faits = faitsRaw is Map ? faitsRaw : const <dynamic, dynamic>{};
+    final likesConfirmed = faits.values.where(
+      (value) => value is Map &&
+          value['like'] == 'ok' &&
+          value['verifie'] == true,
+    ).length;
+    final likesPending = faits.values.where(
+      (value) => value is Map && value['like'] == 'pending',
+    ).length;
+    final errorsRaw = _health?['erreurs'];
+    final errors = errorsRaw is List ? errorsRaw.length : 0;
+    final fileRaw = _health?['file'];
+    final queuedRaw = fileRaw is Map ? fileRaw['en_attente'] : 0;
+    final queued = queuedRaw is num ? queuedRaw.toInt() : 0;
+    final updated = DateTime.tryParse(_health?['mis_a_jour']?.toString() ?? '');
+    final updatedLabel = updated == null
+        ? (_healthError ?? 'Date de collecte indisponible')
+        : 'Rapport bot du ${updated.toLocal().day.toString().padLeft(2, '0')}/'
+          '${updated.toLocal().month.toString().padLeft(2, '0')} à '
+          '${updated.toLocal().hour.toString().padLeft(2, '0')}:'
+          '${updated.toLocal().minute.toString().padLeft(2, '0')}';
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('RAPPORT DU BOT', style: T.micro(c)),
+          const SizedBox(height: 5),
+          Text(updatedLabel, style: T.caption(c)),
+          if (_likesError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('Registre des J’aime : $_likesError', style: T.caption(c)),
+            ),
+          const SizedBox(height: 10),
+          _ligneRapport(c, 'Commentaires collectés', nf(comments)),
+          _ligneRapport(c, 'Réponses visibles sur Facebook', nf(replies)),
+          _ligneRapport(c, 'J’aime confirmés', nf(likesConfirmed)),
+          _ligneRapport(c, 'J’aime en attente', nf(likesPending)),
+          _ligneRapport(c, 'Erreurs récentes', nf(errors)),
+          _ligneRapport(c, 'Actions en attente', nf(queued)),
+        ],
+      ),
+    );
+  }
+
+  Widget _ligneRapport(Palette c, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: T.caption(c))),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style: T.body(c).copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),

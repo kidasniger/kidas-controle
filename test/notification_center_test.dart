@@ -84,6 +84,19 @@ void botNotificationSyncTests() {
       expect(ids, {'reply-1'});
     });
 
+    test('ne retient que les J’aime confirmés et vérifiés', () {
+      final ids = BotNotificationSync.collectConfirmedLikeIds({
+        'faits': {
+          'comment-1': {'like': 'ok', 'verifie': true},
+          'comment-2': {'like': 'ok', 'verifie': false},
+          'comment-3': {'like': 'pending', 'verifie': false},
+          'comment-4': {'like': 'error', 'verifie': false},
+        },
+      });
+
+      expect(ids, {'comment-1'});
+    });
+
     test('tolère un cache incomplet', () {
       expect(BotNotificationSync.collectConfirmedReplyIds({}), isEmpty);
       expect(

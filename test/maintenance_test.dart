@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kidas_controle/core/api.dart';
 import 'package:kidas_controle/core/backup.dart';
 import 'package:kidas_controle/core/diagnostics.dart';
 
@@ -35,6 +36,37 @@ void main() {
         '{"theme_mode":"light","gh_token":"must-not-restore","notifs_on":true}}',
       );
       expect(restored, {'theme_mode': 'light'});
+    });
+  });
+
+  group('HorsLigne cache freshness', () {
+    final now = DateTime(2026, 11, 21, 12);
+
+    test('accepts a recent cache', () {
+      final cache = {
+        'ts': now.subtract(const Duration(minutes: 20)).millisecondsSinceEpoch,
+        'data': {'status': 'ok'},
+      };
+      expect(HorsLigne.cacheValide(cache, maintenant: now), isTrue);
+    });
+
+    test('rejects and allows purging a cache older than six hours', () {
+      final cache = {
+        'ts': now.subtract(const Duration(hours: 6, minutes: 1)).millisecondsSinceEpoch,
+        'data': {'status': 'old'},
+      };
+      expect(HorsLigne.cacheValide(cache, maintenant: now), isFalse);
+    });
+
+    test('rejects invalid or future timestamps', () {
+      expect(HorsLigne.cacheValide({'data': {}} , maintenant: now), isFalse);
+      expect(
+        HorsLigne.cacheValide({
+          'ts': now.add(const Duration(minutes: 5)).millisecondsSinceEpoch,
+          'data': {},
+        }, maintenant: now),
+        isFalse,
+      );
     });
   });
 
