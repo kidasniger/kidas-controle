@@ -1369,43 +1369,6 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
     );
   }
 
-  /* ---------- verrous GitHub ---------- */
-
-  Widget _hardLocks(Palette c, Bot bs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        KSection('Verrous GitHub'),
-        KCard(
-          child: Column(
-            children: [
-              KSwitchRow(
-                'Variable GLM_LIVE',
-                desc: 'Arrête le bot central et empêche son redémarrage automatique',
-                value: bs.live != 'off',
-                job: (v) => Api.setVar('GLM_LIVE', v ? 'on' : 'off'),
-              ),
-              const KDivider(),
-              KSwitchRow(
-                'Réponses automatiques',
-                desc: 'Réglage appliqué au prochain cycle du bot central',
-                value: bs.auto != 'off',
-                job: (v) => Api.updateJson('glm/config.json', false, (cur) {
-                  final o = asObj(cur);
-                  final r = asObj(o['reponses']);
-                  r['actif'] = v;
-                  o['reponses'] = r;
-                  return o;
-                }, 'Réglage des réponses automatiques'),
-              ),
-
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   /* ---------- GLM Live manuel ---------- */
 
   Widget _manual(Palette c) {
