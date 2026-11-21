@@ -86,11 +86,6 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
           'n': 'Actualiser les connaissances',
           'd': 'Met à jour les connaissances et performances',
         },
-        {
-          'f': 'diagnostic-token-meta.yml',
-          'n': 'Diagnostiquer Meta',
-          'd': 'Vérifie le token, les permissions et l’accès à la Page',
-        },
       ],
     },
   ];
