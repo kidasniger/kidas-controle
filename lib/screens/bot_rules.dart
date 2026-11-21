@@ -39,36 +39,42 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
   Regle? _testRes;
   bool _testDone = false;
 
-  /* catalogue : [groupe], puis [fichier, libellé, description] */
+  /* Workflows réellement pilotables depuis cet écran.
+     Le bot central est commandé par l'interrupteur global et le mode manuel.
+     Keepalive et tests unitaires restent automatiques, sans bouton ici. */
   static const _catalog = [
     {
-      'groupe': 'Lecture',
+      'groupe': 'Surveillance & rapports',
       'items': [
         {
           'f': 'surveiller.yml',
-          'n': 'Surveiller la Page',
-          'd': 'Récupère commentaires et publications',
+          'n': 'Actualiser la boîte',
+          'd': 'Récupère les publications, commentaires et réponses',
         },
         {
           'f': 'statistiques.yml',
-          'n': 'Statistiques',
-          'd': 'Abonnés, vues, interactions',
+          'n': 'Actualiser les statistiques',
+          'd': 'Abonnés, vues et interactions',
         },
-        {'f': 'archiver.yml', 'n': 'Archiver la Page', 'd': 'Résumé des posts'},
         {
           'f': 'audit.yml',
           'n': 'Audit complet',
-          'd': 'Enchaîne les 4 lectures',
+          'd': 'Lance les collectes et vérifie leur exécution',
         },
       ],
     },
     {
-      'groupe': 'Bot central',
+      'groupe': 'Archives',
       'items': [
         {
-          'f': 'glm-live.yml',
-          'n': 'Démarrer le bot central',
-          'd': 'Likes, commentaires, publications, programmation, Messenger et actions sur les posts',
+          'f': 'archiver.yml',
+          'n': 'Archiver la Page',
+          'd': 'Archive les publications dans le dépôt privé',
+        },
+        {
+          'f': 'archive-mensuelle.yml',
+          'n': 'Archive mensuelle',
+          'd': 'Conserve publications, commentaires et médias',
         },
       ],
     },
@@ -77,15 +83,13 @@ class _BotRulesScreenState extends State<BotRulesScreen> {
       'items': [
         {
           'f': 'apprendre.yml',
-          'n': 'Apprendre',
-          'd': 'Met à jour projets et performances',
+          'n': 'Actualiser les connaissances',
+          'd': 'Met à jour les connaissances et performances',
         },
-        {'f': 'archive-mensuelle.yml', 'n': 'Archive mensuelle', 'd': ''},
-        {'f': 'keepalive.yml', 'n': 'Réactiver les tâches planifiées', 'd': ''},
         {
-          'f': 'test-facebook.yml',
-          'n': 'Test Facebook',
-          'd': 'Vérifie le jeton de Page',
+          'f': 'diagnostic-token-meta.yml',
+          'n': 'Diagnostiquer Meta',
+          'd': 'Vérifie le token, les permissions et l’accès à la Page',
         },
       ],
     },
