@@ -14,6 +14,7 @@ class Notifs {
   static const _canal = 'kidas_alertes';
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _init = false;
+  static Future<void>? _initializing;
 
   /// État du réglage, partagé avec l'interrupteur des Réglages.
   static final ValueNotifier<bool> activ = ValueNotifier(true);
@@ -21,7 +22,9 @@ class Notifs {
   /// Vrai après une initialisation réussie du plugin.
   static bool pret = false;
 
-  static Future<void> init() async {
+  static Future<void> init() => _initializing ??= _initialize();
+
+  static Future<void> _initialize() async {
     if (_init) return;
     _init = true;
     try {
@@ -33,15 +36,28 @@ class Notifs {
     } catch (_) {
       /* pas critique : l'app vit sans notifications */
     }
-    activ.value = (await Store.get('notifs_on')) != '0';
+    try {
+      activ.value = (await Store.get('notifs_on')) != '0';
+    } catch (_) {
+      activ.value = true;
+    }
     if (activ.value && pret) await _permission();
   }
 
   /// Bascule du réglage (Réglages > Apparence).
   static Future<void> set(bool v) async {
+    await init();
     activ.value = v;
     await Store.set('notifs_on', v ? '1' : '0');
-    if (v && pret) await _permission();
+    if (v && pret) {
+      await _permission();
+    } else if (!v && pret) {
+      try {
+        await _plugin.cancelAll();
+      } catch (_) {
+        /* le réglage reste enregistré même si Android refuse l'annulation */
+      }
+    }
   }
 
   /// Permission Android 13+ (canal POST_NOTIFICATIONS).
@@ -78,6 +94,7 @@ class Notifs {
 
   /// Annonce des commentaires urgents détectés (une fois par commentaire).
   static Future<void> urgents(List<String> ids) async {
+    await init();
     if (ids.isEmpty) return;
     if (!activ.value || !pret) return;
     final deja = await Store.get('notifs_urgents');
@@ -100,6 +117,8 @@ class Notifs {
     String corps, {
     String category = 'moderation',
   }) async {
+    await init();
+    if (!activ.value) return;
     try {
       await NotificationCenter.add(
         title: titre,
