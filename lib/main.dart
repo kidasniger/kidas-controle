@@ -69,7 +69,55 @@ class KidasApp extends StatelessWidget {
         brightness: b,
       ).copyWith(primary: c.accent, secondary: c.accent, surface: c.card),
       splashFactory: NoSplash.splashFactory,
-      dividerTheme: DividerThemeData(color: c.line, thickness: 1),
+      dividerTheme: DividerThemeData(color: c.line, thickness: 1, space: 1),
+      appBarTheme: AppBarTheme(
+        backgroundColor: c.bg,
+        foregroundColor: c.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: T.title(c).copyWith(fontSize: 18, fontWeight: FontWeight.w800),
+      ),
+      cardTheme: CardThemeData(
+        color: c.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: c.line),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.card,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: c.card,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: c.bg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c.line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c.line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c.accent, width: 1.5),
+        ),
+      ),
       datePickerTheme: DatePickerThemeData(
         backgroundColor: c.card,
         surfaceTintColor: Colors.transparent,
@@ -502,26 +550,26 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         Navigator.pop(ctx, v);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           children: [
             /* set-ic maquette : carré 32 chip, picto 15 */
             Container(
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: c.chip,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(13),
               ),
-              child: Picto(picto, size: 15),
+              child: Picto(picto, size: 18, color: c.accent),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: T.strong(c).copyWith(fontSize: 14.5)),
+                  Text(label, style: T.strong(c).copyWith(fontSize: 15)),
                   if (sub.isNotEmpty) Text(sub, style: T.caption(c)),
                 ],
               ),
