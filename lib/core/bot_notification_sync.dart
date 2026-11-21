@@ -12,6 +12,7 @@ class BotNotificationSync {
   static const _sessionKey = 'bot_notifs_session_v1';
   static const _responsesKey = 'bot_notifs_responses_v1';
   static const _repliesKey = 'bot_notifs_reply_ids_v1';
+  static const _likesKey = 'bot_notifs_comment_like_ids_v1';
   static bool _running = false;
 
   /// Identifiants des réponses réellement visibles dans le cache Facebook.
@@ -69,6 +70,43 @@ class BotNotificationSync {
     await Store.set(_repliesKey, jsonEncode(saved));
   }
 
+
+  /// Identifiants des commentaires dont le like a été confirmé par Facebook.
+  static Set<String> collectConfirmedLikeIds(dynamic raw) {
+    if (raw is! Map) return <String>{};
+    final faits = raw['faits'];
+    if (faits is! Map) return <String>{};
+    return faits.entries.where((entry) {
+      final value = entry.value;
+      return value is Map && value['like'] == 'ok' && value['verifie'] == true;
+    }).map((entry) => entry.key.toString()).where((id) => id.isNotEmpty).toSet();
+  }
+
+  static Future<void> _syncConfirmedLikes() async {
+    final raw = await Api.readBotJson('glm/aimes-commentaires.json');
+    final current = collectConfirmedLikeIds(raw);
+    final knownRaw = await Store.get(_likesKey);
+    final known = knownRaw.isEmpty
+        ? <String>{}
+        : (jsonDecode(knownRaw) as List).whereType<String>().toSet();
+    if (knownRaw.isEmpty) {
+      await Store.set(_likesKey, jsonEncode(current.toList()));
+      return;
+    }
+    final fresh = current.difference(known);
+    if (fresh.isNotEmpty) {
+      await Notifs.montre(
+        'J’aime confirmés',
+        '${fresh.length} nouveau(x) J’aime confirmé(s) sur les commentaires Facebook.',
+        category: 'bot',
+      );
+    }
+    known.addAll(current);
+    final saved = known.toList();
+    if (saved.length > 1000) saved.removeRange(0, saved.length - 1000);
+    await Store.set(_likesKey, jsonEncode(saved));
+  }
+
   static Future<void> sync() async {
     if (_running || Api.tok.isEmpty) return;
     _running = true;
@@ -78,6 +116,7 @@ class BotNotificationSync {
       } catch (_) {
         // Le cache des commentaires peut être temporairement indisponible.
       }
+      try { await _syncConfirmedLikes(); } catch (_) { /* sync likes isolée */ }
       final raw = await Api.readBotJson('bot/sante.json');
       if (raw is! Map<String, dynamic>) return;
       final session = raw['session'] is Map
