@@ -71,14 +71,14 @@ class _KEditState extends State<KEdit> {
         counterText: '',
         hintText: widget.hint,
         hintStyle: TextStyle(fontSize: 15, color: c.muted),
-        contentPadding: const EdgeInsets.all(12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: c.line),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: c.accBr, width: 1.4),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c.accBr, width: 1.6),
         ),
       ),
     );
@@ -190,7 +190,7 @@ class KSegmented extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: c.line),
       ),
       child: Row(
