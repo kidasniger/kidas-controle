@@ -1,3 +1,4 @@
+import 'api.dart';
 import 'data.dart';
 
 /// Résultat normalisé de la recherche transversale.
@@ -49,7 +50,7 @@ class GlobalSearch {
               title: item.name,
               subtitle: mine ? 'Message de la Page' : 'Message reçu · Messenger',
               body: text,
-              timestamp: Api.iso(message.os('created_time')).toInt(),
+              timestamp: Api.iso(message.os('created_time')),
               conversationId: item.id,
             ));
           }
