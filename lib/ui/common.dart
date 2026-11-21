@@ -132,7 +132,14 @@ class KCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? c.card,
         borderRadius: BorderRadius.circular(radius),
-        border: border ?? Border.all(color: c.line),
+        border: border ?? Border.all(color: c.line.withValues(alpha: .9)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? .12 : .035),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: child,
     );
@@ -195,15 +202,15 @@ class KSection extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 9),
         Container(
-          height: 2,
+          height: 1,
           decoration: BoxDecoration(
-            color: c.ink,
+            color: c.line,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -541,14 +548,14 @@ class IconBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.p;
     return Container(
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        color: c.soft,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: c.line),
+        color: c.accent.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: c.accent.withValues(alpha: .10)),
       ),
-      child: Icon(icon, size: size, color: c.ink),
+      child: Icon(icon, size: size, color: c.accent),
     );
   }
 }
@@ -747,7 +754,7 @@ class RouteRow extends StatelessWidget {
         onTap();
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(
           children: [
             IconBox(icon),
