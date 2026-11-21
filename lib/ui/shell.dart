@@ -4,7 +4,6 @@ import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/updater.dart';
 import 'common.dart';
-import 'pictos.dart';
 
 /// Bus d'état partagé : badges, thème, recherche de l'accueil, marqueur
 /// d'écran externe.
