@@ -21,7 +21,8 @@ import 'conversation_detail.dart';
 /// et Messages (fusionnés dans celui-ci).
 class BoiteScreen extends StatefulWidget {
   final int filtreInitial; // 1 = avis, 2 = messages (depuis l'accueil)
-  const BoiteScreen({super.key, this.filtreInitial = 0});
+  final String rechercheInitiale;
+  const BoiteScreen({super.key, this.filtreInitial = 0, this.rechercheInitiale = ''});
   @override
   State<BoiteScreen> createState() => _BoiteScreenState();
 }
@@ -44,6 +45,8 @@ class _BoiteScreenState extends State<BoiteScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // depuis l'accueil : chip Avis (1) ou Messages (2)
+    _q = widget.rechercheInitiale;
+    _cherche = _q.isNotEmpty;
     _filtre = switch (widget.filtreInitial) {
       1 => 3,
       2 => 4,
@@ -111,7 +114,8 @@ class _BoiteScreenState extends State<BoiteScreen> with WidgetsBindingObserver {
       if (_mod.cache.contains(x.id)) return false;
       if (q.isNotEmpty &&
           !x.name.toLowerCase().contains(q) &&
-          !x.text.toLowerCase().contains(q)) {
+          !x.text.toLowerCase().contains(q) &&
+          !x.postTxt.toLowerCase().contains(q)) {
         return false;
       }
       return switch (_filtre) {
