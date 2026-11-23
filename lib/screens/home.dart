@@ -202,8 +202,12 @@ class _HomeScreenState extends State<HomeScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(0, 6, 0, 96),
             children: [
+              _hero(c),
+              const SizedBox(height: 14),
               _kpis(c),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
+              _quickActions(c),
+              const SizedBox(height: 14),
               _compose(c),
               const SizedBox(height: 10),
               _chips(c),
@@ -229,6 +233,197 @@ class _HomeScreenState extends State<HomeScreen> {
   String _postTxt(Map<String, dynamic> p) {
     final t = p.os('message');
     return t.isEmpty ? p.os('story') : t;
+  }
+
+  /* ---------- en-tête du tableau de bord ---------- */
+
+  Widget _hero(Palette c) {
+    final subtitle = _busy
+        ? 'Actualisation des données…'
+        : _errs.isNotEmpty
+            ? 'Certaines données sont indisponibles'
+            : 'Vue d’ensemble de votre activité';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: c.heroBg,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .08),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: c.heroInk.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.dashboard_rounded, color: c.heroInk, size: 21),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('TABLEAU DE BORD',
+                        style: TextStyle(
+                          color: c.heroMut,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        )),
+                    const SizedBox(height: 3),
+                    Text(_pageName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: c.heroInk,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        )),
+                  ],
+                ),
+              ),
+              Press(
+                onTap: _busy ? null : _load,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: c.heroInk.withValues(alpha: .09),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _busy ? Icons.hourglass_top_rounded : Icons.refresh_rounded,
+                    color: c.heroInk,
+                    size: 19,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text('Pilotez votre présence Facebook.',
+              style: T.hero(c).copyWith(fontSize: 21, height: 1.18)),
+          const SizedBox(height: 6),
+          Text(subtitle,
+              style: TextStyle(color: c.heroMut, fontSize: 11.5)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _heroCounter(c, Icons.mode_comment_outlined, '$_avisTodo', 'avis à traiter'),
+              const SizedBox(width: 18),
+              Container(width: 1, height: 28, color: c.heroInk.withValues(alpha: .14)),
+              const SizedBox(width: 18),
+              _heroCounter(c, Icons.chat_bubble_outline_rounded, '$_msgTodo', 'messages à traiter'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroCounter(Palette c, IconData icon, String value, String label) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, color: c.heroMut, size: 17),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: TextStyle(
+                color: c.heroInk, fontSize: 17, fontWeight: FontWeight.w800,
+              )),
+              Text(label, style: TextStyle(color: c.heroMut, fontSize: 9.5)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /* ---------- raccourcis principaux ---------- */
+
+  Widget _quickActions(Palette c) {
+    return SizedBox(
+      height: 84,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        children: [
+          _quickAction(c, Icons.inbox_rounded, 'Boîte', 'Messages & avis',
+              () => _go('Boîte unifiée', const BoiteScreen())),
+          _quickAction(c, Icons.edit_note_rounded, 'Publier', 'Nouveau contenu',
+              () => _go('Composer', const ComposerScreen())),
+          _quickAction(c, Icons.shield_outlined, 'Modération', 'Commentaires',
+              () => _go('Modération', const ModerationScreen())),
+          _quickAction(c, Icons.insights_rounded, 'Statistiques', 'Performances',
+              () => setState(() => _vue = 3)),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickAction(
+    Palette c, IconData icon, String title, String subtitle, VoidCallback onTap,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 9),
+      child: Press(
+        onTap: () {
+          Fx.tick();
+          onTap();
+        },
+        child: Container(
+          width: 142,
+          padding: const EdgeInsets.all(11),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: c.soft,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, color: c.accent, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: T.strong(c).copyWith(fontSize: 11.5)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: T.caption(c).copyWith(fontSize: 9)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /* ---------- chiffres de la Page (carte KPI de la maquette) ---------- */
