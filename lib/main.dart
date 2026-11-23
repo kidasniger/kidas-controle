@@ -139,7 +139,7 @@ class Boot extends StatefulWidget {
 }
 
 class _BootState extends State<Boot> with WidgetsBindingObserver {
-  bool _ready = false, _locked = true, _warned = false, _autoChecked = false;
+  bool _ready = false, _locked = true, _autoChecked = false;
   DateTime? _bgAt;
   final LocalAuthentication _la = LocalAuthentication();
 
@@ -235,7 +235,6 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
     if (!mounted) return;
     setState(() {
       _locked = false;
-      _warned = true;
     });
     kToast(context, message, bad: true);
     _afterUnlock();
