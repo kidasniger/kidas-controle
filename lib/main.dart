@@ -159,55 +159,127 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
   }
 
   Future<void> _boot() async {
-    final all = await Store.all();
-    // reprise du réglage sombre/clair de la v1 Java
-    if (!all.containsKey('theme_mode')) {
-      final legacy = all['dark'] ?? '1';
-      all['theme_mode'] = legacy == '0' ? 'light' : 'dark';
-      await Store.set('theme_mode', all['theme_mode']!);
+    try {
+      // Seul le stockage local est nécessaire pour afficher l'application.
+      // Une limite évite de conserver indéfiniment le splash si Android bloque
+      // le Keystore ou la migration des préférences historiques.
+      final all = await Store.all().timeout(const Duration(seconds: 15));
+
+      // Reprise du réglage sombre/clair de la v1 Java (migration non bloquante).
+      if (!all.containsKey('theme_mode')) {
+        final legacy = all['dark'] ?? '1';
+        all['theme_mode'] = legacy == '0' ? 'light' : 'dark';
+        unawaited(
+          Store.set('theme_mode', all['theme_mode']!)
+              .timeout(const Duration(seconds: 5))
+              .catchError((Object _) {}),
+        );
+      }
+
+      Api.loadCfg(all);
+      Bus.themeMode.value = Bus.parse(all['theme_mode'] ?? 'system');
+      Bus.cfgReady.value = true;
+
+      if (!mounted) return;
+      setState(() => _ready = true);
+
+      // Ces tâches sont secondaires : elles ne doivent jamais retarder
+      // l'ouverture de l'écran principal.
+      unawaited(
+        Fx.init()
+            .timeout(const Duration(seconds: 8))
+            .catchError((Object _) {}),
+      );
+      unawaited(
+        Notifs.auDemarrage()
+            .timeout(const Duration(seconds: 12))
+            .catchError((Object _) {}),
+      );
+      unawaited(
+        BotNotificationSync.sync()
+            .timeout(const Duration(seconds: 20))
+            .catchError((Object _) {}),
+      );
+
+      await _checkLock();
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _ready = true;
+        _locked = false;
+      });
+      kToast(
+        context,
+        "Le stockage sécurisé met trop de temps à répondre. L'application s'ouvre sans charger la connexion enregistrée.",
+        bad: true,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _ready = true;
+        _locked = false;
+      });
+      kToast(
+        context,
+        "Initialisation partielle : ${e.toString()}",
+        bad: true,
+      );
     }
-    Api.loadCfg(all);
-    Bus.cfgReady.value = true;
-    /* notifications locales : alerte jeton au plus une fois par jour */
-    await Notifs.auDemarrage();
-    await BotNotificationSync.sync();
-    Bus.themeMode.value = Bus.parse(all['theme_mode'] ?? 'system');
-    await Fx.init();
-    if (!mounted) return;
-    setState(() => _ready = true);
-    await _checkLock();
   }
 
   /* ---------- verrouillage (port de MainActivity.lock) ---------- */
 
+  bool _authenticating = false;
+
+  Future<void> _unlockWithWarning(String message) async {
+    if (!mounted) return;
+    setState(() {
+      _locked = false;
+      _warned = true;
+    });
+    kToast(context, message, bad: true);
+    _afterUnlock();
+  }
+
   Future<void> _checkLock() async {
-    final supported = await _la.isDeviceSupported();
-    if (!supported) {
-      if (!_warned && mounted) {
-        _warned = true;
-        kToast(
-          context,
-          "Aucun verrouillage d'écran : l'application n'est pas protégée.",
-          bad: true,
-        );
-      }
-      if (mounted) setState(() => _locked = false);
-      _afterUnlock();
-      return;
-    }
+    if (_authenticating || !mounted) return;
+    _authenticating = true;
     try {
-      final ok = await _la.authenticate(
-        localizedReason: 'Déverrouille pour continuer',
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-          stickyAuth: true,
-        ),
-      );
+      final supported = await _la
+          .isDeviceSupported()
+          .timeout(const Duration(seconds: 10));
+      if (!supported) {
+        await _unlockWithWarning(
+          "Aucun verrouillage compatible détecté : l'application n'est pas protégée.",
+        );
+        return;
+      }
+
+      final ok = await _la
+          .authenticate(
+            localizedReason: 'Déverrouille pour continuer',
+            options: const AuthenticationOptions(
+              biometricOnly: false,
+              stickyAuth: true,
+            ),
+          )
+          .timeout(const Duration(seconds: 45));
+
       if (!mounted) return;
       setState(() => _locked = !ok);
+      // En cas d'annulation volontaire, l'écran reste protégé et propose
+      // un bouton pour relancer l'authentification.
       if (ok) _afterUnlock();
-    } catch (_) {
-      if (mounted) setState(() => _locked = true);
+    } on TimeoutException {
+      await _unlockWithWarning(
+        "L'authentification n'a pas répondu à temps. Le verrouillage a été désactivé pour cette ouverture.",
+      );
+    } catch (e) {
+      await _unlockWithWarning(
+        "L'authentification est indisponible : ${e.toString()}",
+      );
+    } finally {
+      _authenticating = false;
     }
   }
 
@@ -358,6 +430,14 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
                             : 'Préparation de votre espace…',
                         style: T.caption(c),
                       ),
+                      if (_ready && _locked) ...[
+                        const SizedBox(height: 14),
+                        TextButton.icon(
+                          onPressed: _authenticating ? null : _checkLock,
+                          icon: const Icon(Icons.lock_open_rounded, size: 17),
+                          label: const Text('Réessayer le déverrouillage'),
+                        ),
+                      ],
                     ],
                   ),
                 ),
