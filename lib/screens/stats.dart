@@ -257,38 +257,52 @@ class _StatsScreenState extends State<StatsScreen> {
   /* en-tête : titre + segmenté 7 j / 30 j (maquette) */
   Widget _pageHead(Palette c) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+      padding: const EdgeInsets.fromLTRB(3, 8, 3, 14),
       child: Row(
         children: [
-          Text(
-            'Stats',
-            style: TextStyle(
-              fontFamily: kDisp,
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -.5,
-              color: c.ink,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Statistiques',
+                  style: TextStyle(
+                    fontFamily: kDisp,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.6,
+                    color: c.ink,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Performance de votre Page',
+                  style: T.caption(c),
+                ),
+              ],
             ),
           ),
-          const Spacer(),
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: c.soft,
               borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: c.line),
             ),
             child: Row(
               children: [
-                for (final (v, label) in const [(7, '7 j'), (30, '30 j')])
+                for (final (v, label) in const [(7, '7 jours'), (30, '30 jours')])
                   Press(
                     onTap: () {
+                      if (_periode == v) return;
                       Fx.tick();
                       setState(() => _periode = v);
                     },
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: KAnim.fast,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 5,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: _periode == v ? c.accent : Colors.transparent,
@@ -307,6 +321,26 @@ class _StatsScreenState extends State<StatsScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 7),
+          Press(
+            tooltip: 'Actualiser les statistiques',
+            onTap: _load,
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: c.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: c.line),
+              ),
+              child: Icon(
+                Icons.refresh_rounded,
+                size: 19,
+                color: _busy ? c.muted : c.accent,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -318,9 +352,11 @@ class _StatsScreenState extends State<StatsScreen> {
     final n = f is num ? f.toDouble() : 0.0;
     String? delta;
     String? note;
+    var positive = true;
     if (suiv != null && suiv.vals.length >= 2) {
       final v = _fen(suiv.vals);
       final gain = v.last - v.first;
+      positive = gain >= 0;
       if (gain != 0) {
         delta = '${gain > 0 ? '+' : ''}${nf(gain.round())}';
         final tout = suiv.vals;
@@ -330,61 +366,119 @@ class _StatsScreenState extends State<StatsScreen> {
               tout[tout.length - 1 - 2 * _periode];
           if (g2 > 0) {
             final p = pct(gain, g2);
-            if (p.isNotEmpty) note = '· $p vs période précédente';
+            if (p.isNotEmpty) note = '$p vs période précédente';
           }
         }
       }
     }
-    return KCard(
-      pad: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: c.line),
+        boxShadow: [
+          BoxShadow(
+            color: c.ink.withValues(alpha: .045),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ABONNÉS', style: T.micro(c)),
-          const SizedBox(height: 4),
-          CountUpText(
-            n,
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: c.soft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  Icons.people_alt_rounded,
+                  size: 19,
+                  color: c.accent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'COMMUNAUTÉ',
+                  style: T.micro(c).copyWith(letterSpacing: 1.25),
+                ),
+              ),
+              if (delta != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (positive ? Colors.green : Colors.red)
+                        .withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        positive
+                            ? Icons.trending_up_rounded
+                            : Icons.trending_down_rounded,
+                        size: 14,
+                        color: positive ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        delta,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: positive ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            nf(n.round()),
             style: TextStyle(
               fontFamily: kDisp,
-              fontSize: 34,
-              height: 1.1,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -.7,
+              fontSize: 38,
+              height: 1,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.1,
               color: c.ink,
             ),
           ),
-          if (delta != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: c.accent),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    delta,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+          const SizedBox(height: 6),
+          Text(
+            'Abonnés de votre Page',
+            style: T.caption(c),
+          ),
+          if (note != null) ...[
+            const SizedBox(height: 13),
+            Row(
+              children: [
+                Icon(Icons.insights_rounded, size: 15, color: c.accent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    note,
+                    style: T.caption(c).copyWith(
                       color: c.accent,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (note != null) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      note,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: c.muted,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ],
