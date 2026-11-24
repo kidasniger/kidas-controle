@@ -719,31 +719,4 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
     );
   }
 
-  Widget _infoNote(Palette c, {required IconData icon, required String title, required String detail}) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: c.soft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: c.line),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: c.muted, size: 19),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: T.strong(c)),
-                const SizedBox(height: 3),
-                Text(detail, style: T.caption(c)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
