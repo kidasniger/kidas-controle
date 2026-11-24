@@ -7,9 +7,12 @@ import 'native.dart';
 /// - secrets uniquement dans flutter_secure_storage.
 class Store {
   static const _s = FlutterSecureStorage(
-    aOptions: AndroidOptions.biometric(
-      enforceBiometrics: false,
-      resetOnError: false,
+    // Le verrouillage biométrique de l'application est géré séparément
+    // par local_auth. Le coffre du token utilise donc le chiffrement Android
+    // standard RSA-OAEP + AES-GCM, sans clé liée à une authentification
+    // biométrique par opération.
+    aOptions: AndroidOptions(
+      resetOnError: true,
       migrateOnAlgorithmChange: true,
       migrateWithBackup: true,
     ),
@@ -130,49 +133,16 @@ class Store {
   }
 
   static Future<Map<String, String>> all() async {
-    Map<String, String> local = {};
+    // Depuis v229, toutes les préférences ordinaires sont dans le stockage
+    // local Android. Ne pas appeler readAll() ici : cela forcerait la
+    // migration du coffre secret au démarrage et pourrait bloquer toute l'UI.
     try {
-      local = await Native.localAll();
+      final local = await Native.localAll();
       _session.addAll(local);
+      return {...local, ..._session};
     } catch (error) {
       _lastError = error.toString();
-    }
-
-    try {
-      final secure = await _s.readAll();
-      // Les anciennes versions plaçaient les préférences ordinaires dans
-      // le coffre. Les migrer une à une vers le stockage local Android.
-      for (final entry in secure.entries) {
-        if (!_isSecure(entry.key) && local[entry.key] == null) {
-          try {
-            if (await Native.localSet(entry.key, entry.value)) {
-              local[entry.key] = entry.value;
-            }
-          } catch (_) {}
-        }
-      }
-      _session.addAll(secure);
-      _degraded = false;
-      _lastError = null;
-      return {...secure, ...local, ..._session};
-    } catch (error) {
-      _markDegraded(error);
-      // readAll peut échouer alors que certaines clés restent lisibles.
-      // Tenter une récupération ciblée sans bloquer les préférences locales.
-      for (final key in _legacyPreferenceKeys) {
-        if (local.containsKey(key)) continue;
-        try {
-          final value = await _s.read(key: key);
-          if (value == null) continue;
-          if (await Native.localSet(key, value)) {
-            local[key] = value;
-            _session[key] = value;
-          }
-        } catch (_) {
-          // Le coffre peut être totalement indisponible : ne rien effacer.
-        }
-      }
-      return {...local, ..._session};
+      return Map<String, String>.from(_session);
     }
   }
 }
