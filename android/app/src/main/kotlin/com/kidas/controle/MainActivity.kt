@@ -32,15 +32,29 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "legacyKeys" -> result.success(LegacyStore(this).keys())
                 "legacyGet" -> result.success(LegacyStore(this).get(call.argument<String>("key") ?: ""))
-                // Préférences non sensibles : état d'accueil indépendant du Keystore.
-                "onboardingDone" -> result.success(
-                    getSharedPreferences("kidas_app", MODE_PRIVATE)
-                        .getBoolean("onboarding_done", false)
-                )
+                // Marqueur d'accueil dans le stockage privé de l'application.
+                // Il ne dépend ni du Keystore ni du chiffrement du coffre.
+                "onboardingDone" -> {
+                    val marker = File(filesDir, "onboarding_done")
+                    val prefs = getSharedPreferences("kidas_app", MODE_PRIVATE)
+                    val saved = marker.isFile && marker.readText() == "1"
+                    if (saved) {
+                        result.success(true)
+                    } else if (prefs.getBoolean("onboarding_done", false)) {
+                        // Migration du marqueur SharedPreferences utilisé par v223.
+                        marker.writeText("1")
+                        result.success(true)
+                    } else {
+                        result.success(false)
+                    }
+                }
                 "setOnboardingDone" -> {
-                    val saved = getSharedPreferences("kidas_app", MODE_PRIVATE)
+                    val marker = File(filesDir, "onboarding_done")
+                    marker.writeText("1")
+                    val prefsSaved = getSharedPreferences("kidas_app", MODE_PRIVATE)
                         .edit().putBoolean("onboarding_done", true).commit()
-                    result.success(saved)
+                    val fileSaved = marker.isFile && marker.readText() == "1"
+                    result.success(fileSaved && prefsSaved)
                 }
                 "versionCode" -> result.success(versionCode())
                 "versionName" -> result.success(versionName())
