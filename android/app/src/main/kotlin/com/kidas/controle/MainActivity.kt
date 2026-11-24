@@ -30,6 +30,26 @@ class MainActivity : FlutterFragmentActivity() {
         channel = ch
         ch.setMethodCallHandler { call, result ->
             when (call.method) {
+                "secureGet" -> try {
+                    result.success(SecureStore(this).get(call.argument<String>("key") ?: ""))
+                } catch (e: Exception) {
+                    result.error("secure_get", e.message ?: "Lecture sécurisée impossible.", null)
+                }
+                "secureSet" -> try {
+                    SecureStore(this).set(
+                        call.argument<String>("key") ?: "",
+                        call.argument<String>("value") ?: ""
+                    )
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("secure_set", e.message ?: "Enregistrement sécurisé impossible.", null)
+                }
+                "secureDel" -> try {
+                    SecureStore(this).delete(call.argument<String>("key") ?: "")
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("secure_delete", e.message ?: "Suppression sécurisée impossible.", null)
+                }
                 "legacyKeys" -> result.success(LegacyStore(this).keys())
                 "legacyGet" -> result.success(LegacyStore(this).get(call.argument<String>("key") ?: ""))
                 // Préférences non sensibles : stockage Android durable, hors Keystore.
