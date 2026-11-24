@@ -25,6 +25,16 @@ class Native {
   static Future<String?> legacyGet(String key) async =>
       await ch.invokeMethod<String>('legacyGet', {'key': key});
 
+  /// Coffre AES-GCM natif, sans génération de paire RSA.
+  static Future<String> secureGet(String key) async =>
+      await ch.invokeMethod<String>('secureGet', {'key': key}) ?? '';
+
+  static Future<void> secureSet(String key, String value) =>
+      ch.invokeMethod('secureSet', {'key': key, 'value': value});
+
+  static Future<void> secureDel(String key) =>
+      ch.invokeMethod('secureDel', {'key': key});
+
   /// Préférences non sensibles persistées par Android, sans Keystore.
   static Future<String?> localGet(String key) async =>
       await ch.invokeMethod<String>('localGet', {'key': key});
