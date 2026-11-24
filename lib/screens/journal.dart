@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
@@ -8,7 +6,6 @@ import '../core/fx.dart';
 import '../core/palette.dart';
 import '../core/util.dart';
 import '../ui/common.dart';
-import '../ui/pictos.dart';
 
 class JournalScreen extends StatefulWidget {
   const JournalScreen({super.key});
