@@ -110,38 +110,61 @@ class _ReportsScreenState extends State<ReportsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 36),
         children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: c.line),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: c.accent.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(Icons.assessment_outlined, color: c.accent, size: 24),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Rapports d’activité', style: T.hero(c).copyWith(fontSize: 22)),
+                      const SizedBox(height: 3),
+                      Text('Suivi détaillé de votre espace', style: T.caption(c)),
+                    ],
+                  ),
+                ),
+                Press(
+                  onTap: _busy ? null : _load,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: c.soft,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: c.line),
+                    ),
+                    child: _busy
+                        ? SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent))
+                        : Picto('refresh', size: 19),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Vue d’ensemble', style: T.hero(c)),
-                    const SizedBox(height: 3),
-                    Text('Rapports et activité de votre espace', style: T.caption(c)),
-                  ],
-                ),
-              ),
-              Press(
-                onTap: _load,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: c.card,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: c.line),
-                  ),
-                  child: _busy
-                      ? SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent))
-                      : Picto('refresh', size: 19),
-                ),
-              ),
+              Expanded(child: Text('PÉRIODE DU RAPPORT', style: T.micro(c))),
+              Text('Mis à jour ${_summary.generatedAt.hour.toString().padLeft(2, '0')}:${_summary.generatedAt.minute.toString().padLeft(2, '0')}', style: T.caption(c)),
             ],
           ),
-          const SizedBox(height: 18),
-          Text('PÉRIODE DU RAPPORT', style: T.micro(c)),
           const SizedBox(height: 9),
           Row(
             children: [
@@ -196,18 +219,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     Icon(Icons.insights_rounded, color: c.accent, size: 19),
                     const SizedBox(width: 8),
-                    Text('ACTIVITÉ JOURNALISÉE', style: T.micro(c).copyWith(color: c.accent)),
+                    Text('VOTRE ACTIVITÉ', style: T.micro(c).copyWith(color: c.accent, letterSpacing: 1.3)),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(nf(s.eventCount), style: T.hero(c).copyWith(fontSize: 38, height: 1)),
+                    Text(nf(s.eventCount), style: T.hero(c).copyWith(fontSize: 42, height: 1, letterSpacing: -1.2)),
                     const SizedBox(width: 9),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text('événements', style: T.caption(c)),
+                      child: Text('événements enregistrés', style: T.caption(c)),
                     ),
                   ],
                 ),
@@ -399,13 +422,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, color: c.accent, size: 19),
-              const SizedBox(width: 9),
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: c.accent.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: c.accent, size: 19),
+              ),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: T.strong(c)),
+                    Text(title, style: T.strong(c).copyWith(fontSize: 15)),
                     Text(subtitle, style: T.caption(c)),
                   ],
                 ),
