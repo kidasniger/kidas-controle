@@ -26,6 +26,8 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Plugin dédié : le coffre ne dépend plus du canal général de l'application.
+        flutterEngine.plugins.add(SecureStorePlugin())
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kidas/native")
         channel = ch
         ch.setMethodCallHandler { call, result ->

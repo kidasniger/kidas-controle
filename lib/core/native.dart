@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 /// installation d'APK (PackageInstaller + vérification signature).
 class Native {
   static const MethodChannel ch = MethodChannel('kidas/native');
+  static const MethodChannel _secure = MethodChannel('com.kidas.controle/secure_store_v1');
   static void Function(int status, String? msg)? onInstallResult;
 
   static void init() {
@@ -27,13 +28,13 @@ class Native {
 
   /// Coffre AES-GCM natif, sans génération de paire RSA.
   static Future<String> secureGet(String key) async =>
-      await ch.invokeMethod<String>('secureGet', {'key': key}) ?? '';
+      await _secure.invokeMethod<String>('get', {'key': key}) ?? '';
 
   static Future<void> secureSet(String key, String value) =>
-      ch.invokeMethod('secureSet', {'key': key, 'value': value});
+      _secure.invokeMethod('set', {'key': key, 'value': value});
 
   static Future<void> secureDel(String key) =>
-      ch.invokeMethod('secureDel', {'key': key});
+      _secure.invokeMethod('delete', {'key': key});
 
   /// Préférences non sensibles persistées par Android, sans Keystore.
   static Future<String?> localGet(String key) async =>
