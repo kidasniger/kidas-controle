@@ -763,8 +763,17 @@ class _ConnexionPageState extends State<ConnexionPage> {
     return SubPage(
       'Jeton et dépôts',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
         children: [
+          _settingsHero(
+            c,
+            Icons.key_rounded,
+            'Connexion GitHub',
+            'Jeton, dépôts et vérification des autorisations',
+            'CONFIGURATION DU COMPTE',
+          ),
+          const SizedBox(height: 14),
+          _settingsSection(c, 'Renouvellement du jeton', 'Remplacer un jeton sans perdre les dépôts configurés'),
           KCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -847,7 +856,8 @@ class _ConnexionPageState extends State<ConnexionPage> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          _settingsSection(c, 'Dépôts et expiration', 'Informations utilisées pour accéder à GitHub'),
           KCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -904,7 +914,8 @@ class _ConnexionPageState extends State<ConnexionPage> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          _settingsSection(c, 'Autorisations requises', 'Vérifiez les accès avant d’utiliser les fonctions du bot'),
           KSection('Droits du jeton'),
           KCard(
             child: Text(
@@ -913,7 +924,8 @@ class _ConnexionPageState extends State<ConnexionPage> {
               style: T.body(c),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          _settingsSection(c, 'Protection du compte', 'Action irréversible : retire les identifiants de cet appareil'),
           KSection('Sécurité'),
           KCard(
             child: SizedBox(
@@ -1098,8 +1110,17 @@ class _SauvegardePageState extends State<_SauvegardePage> {
     return SubPage(
       'Sauvegarde des règles',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
         children: [
+          _settingsHero(
+            c,
+            Icons.backup_rounded,
+            'Sauvegarde des règles',
+            'Exportez vos règles ou restaurez-les depuis un fichier JSON',
+            'PROTECTION DES DONNÉES',
+          ),
+          const SizedBox(height: 14),
+          _settingsSection(c, 'État de la sauvegarde', 'Les règles sont conservées dans votre dépôt de configuration'),
           KCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1111,6 +1132,7 @@ class _SauvegardePageState extends State<_SauvegardePage> {
                   style: T.caption(c),
                 ),
                 const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -1223,8 +1245,17 @@ class _AProposPageState extends State<_AProposPage> {
     return SubPage(
       'À propos',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 40),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
         children: [
+          _settingsHero(
+            c,
+            Icons.info_outline_rounded,
+            'KI DAS Contrôle',
+            'Informations sur l’application et son système de mise à jour',
+            'À PROPOS DE L’APPLICATION',
+          ),
+          const SizedBox(height: 14),
+          _settingsSection(c, 'Version installée', 'Gardez l’application à jour pour bénéficier des corrections'),
           KCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1271,4 +1302,62 @@ class _AProposPageState extends State<_AProposPage> {
       ),
     );
   }
+}
+
+Widget _settingsHero(
+  Palette c,
+  IconData icon,
+  String title,
+  String subtitle,
+  String eyebrow,
+) {
+  return Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: c.card,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: c.line),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: c.accent.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: c.accent, size: 23),
+            ),
+            const Spacer(),
+            Text(
+              eyebrow,
+              style: T.micro(c).copyWith(color: c.accent, letterSpacing: 1.1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(title, style: T.title(c).copyWith(fontSize: 22)),
+        const SizedBox(height: 5),
+        Text(subtitle, style: T.caption(c).copyWith(height: 1.45)),
+      ],
+    ),
+  );
+}
+
+Widget _settingsSection(Palette c, String title, String subtitle) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(3, 0, 3, 9),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: T.strong(c).copyWith(fontSize: 15)),
+        const SizedBox(height: 3),
+        Text(subtitle, style: T.caption(c)),
+      ],
+    ),
+  );
 }
