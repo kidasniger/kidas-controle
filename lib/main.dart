@@ -182,6 +182,17 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
 
       if (!mounted) return;
       setState(() => _ready = true);
+      if (Store.isDegraded) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            kToast(
+              context,
+              "Le coffre sécurisé est indisponible. Les réglages restent temporaires jusqu'au rétablissement du Keystore.",
+              bad: true,
+            );
+          }
+        });
+      }
 
       // Ces tâches sont secondaires : elles ne doivent jamais retarder
       // l'ouverture de l'écran principal.
