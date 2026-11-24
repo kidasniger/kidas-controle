@@ -2,17 +2,36 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'native.dart';
 
-/// Stockage clé/valeur chiffré (Keystore via flutter_secure_storage).
-/// À la première ouverture, récupère les valeurs de la v1 Java
-/// (AES-GCM maison dans SharedPreferences) pour une mise à jour sans perte.
+/// Stockage chiffré. Android utilise une clé AES directement dans Keystore
+/// (sans génération de paire RSA), avec migration sauvegardée depuis l'ancien
+/// chiffrement RSA/AES du plugin.
 class Store {
-  static const _s = FlutterSecureStorage();
+  static const _s = FlutterSecureStorage(
+    aOptions: AndroidOptions.biometric(
+      enforceBiometrics: false,
+      resetOnError: false,
+      migrateOnAlgorithmChange: true,
+      migrateWithBackup: true,
+    ),
+  );
 
   static bool _migrated = false;
+  static bool _degraded = false;
+  static String? _lastError;
+  static final Map<String, String> _session = {};
+
+  /// Indique que le coffre sécurisé est momentanément indisponible.
+  /// Dans ce cas, les changements restent uniquement en mémoire.
+  static bool get isDegraded => _degraded;
+  static String? get lastError => _lastError;
+
+  static void _markDegraded(Object error) {
+    _degraded = true;
+    _lastError = error.toString();
+  }
 
   static Future<void> _ensure() async {
     if (_migrated) return;
-    _migrated = true;
     try {
       final keys = await Native.legacyKeys();
       for (final k in keys) {
@@ -22,28 +41,58 @@ class Store {
           await _s.write(key: k, value: old);
         }
       }
-    } catch (_) {
-      // migration facultative : rien à faire en cas d'échec
+      _migrated = true;
+    } catch (error) {
+      // Ne jamais effacer le stockage en cas d'erreur Keystore.
+      _markDegraded(error);
+      _migrated = true;
     }
   }
 
   static Future<String> get(String k) async {
     await _ensure();
-    return await _s.read(key: k) ?? '';
+    try {
+      final value = await _s.read(key: k);
+      if (value != null) {
+        _session[k] = value;
+        return value;
+      }
+      return _session[k] ?? '';
+    } catch (error) {
+      _markDegraded(error);
+      return _session[k] ?? '';
+    }
   }
 
   static Future<void> set(String k, String v) async {
     await _ensure();
-    await _s.write(key: k, value: v);
+    _session[k] = v;
+    try {
+      await _s.write(key: k, value: v);
+    } catch (error) {
+      _markDegraded(error);
+    }
   }
 
   static Future<void> del(String k) async {
     await _ensure();
-    await _s.delete(key: k);
+    _session.remove(k);
+    try {
+      await _s.delete(key: k);
+    } catch (error) {
+      _markDegraded(error);
+    }
   }
 
   static Future<Map<String, String>> all() async {
     await _ensure();
-    return await _s.readAll();
+    try {
+      final values = await _s.readAll();
+      _session.addAll(values);
+      return {...values, ..._session};
+    } catch (error) {
+      _markDegraded(error);
+      return Map<String, String>.from(_session);
+    }
   }
 }
