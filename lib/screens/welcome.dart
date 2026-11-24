@@ -55,7 +55,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     // Source principale : SharedPreferences Android, indépendant du Keystore.
     try {
       done = await Native.onboardingDone().timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 5),
       );
     } catch (_) {
       // Compatibilité avec les anciennes versions et les tests Flutter.
@@ -89,6 +89,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       saved = await Native.setOnboardingDone().timeout(
         const Duration(seconds: 5),
       );
+      if (saved) {
+        // Vérification indépendante : ne quitter l'introduction que si
+        // le marqueur est relu correctement depuis le stockage Android.
+        saved = await Native.onboardingDone().timeout(
+          const Duration(seconds: 3),
+        );
+      }
     } catch (_) {
       saved = false;
     }
