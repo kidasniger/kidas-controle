@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/fx.dart';
+import '../core/native.dart';
 import '../core/palette.dart';
 import '../core/store.dart';
 import '../ui/common.dart';
@@ -43,18 +46,68 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
-    Store.get('onb').then((v) {
-      if (!mounted) return;
-      setState(() {
-        _intro = v != '1';
-        _checked = true;
-      });
+    _loadOnboardingState();
+  }
+
+  Future<void> _loadOnboardingState() async {
+    var done = false;
+
+    // Source principale : SharedPreferences Android, indépendant du Keystore.
+    try {
+      done = await Native.onboardingDone().timeout(
+        const Duration(seconds: 3),
+      );
+    } catch (_) {
+      // Compatibilité avec les anciennes versions et les tests Flutter.
+    }
+
+    // Migration du marqueur historique si le coffre reste lisible.
+    if (!done) {
+      try {
+        done = await Store.get('onb').timeout(const Duration(seconds: 3)) == '1';
+        if (done) {
+          await Native.setOnboardingDone().timeout(
+            const Duration(seconds: 3),
+          );
+        }
+      } catch (_) {
+        // Ne pas bloquer l'écran si le Keystore est indisponible.
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _intro = !done;
+      _checked = true;
     });
   }
 
   Future<void> _finish() async {
     Fx.tick();
-    await Store.set('onb', '1');
+    var saved = false;
+    try {
+      saved = await Native.setOnboardingDone().timeout(
+        const Duration(seconds: 5),
+      );
+    } catch (_) {
+      saved = false;
+    }
+
+    if (!saved) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Impossible d'enregistrer cette étape sur le téléphone. Réessaie.",
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Copie secondaire pour compatibilité avec les versions précédentes.
+    unawaited(Store.set('onb', '1').catchError((Object _) {}));
     if (mounted) setState(() => _intro = false);
   }
 
