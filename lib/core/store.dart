@@ -2,9 +2,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'native.dart';
 
-/// Stockage chiffré. Android utilise une clé AES directement dans Keystore
-/// (sans génération de paire RSA), avec migration sauvegardée depuis l'ancien
-/// chiffrement RSA/AES du plugin.
+/// Stockage hybride :
+/// - préférences ordinaires dans SharedPreferences Android (sans Keystore),
+/// - secrets uniquement dans flutter_secure_storage.
 class Store {
   static const _s = FlutterSecureStorage(
     aOptions: AndroidOptions.biometric(
@@ -15,84 +15,133 @@ class Store {
     ),
   );
 
-  static bool _migrated = false;
+  /// Seul le jeton d'accès GitHub est un secret dans les clés Store actuelles.
+  static const Set<String> _secureKeys = {'gh_token'};
+
   static bool _degraded = false;
   static String? _lastError;
   static final Map<String, String> _session = {};
 
-  /// Indique que le coffre sécurisé est momentanément indisponible.
-  /// Dans ce cas, les changements restent uniquement en mémoire.
+  /// Indique que le coffre des secrets est indisponible.
+  /// Les préférences ordinaires restent persistées par Android.
   static bool get isDegraded => _degraded;
   static String? get lastError => _lastError;
+
+  static bool _isSecure(String key) => _secureKeys.contains(key);
 
   static void _markDegraded(Object error) {
     _degraded = true;
     _lastError = error.toString();
   }
 
-  static Future<void> _ensure() async {
-    if (_migrated) return;
-    try {
-      final keys = await Native.legacyKeys();
-      for (final k in keys) {
-        final old = await Native.legacyGet(k);
-        if (old == null || old.isEmpty) continue;
-        if (await _s.read(key: k) == null) {
-          await _s.write(key: k, value: old);
+  static Future<String> get(String key) async {
+    if (!_isSecure(key)) {
+      try {
+        final local = await Native.localGet(key);
+        if (local != null) {
+          _session[key] = local;
+          return local;
         }
+      } catch (error) {
+        _lastError = error.toString();
       }
-      _migrated = true;
-    } catch (error) {
-      // Ne jamais effacer le stockage en cas d'erreur Keystore.
-      _markDegraded(error);
-      _migrated = true;
     }
-  }
 
-  static Future<String> get(String k) async {
-    await _ensure();
     try {
-      final value = await _s.read(key: k);
+      final value = await _s.read(key: key);
       if (value != null) {
-        _session[k] = value;
+        _session[key] = value;
+        // Migration transparente des anciennes préférences qui étaient
+        // auparavant stockées à tort dans le coffre sécurisé.
+        if (!_isSecure(key)) {
+          try {
+            await Native.localSet(key, value);
+          } catch (_) {}
+        }
         return value;
       }
-      return _session[k] ?? '';
+      return _session[key] ?? '';
     } catch (error) {
       _markDegraded(error);
-      return _session[k] ?? '';
+      return _session[key] ?? '';
     }
   }
 
-  static Future<void> set(String k, String v) async {
-    await _ensure();
-    _session[k] = v;
+  static Future<void> set(String key, String value) async {
+    if (!_isSecure(key)) {
+      final saved = await Native.localSet(key, value);
+      if (!saved || await Native.localGet(key) != value) {
+        throw StateError('Android n’a pas confirmé la sauvegarde de "$key".');
+      }
+      _session[key] = value;
+      return;
+    }
+
     try {
-      await _s.write(key: k, value: v);
+      await _s.write(key: key, value: value);
+      final verified = await _s.read(key: key);
+      if (verified != value) {
+        throw StateError('Le coffre sécurisé n’a pas confirmé la sauvegarde de "$key".');
+      }
+      _session[key] = value;
+      _degraded = false;
+      _lastError = null;
     } catch (error) {
       _markDegraded(error);
+      rethrow;
     }
   }
 
-  static Future<void> del(String k) async {
-    await _ensure();
-    _session.remove(k);
+  static Future<void> del(String key) async {
+    if (!_isSecure(key)) {
+      final saved = await Native.localDel(key);
+      if (!saved) {
+        throw StateError('Android n’a pas confirmé la suppression de "$key".');
+      }
+      _session.remove(key);
+      return;
+    }
+
     try {
-      await _s.delete(key: k);
+      await _s.delete(key: key);
+      _session.remove(key);
+      _degraded = false;
+      _lastError = null;
     } catch (error) {
       _markDegraded(error);
+      rethrow;
     }
   }
 
   static Future<Map<String, String>> all() async {
-    await _ensure();
+    Map<String, String> local = {};
     try {
-      final values = await _s.readAll();
-      _session.addAll(values);
-      return {...values, ..._session};
+      local = await Native.localAll();
+      _session.addAll(local);
+    } catch (error) {
+      _lastError = error.toString();
+    }
+
+    try {
+      final secure = await _s.readAll();
+      // Les anciennes versions plaçaient les préférences ordinaires dans
+      // le coffre. Les migrer une à une vers le stockage local Android.
+      for (final entry in secure.entries) {
+        if (!_isSecure(entry.key) && local[entry.key] == null) {
+          try {
+            if (await Native.localSet(entry.key, entry.value)) {
+              local[entry.key] = entry.value;
+            }
+          } catch (_) {}
+        }
+      }
+      _session.addAll(secure);
+      _degraded = false;
+      _lastError = null;
+      return {...secure, ...local, ..._session};
     } catch (error) {
       _markDegraded(error);
-      return Map<String, String>.from(_session);
+      return {...local, ..._session};
     }
   }
 }
