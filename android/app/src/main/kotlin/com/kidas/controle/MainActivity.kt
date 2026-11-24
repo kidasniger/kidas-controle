@@ -32,6 +32,16 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "legacyKeys" -> result.success(LegacyStore(this).keys())
                 "legacyGet" -> result.success(LegacyStore(this).get(call.argument<String>("key") ?: ""))
+                // Préférences non sensibles : état d'accueil indépendant du Keystore.
+                "onboardingDone" -> result.success(
+                    getSharedPreferences("kidas_app", MODE_PRIVATE)
+                        .getBoolean("onboarding_done", false)
+                )
+                "setOnboardingDone" -> {
+                    val saved = getSharedPreferences("kidas_app", MODE_PRIVATE)
+                        .edit().putBoolean("onboarding_done", true).commit()
+                    result.success(saved)
+                }
                 "versionCode" -> result.success(versionCode())
                 "versionName" -> result.success(versionName())
                 "canInstall" -> result.success(packageManager.canRequestPackageInstalls())
