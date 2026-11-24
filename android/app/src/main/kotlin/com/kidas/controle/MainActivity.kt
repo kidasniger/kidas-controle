@@ -32,6 +32,32 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "legacyKeys" -> result.success(LegacyStore(this).keys())
                 "legacyGet" -> result.success(LegacyStore(this).get(call.argument<String>("key") ?: ""))
+                // Préférences non sensibles : stockage Android durable, hors Keystore.
+                "localGet" -> result.success(
+                    getSharedPreferences("kidas_preferences", MODE_PRIVATE)
+                        .getString(call.argument<String>("key") ?: "", null)
+                )
+                "localSet" -> {
+                    val key = call.argument<String>("key") ?: ""
+                    val value = call.argument<String>("value") ?: ""
+                    result.success(
+                        getSharedPreferences("kidas_preferences", MODE_PRIVATE)
+                            .edit().putString(key, value).commit()
+                    )
+                }
+                "localDel" -> {
+                    val key = call.argument<String>("key") ?: ""
+                    result.success(
+                        getSharedPreferences("kidas_preferences", MODE_PRIVATE)
+                            .edit().remove(key).commit()
+                    )
+                }
+                "localAll" -> {
+                    val values = getSharedPreferences("kidas_preferences", MODE_PRIVATE).all
+                    result.success(values.mapNotNull { (key, value) ->
+                        if (value is String) key to value else null
+                    }.toMap())
+                }
                 // Marqueur d'accueil dans le stockage privé de l'application.
                 // Il ne dépend ni du Keystore ni du chiffrement du coffre.
                 "onboardingDone" -> {
