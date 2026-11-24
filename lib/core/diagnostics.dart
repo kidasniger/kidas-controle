@@ -163,7 +163,7 @@ class Diagnostics {
         final latestDetail = latest == null
             ? ''
             : ' Dernière erreur (${latest['origine'] ?? 'bot'}) : '
-                '${rawDetail.substring(0, rawDetail.length.clamp(0, 180))}.';
+                '${rawDetail.substring(0, rawDetail.length > 180 ? 180 : rawDetail.length)}.';
         checks.add(DiagnosticCheck(
           id: 'bot_activity',
           title: 'Erreurs et file d’attente',
