@@ -1,32 +1,18 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import 'native.dart';
 
 /// Stockage hybride :
-/// - préférences ordinaires dans SharedPreferences Android (sans Keystore),
-/// - secrets uniquement dans flutter_secure_storage.
+/// - préférences ordinaires dans SharedPreferences Android,
+/// - secrets dans un coffre AES-GCM natif dont la clé reste dans Android Keystore.
+///
+/// Le coffre utilise une clé AES symétrique. Il ne demande pas au Keystore
+/// de générer une paire RSA, source de l'erreur observée sur certains appareils.
 class Store {
-  static const _s = FlutterSecureStorage(
-    // Le verrouillage biométrique de l'application est géré séparément
-    // par local_auth. Le coffre du token utilise donc le chiffrement Android
-    // standard RSA-OAEP + AES-GCM, sans clé liée à une authentification
-    // biométrique par opération.
-    aOptions: AndroidOptions(
-      resetOnError: true,
-      migrateOnAlgorithmChange: true,
-      migrateWithBackup: true,
-    ),
-  );
-
-  /// Seul le jeton d'accès GitHub est un secret dans les clés Store actuelles.
   static const Set<String> _secureKeys = {'gh_token'};
 
   static bool _degraded = false;
   static String? _lastError;
   static final Map<String, String> _session = {};
 
-  /// Indique que le coffre des secrets est indisponible.
-  /// Les préférences ordinaires restent persistées par Android.
   static bool get isDegraded => _degraded;
   static String? get lastError => _lastError;
 
@@ -48,22 +34,15 @@ class Store {
       } catch (error) {
         _lastError = error.toString();
       }
+      return _session[key] ?? '';
     }
 
     try {
-      final value = await _s.read(key: key);
-      if (value != null) {
-        _session[key] = value;
-        // Migration transparente des anciennes préférences qui étaient
-        // auparavant stockées à tort dans le coffre sécurisé.
-        if (!_isSecure(key)) {
-          try {
-            await Native.localSet(key, value);
-          } catch (_) {}
-        }
-        return value;
-      }
-      return _session[key] ?? '';
+      final value = await Native.secureGet(key);
+      _session[key] = value;
+      _degraded = false;
+      _lastError = null;
+      return value;
     } catch (error) {
       _markDegraded(error);
       return _session[key] ?? '';
@@ -81,8 +60,8 @@ class Store {
     }
 
     try {
-      await _s.write(key: key, value: value);
-      final verified = await _s.read(key: key);
+      await Native.secureSet(key, value);
+      final verified = await Native.secureGet(key);
       if (verified != value) {
         throw StateError('Le coffre sécurisé n’a pas confirmé la sauvegarde de "$key".');
       }
@@ -106,7 +85,7 @@ class Store {
     }
 
     try {
-      await _s.delete(key: key);
+      await Native.secureDel(key);
       _session.remove(key);
       _degraded = false;
       _lastError = null;
@@ -117,9 +96,6 @@ class Store {
   }
 
   static Future<Map<String, String>> all() async {
-    // Depuis v229, toutes les préférences ordinaires sont dans le stockage
-    // local Android. Ne pas appeler readAll() ici : cela forcerait la
-    // migration du coffre secret au démarrage et pourrait bloquer toute l'UI.
     try {
       final local = await Native.localAll();
       _session.addAll(local);
