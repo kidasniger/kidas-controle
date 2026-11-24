@@ -221,7 +221,7 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
           if (mounted) {
             kToast(
               context,
-              "Le coffre sécurisé est indisponible. Les réglages restent temporaires jusqu'au rétablissement du Keystore.",
+              "Le coffre sécurisé est indisponible : ${Store.lastError ?? 'erreur native inconnue'}. Les réglages restent temporaires.",
               bad: true,
             );
           }
