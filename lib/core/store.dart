@@ -21,22 +21,6 @@ class Store {
   /// Seul le jeton d'accès GitHub est un secret dans les clés Store actuelles.
   static const Set<String> _secureKeys = {'gh_token'};
 
-  /// Clés historiques à récupérer individuellement si readAll() du coffre
-  /// échoue sur un appareil dont le Keystore est partiellement dégradé.
-  static const Set<String> _legacyPreferenceKeys = {
-    'onb',
-    'theme_mode',
-    'cfg_data',
-    'cfg_mgr',
-    'cfg_exp',
-    'sons',
-    'notifs_on',
-    'notifs_jeton',
-    'notifs_urgents',
-    'upd_auto',
-    'regles_saved_at',
-  };
-
   static bool _degraded = false;
   static String? _lastError;
   static final Map<String, String> _session = {};
