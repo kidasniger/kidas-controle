@@ -217,10 +217,22 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          Text('ÉTAT DES SERVICES', style: T.micro(c)),
+          const SizedBox(height: 9),
           Row(
             children: [
-              Expanded(child: Text('VÉRIFICATIONS', style: T.micro(c))),
+              Expanded(child: _metric(c, 'OK', passed, Colors.green, Icons.check_circle_outline_rounded)),
+              const SizedBox(width: 8),
+              Expanded(child: _metric(c, 'À vérifier', warnings, Colors.orange, Icons.warning_amber_rounded)),
+              const SizedBox(width: 8),
+              Expanded(child: _metric(c, 'Erreurs', errors, Colors.red, Icons.error_outline_rounded)),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(child: Text('RÉSULTATS DÉTAILLÉS', style: T.micro(c))),
               if (report != null)
                 Text(
                   '${checks.length} contrôles',
@@ -268,6 +280,26 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _metric(Palette c, String label, int value, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 8),
+          Text(value.toString(), style: T.strong(c).copyWith(fontSize: 22, color: color)),
+          Text(label, style: T.caption(c).copyWith(fontSize: 10)),
         ],
       ),
     );
