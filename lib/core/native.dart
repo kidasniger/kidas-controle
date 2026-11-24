@@ -25,6 +25,21 @@ class Native {
   static Future<String?> legacyGet(String key) async =>
       await ch.invokeMethod<String>('legacyGet', {'key': key});
 
+  /// Préférences non sensibles persistées par Android, sans Keystore.
+  static Future<String?> localGet(String key) async =>
+      await ch.invokeMethod<String>('localGet', {'key': key});
+
+  static Future<bool> localSet(String key, String value) async =>
+      await ch.invokeMethod<bool>('localSet', {'key': key, 'value': value}) ?? false;
+
+  static Future<bool> localDel(String key) async =>
+      await ch.invokeMethod<bool>('localDel', {'key': key}) ?? false;
+
+  static Future<Map<String, String>> localAll() async {
+    final raw = await ch.invokeMapMethod<String, String>('localAll');
+    return raw ?? <String, String>{};
+  }
+
   /// État de l'onboarding conservé dans SharedPreferences Android,
   /// indépendamment du coffre chiffré et du Keystore.
   static Future<bool> onboardingDone() async =>
