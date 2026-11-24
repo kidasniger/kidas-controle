@@ -151,13 +151,24 @@ class Diagnostics {
               fresh ? 'Dernière synchronisation il y a ${age.inMinutes} min.' :
               'Rapport ancien : ${updated.toLocal()}.',
         ));
-        final errors = health['erreurs'] is List ? (health['erreurs'] as List).length : 0;
-        final pending = health['file'] is Map ? ((health['file'] as Map)['en_attente'] ?? 0) : 0;
+        final errorItems = health['erreurs'] is List
+            ? (health['erreurs'] as List).whereType<Map>().toList()
+            : <Map>[];
+        final errors = errorItems.length;
+        final pending = health['file'] is Map
+            ? ((health['file'] as Map)['en_attente'] ?? 0)
+            : 0;
+        final latest = errorItems.isEmpty ? null : errorItems.last;
+        final rawDetail = (latest?['detail'] ?? '').toString();
+        final latestDetail = latest == null
+            ? ''
+            : ' Dernière erreur (${latest['origine'] ?? 'bot'}) : '
+                '${rawDetail.substring(0, rawDetail.length.clamp(0, 180))}.';
         checks.add(DiagnosticCheck(
           id: 'bot_activity',
           title: 'Erreurs et file d’attente',
           level: errors > 0 ? CheckLevel.warning : CheckLevel.success,
-          detail: '$errors erreur(s) récente(s) · $pending élément(s) en attente.',
+          detail: '$errors erreur(s) récente(s) · $pending élément(s) en attente.$latestDetail',
         ));
       } else {
         checks.add(const DiagnosticCheck(
