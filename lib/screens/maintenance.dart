@@ -86,7 +86,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             passed: passed,
           ),
           const SizedBox(height: 20),
-          const KSection('Vue d’ensemble'),
+          const KSection('État des contrôles'),
           Row(
             children: [
               Expanded(child: _metric(c, 'Réussis', passed, Colors.green, Icons.check_circle_outline_rounded)),
@@ -98,7 +98,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           ),
           const SizedBox(height: 22),
           KSection(
-            'Contrôles détaillés',
+            'Résultats de vérification',
             action: report == null ? null : '${checks.length} éléments',
           ),
           if (report != null) ...[
@@ -192,7 +192,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           _infoNote(
             c,
             icon: Icons.shield_outlined,
-            title: 'Contrôle sans risque',
+            title: 'Mode lecture seule',
             detail: 'Le diagnostic consulte les services et les dépôts. Il ne lance, n’arrête et ne modifie aucun workflow GitHub.',
           ),
         ],
@@ -219,24 +219,32 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                     ? Colors.red
                     : Colors.orange;
     final String title = busy
-        ? 'Vérification en cours'
+        ? 'Analyse de votre espace'
         : report == null
-            ? 'Centre de diagnostic'
+            ? 'Votre espace, sous contrôle'
             : healthy
-                ? 'Tout fonctionne correctement'
-                : 'Une vérification est nécessaire';
+                ? 'Tous les systèmes sont opérationnels'
+                : 'Des points demandent votre attention';
     final String subtitle = busy
-        ? 'Analyse des connexions et des services…'
+        ? 'Vérification de GitHub, des dépôts et des services…'
         : report == null
-            ? 'Surveille la connexion GitHub et la santé du bot.'
+            ? 'Lancez une vérification complète pour connaître leur état.'
             : '$passed contrôles réussis · $warnings alertes · $errors erreurs';
 
     return Container(
-      padding: const EdgeInsets.all(19),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: c.line),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            c.accent.withValues(alpha: .19),
+            c.card,
+            c.card,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: c.accent.withValues(alpha: .25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,39 +252,46 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: c.accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(16),
+                  color: c.accent.withValues(alpha: .13),
+                  borderRadius: BorderRadius.circular(17),
                 ),
-                child: Icon(Icons.health_and_safety_rounded, color: c.accent, size: 25),
+                child: Icon(Icons.health_and_safety_rounded, color: c.accent, size: 27),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                 decoration: BoxDecoration(
                   color: stateColor.withValues(alpha: .11),
                   borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: stateColor.withValues(alpha: .18)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 7, height: 7, decoration: BoxDecoration(color: stateColor, shape: BoxShape.circle)),
-                    const SizedBox(width: 6),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(color: stateColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 7),
                     Text(
-                      busy ? 'EN COURS' : report == null ? 'EN ATTENTE' : healthy ? 'OPÉRATIONNEL' : 'À SURVEILLER',
-                      style: TextStyle(color: stateColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: .8),
+                      busy ? 'ANALYSE' : report == null ? 'EN ATTENTE' : healthy ? 'SAIN' : 'À SURVEILLER',
+                      style: TextStyle(color: stateColor, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: .9),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 19),
-          Text(title, style: T.title(c).copyWith(fontSize: 19)),
-          const SizedBox(height: 6),
-          Text(subtitle, style: T.caption(c).copyWith(fontSize: 12.5)),
+          const SizedBox(height: 20),
+          Text('DIAGNOSTICS & MAINTENANCE', style: T.micro(c).copyWith(color: c.accent, letterSpacing: 1.5)),
+          const SizedBox(height: 8),
+          Text(title, style: T.title(c).copyWith(fontSize: 21, height: 1.2)),
+          const SizedBox(height: 7),
+          Text(subtitle, style: T.caption(c).copyWith(fontSize: 12.5, height: 1.5)),
           if (busy) ...[
             const SizedBox(height: 17),
             ClipRRect(
@@ -284,18 +299,18 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
               child: const LinearProgressIndicator(minHeight: 5),
             ),
           ],
-          const SizedBox(height: 17),
+          const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: busy ? null : _run,
               icon: Icon(busy ? Icons.sync_rounded : Icons.play_arrow_rounded),
-              label: Text(busy ? 'Diagnostic en cours…' : 'Lancer le diagnostic'),
+              label: Text(busy ? 'Vérification en cours…' : 'Lancer une vérification'),
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(47),
+                minimumSize: const Size.fromHeight(49),
                 backgroundColor: c.accent,
                 foregroundColor: c.onAccent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
               ),
             ),
           ),
