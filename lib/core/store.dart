@@ -18,6 +18,22 @@ class Store {
   /// Seul le jeton d'accès GitHub est un secret dans les clés Store actuelles.
   static const Set<String> _secureKeys = {'gh_token'};
 
+  /// Clés historiques à récupérer individuellement si readAll() du coffre
+  /// échoue sur un appareil dont le Keystore est partiellement dégradé.
+  static const Set<String> _legacyPreferenceKeys = {
+    'onb',
+    'theme_mode',
+    'cfg_data',
+    'cfg_mgr',
+    'cfg_exp',
+    'sons',
+    'notifs_on',
+    'notifs_jeton',
+    'notifs_urgents',
+    'upd_auto',
+    'regles_saved_at',
+  };
+
   static bool _degraded = false;
   static String? _lastError;
   static final Map<String, String> _session = {};
@@ -141,6 +157,21 @@ class Store {
       return {...secure, ...local, ..._session};
     } catch (error) {
       _markDegraded(error);
+      // readAll peut échouer alors que certaines clés restent lisibles.
+      // Tenter une récupération ciblée sans bloquer les préférences locales.
+      for (final key in _legacyPreferenceKeys) {
+        if (local.containsKey(key)) continue;
+        try {
+          final value = await _s.read(key: key);
+          if (value == null) continue;
+          if (await Native.localSet(key, value)) {
+            local[key] = value;
+            _session[key] = value;
+          }
+        } catch (_) {
+          // Le coffre peut être totalement indisponible : ne rien effacer.
+        }
+      }
       return {...local, ..._session};
     }
   }
