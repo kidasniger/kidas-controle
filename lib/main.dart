@@ -165,12 +165,36 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
       // le Keystore ou la migration des préférences historiques.
       final all = await Store.all().timeout(const Duration(seconds: 15));
 
-      // Reprise du réglage sombre/clair de la v1 Java (migration non bloquante).
+      // Migration du thème : ne jamais imposer le mode sombre par défaut.
+      // L'ancienne valeur Java "dark" n'est utilisée que si elle existe réellement.
+      // Les installations où les versions précédentes ont enregistré "dark"
+      // automatiquement reviennent une seule fois au suivi du système.
+      const themeMigrationKey = 'theme_mode_migrated_v230';
+      final legacyDark = all['dark'];
+      final migrationDone = all[themeMigrationKey] == '1';
       if (!all.containsKey('theme_mode')) {
-        final legacy = all['dark'] ?? '1';
-        all['theme_mode'] = legacy == '0' ? 'light' : 'dark';
+        all['theme_mode'] = legacyDark == null
+            ? 'system'
+            : legacyDark == '0'
+                ? 'light'
+                : 'dark';
+      } else if (!migrationDone &&
+          all['theme_mode'] == 'dark' &&
+          legacyDark == null) {
+        // Dans les versions précédentes, l'absence de "dark" était
+        // interprétée à tort comme "sombre". Corriger ce défaut historique.
+        all['theme_mode'] = 'system';
+      }
+
+      if (!migrationDone) {
+        all[themeMigrationKey] = '1';
         unawaited(
           Store.set('theme_mode', all['theme_mode']!)
+              .timeout(const Duration(seconds: 5))
+              .catchError((Object _) {}),
+        );
+        unawaited(
+          Store.set(themeMigrationKey, '1')
               .timeout(const Duration(seconds: 5))
               .catchError((Object _) {}),
         );
