@@ -323,8 +323,7 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(width: 7),
           Press(
-            tooltip: 'Actualiser les statistiques',
-            onTap: _load,
+              onTap: _load,
             child: Container(
               width: 40,
               height: 40,
