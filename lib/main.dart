@@ -165,6 +165,16 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
       // le Keystore ou la migration des préférences historiques.
       final all = await Store.all().timeout(const Duration(seconds: 15));
 
+      // Charger le secret séparément : un défaut du Keystore ne doit jamais
+      // empêcher l'application de restaurer les préférences et le thème.
+      try {
+        final token = await Store.get('gh_token')
+            .timeout(const Duration(seconds: 8));
+        if (token.isNotEmpty) all['gh_token'] = token;
+      } catch (_) {
+        // Le token pourra être saisi à nouveau dans Réglages > Connexion.
+      }
+
       // Migration du thème : ne jamais imposer le mode sombre par défaut.
       // L'ancienne valeur Java "dark" n'est utilisée que si elle existe réellement.
       // Les installations où les versions précédentes ont enregistré "dark"
