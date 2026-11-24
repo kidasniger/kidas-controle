@@ -25,6 +25,14 @@ class Native {
   static Future<String?> legacyGet(String key) async =>
       await ch.invokeMethod<String>('legacyGet', {'key': key});
 
+  /// État de l'onboarding conservé dans SharedPreferences Android,
+  /// indépendamment du coffre chiffré et du Keystore.
+  static Future<bool> onboardingDone() async =>
+      await ch.invokeMethod<bool>('onboardingDone') ?? false;
+
+  static Future<bool> setOnboardingDone() async =>
+      await ch.invokeMethod<bool>('setOnboardingDone') ?? false;
+
   static Future<int> versionCode() async =>
       await ch.invokeMethod<int>('versionCode') ?? 0;
 
