@@ -179,7 +179,6 @@ class AiChatScreenState extends State<AiChatScreen> {
     }
     return Column(
       children: [
-        _conversationBar(c),
         Expanded(
           child: ListView(
             controller: _scroll,
@@ -201,60 +200,6 @@ class AiChatScreenState extends State<AiChatScreen> {
         _suggBar(c),
         _input(c),
       ],
-    );
-  }
-
-  Widget _conversationBar(Palette c) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: c.card,
-        border: Border(bottom: BorderSide(color: c.line)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.auto_awesome_rounded, color: c.accent, size: 19),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Assistant IA', style: T.strong(c).copyWith(fontSize: 13.5)),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(width: 6, height: 6, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
-                    const SizedBox(width: 5),
-                    Text(_thinking ? 'Réflexion en cours…' : 'Assistant connecté', style: T.caption(c)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (_msgs.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(color: c.soft, borderRadius: BorderRadius.circular(20)),
-              child: Text('${_msgs.length} messages', style: T.caption(c)),
-            ),
-          const SizedBox(width: 5),
-          Press(
-            onTap: _thinking ? null : () { Fx.tick(); reload(); },
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(Icons.refresh_rounded, size: 19, color: c.muted),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -458,10 +403,7 @@ class AiChatScreenState extends State<AiChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SelectableText(
-                    m.t,
-                    style: TextStyle(fontSize: 13, height: 1.55, color: m.me ? c.onAccent : c.ink),
-                  ),
+                  _messageContent(c, m),
                   if (m.at > 0) ...[
                     const SizedBox(height: 5),
                     Align(
@@ -510,6 +452,856 @@ class AiChatScreenState extends State<AiChatScreen> {
         ],
       ),
     );
+  }
+
+  /// Rendu Markdown léger sans dépendance externe.
+  Widget _messageContent(Palette c, _Msg m) {
+    final color = m.me ? c.onAccent : c.ink;
+    final lines = m.t.replaceAll('\r\n', '\n').split('\n');
+    final spans = <InlineSpan>[];
+    var inCode = false;
+    final fence = List.filled(3, String.fromCharCode(96)).join();
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (line.trimLeft().startsWith(fence)) { inCode = !inCode; continue; }
+      if (i > 0) spans.add(const TextSpan(text: '\n'));
+      if (line.trim().isEmpty) continue;
+      if (inCode) {
+        spans.add(TextSpan(text: line, style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: color)));
+        continue;
+      }
+      final heading = RegExp(r'^(#{1,3})\s+(.+)
+    return Container(
+      margin: const EdgeInsets.only(top: 8, right: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.card2,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border.all(color: c.line),
+      ),
+      child: const _Dots(),
+    );
+  }
+
+  Widget _retryChip(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Press(
+        onTap: _retry,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: c.soft,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.refresh, size: 14, color: c.ink),
+              const SizedBox(width: 6),
+              Text(
+                'Réessayer',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: c.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
+
+  Widget _input(Palette c) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: c.card,
+        border: Border(top: BorderSide(color: c.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
+          decoration: BoxDecoration(
+            color: c.bg,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ta,
+                  minLines: 1,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: _thinking ? null : _send,
+                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
+                  cursorColor: c.accent,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    hintText: "Posez votre question à l'IA…",
+                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Press(
+                onTap: _thinking ? null : () => _send(_ta.text),
+                child: Container(
+                  width: 39,
+                  height: 39,
+                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
+                  child: _thinking
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
+                        )
+                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+}
+
+/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
+
+class _Dots extends StatefulWidget {
+  const _Dots();
+  @override
+  State<_Dots> createState() => _DotsState();
+}
+
+class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
+  late final AnimationController _a = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+  @override
+  void dispose() {
+    _a.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.p;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          FadeTransition(
+            opacity: Tween(begin: .25, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _a,
+                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
+              ),
+            ),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/* ---------- bordure pointillée des chips de suggestion ---------- */
+
+class _DashedLine extends CustomPainter {
+  final Color color;
+  _DashedLine(this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(99),
+    );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color;
+    final path = Path()..addRRect(rrect);
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        final e = (d + 4).clamp(0.0, m.length);
+        canvas.drawPath(m.extractPath(d, e), paint);
+        d = e + 3;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedLine old) => old.color != color;
+}
+
+/// Un message de la discussion (local ou chargé du dépôt).
+class _Msg {
+  final bool me;
+  final String t;
+  final int at;
+  const _Msg(this.me, this.t, this.at);
+}
+).firstMatch(line);
+      final bullet = RegExp(r'^\s*[-*]\s+(.+)
+    return Container(
+      margin: const EdgeInsets.only(top: 8, right: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.card2,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border.all(color: c.line),
+      ),
+      child: const _Dots(),
+    );
+  }
+
+  Widget _retryChip(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Press(
+        onTap: _retry,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: c.soft,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.refresh, size: 14, color: c.ink),
+              const SizedBox(width: 6),
+              Text(
+                'Réessayer',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: c.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
+
+  Widget _input(Palette c) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: c.card,
+        border: Border(top: BorderSide(color: c.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
+          decoration: BoxDecoration(
+            color: c.bg,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ta,
+                  minLines: 1,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: _thinking ? null : _send,
+                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
+                  cursorColor: c.accent,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    hintText: "Posez votre question à l'IA…",
+                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Press(
+                onTap: _thinking ? null : () => _send(_ta.text),
+                child: Container(
+                  width: 39,
+                  height: 39,
+                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
+                  child: _thinking
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
+                        )
+                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+}
+
+/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
+
+class _Dots extends StatefulWidget {
+  const _Dots();
+  @override
+  State<_Dots> createState() => _DotsState();
+}
+
+class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
+  late final AnimationController _a = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+  @override
+  void dispose() {
+    _a.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.p;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          FadeTransition(
+            opacity: Tween(begin: .25, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _a,
+                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
+              ),
+            ),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/* ---------- bordure pointillée des chips de suggestion ---------- */
+
+class _DashedLine extends CustomPainter {
+  final Color color;
+  _DashedLine(this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(99),
+    );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color;
+    final path = Path()..addRRect(rrect);
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        final e = (d + 4).clamp(0.0, m.length);
+        canvas.drawPath(m.extractPath(d, e), paint);
+        d = e + 3;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedLine old) => old.color != color;
+}
+
+/// Un message de la discussion (local ou chargé du dépôt).
+class _Msg {
+  final bool me;
+  final String t;
+  final int at;
+  const _Msg(this.me, this.t, this.at);
+}
+).firstMatch(line);
+      final numbered = RegExp(r'^\s*\d+[.)]\s+(.+)
+    return Container(
+      margin: const EdgeInsets.only(top: 8, right: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.card2,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border.all(color: c.line),
+      ),
+      child: const _Dots(),
+    );
+  }
+
+  Widget _retryChip(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Press(
+        onTap: _retry,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: c.soft,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.refresh, size: 14, color: c.ink),
+              const SizedBox(width: 6),
+              Text(
+                'Réessayer',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: c.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
+
+  Widget _input(Palette c) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: c.card,
+        border: Border(top: BorderSide(color: c.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
+          decoration: BoxDecoration(
+            color: c.bg,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ta,
+                  minLines: 1,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: _thinking ? null : _send,
+                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
+                  cursorColor: c.accent,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    hintText: "Posez votre question à l'IA…",
+                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Press(
+                onTap: _thinking ? null : () => _send(_ta.text),
+                child: Container(
+                  width: 39,
+                  height: 39,
+                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
+                  child: _thinking
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
+                        )
+                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+}
+
+/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
+
+class _Dots extends StatefulWidget {
+  const _Dots();
+  @override
+  State<_Dots> createState() => _DotsState();
+}
+
+class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
+  late final AnimationController _a = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+  @override
+  void dispose() {
+    _a.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.p;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          FadeTransition(
+            opacity: Tween(begin: .25, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _a,
+                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
+              ),
+            ),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/* ---------- bordure pointillée des chips de suggestion ---------- */
+
+class _DashedLine extends CustomPainter {
+  final Color color;
+  _DashedLine(this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(99),
+    );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color;
+    final path = Path()..addRRect(rrect);
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        final e = (d + 4).clamp(0.0, m.length);
+        canvas.drawPath(m.extractPath(d, e), paint);
+        d = e + 3;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedLine old) => old.color != color;
+}
+
+/// Un message de la discussion (local ou chargé du dépôt).
+class _Msg {
+  final bool me;
+  final String t;
+  final int at;
+  const _Msg(this.me, this.t, this.at);
+}
+).firstMatch(line);
+      final quote = RegExp(r'^\s*>\s?(.*)
+    return Container(
+      margin: const EdgeInsets.only(top: 8, right: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.card2,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border.all(color: c.line),
+      ),
+      child: const _Dots(),
+    );
+  }
+
+  Widget _retryChip(Palette c) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Press(
+        onTap: _retry,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: c.soft,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.refresh, size: 14, color: c.ink),
+              const SizedBox(width: 6),
+              Text(
+                'Réessayer',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: c.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
+
+  Widget _input(Palette c) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: c.card,
+        border: Border(top: BorderSide(color: c.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
+          decoration: BoxDecoration(
+            color: c.bg,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ta,
+                  minLines: 1,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: _thinking ? null : _send,
+                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
+                  cursorColor: c.accent,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    hintText: "Posez votre question à l'IA…",
+                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Press(
+                onTap: _thinking ? null : () => _send(_ta.text),
+                child: Container(
+                  width: 39,
+                  height: 39,
+                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
+                  child: _thinking
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
+                        )
+                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+}
+
+/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
+
+class _Dots extends StatefulWidget {
+  const _Dots();
+  @override
+  State<_Dots> createState() => _DotsState();
+}
+
+class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
+  late final AnimationController _a = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+  @override
+  void dispose() {
+    _a.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.p;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          FadeTransition(
+            opacity: Tween(begin: .25, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _a,
+                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
+              ),
+            ),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/* ---------- bordure pointillée des chips de suggestion ---------- */
+
+class _DashedLine extends CustomPainter {
+  final Color color;
+  _DashedLine(this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(99),
+    );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = color;
+    final path = Path()..addRRect(rrect);
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        final e = (d + 4).clamp(0.0, m.length);
+        canvas.drawPath(m.extractPath(d, e), paint);
+        d = e + 3;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedLine old) => old.color != color;
+}
+
+/// Un message de la discussion (local ou chargé du dépôt).
+class _Msg {
+  final bool me;
+  final String t;
+  final int at;
+  const _Msg(this.me, this.t, this.at);
+}
+).firstMatch(line);
+      if (heading != null) {
+        spans.addAll(_inlineMarkdown(heading.group(2)!, color, weight: FontWeight.w800, size: heading.group(1)!.length == 1 ? 16 : 14));
+      } else if (bullet != null) {
+        spans.add(const TextSpan(text: '•  '));
+        spans.addAll(_inlineMarkdown(bullet.group(1)!, color));
+      } else if (numbered != null) {
+        spans.addAll(_inlineMarkdown(line.trimLeft(), color));
+      } else if (quote != null) {
+        spans.add(TextSpan(text: '│  ', style: TextStyle(color: c.accent)));
+        spans.addAll(_inlineMarkdown(quote.group(1)!, color, italic: true));
+      } else {
+        spans.addAll(_inlineMarkdown(line, color));
+      }
+    }
+    return SelectableText.rich(TextSpan(children: spans, style: TextStyle(fontSize: 13.5, height: 1.55, color: color)));
+  }
+
+  List<InlineSpan> _inlineMarkdown(String text, Color color, {FontWeight weight = FontWeight.normal, double size = 13.5, bool italic = false}) {
+    final out = <InlineSpan>[];
+    final tick = String.fromCharCode(96);
+    final pattern = RegExp(r'(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|' + tick + '[^' + tick + ']+' + tick + r')');
+    var start = 0;
+    for (final match in pattern.allMatches(text)) {
+      if (match.start > start) out.add(TextSpan(text: text.substring(start, match.start)));
+      final token = match.group(0)!;
+      final code = token.startsWith(tick);
+      final bold = token.startsWith('**') || token.startsWith('__');
+      final content = token.substring(bold || code ? 2 : 1, token.length - (bold || code ? 2 : 1));
+      out.add(TextSpan(text: content, style: TextStyle(
+        fontWeight: bold ? FontWeight.w800 : weight,
+        fontStyle: (!bold && !code) || italic ? FontStyle.italic : FontStyle.normal,
+        fontFamily: code ? 'monospace' : null,
+        fontSize: code ? 12 : size,
+        color: color,
+        backgroundColor: code ? Colors.black.withValues(alpha: .10) : null,
+      )));
+      start = match.end;
+    }
+    if (start < text.length) out.add(TextSpan(text: text.substring(start)));
+    return out;
   }
 
   Widget _typing(Palette c) {
