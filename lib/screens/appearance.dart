@@ -3,9 +3,7 @@ import '../core/fx.dart';
 import '../core/notifs.dart';
 import '../core/palette.dart';
 import '../core/store.dart';
-import '../ui/common.dart';
 import '../ui/forms.dart' show KSegmented;
-import '../ui/pictos.dart';
 import '../ui/shell.dart' show Bus;
 
 class AppearanceSettingsPage extends StatelessWidget {
