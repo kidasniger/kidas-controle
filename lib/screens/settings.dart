@@ -19,6 +19,7 @@ import '../ui/pictos.dart';
 import '../ui/shell.dart' show Bus, SubPage, kUpdateFlow;
 import 'bot_rules.dart';
 import 'journal.dart';
+import 'appearance.dart';
 import 'moderation.dart';
 
 /// Réglages selon la maquette 10 : carte profil en tête (avatar rond à
@@ -119,12 +120,6 @@ class SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.p;
-    final mode = Bus.themeMode.value;
-    final modeIdx = mode == ThemeMode.light
-        ? 1
-        : mode == ThemeMode.dark
-        ? 2
-        : 0;
     final name = (_page == null || _page!.os('name').trim().isEmpty)
         ? 'Ma Page'
         : _page!.os('name').trim();
@@ -193,7 +188,21 @@ class SettingsScreenState extends State<SettingsScreen> {
           ),
         ]),
         /* groupe Apparence */
-        _groupe(c, [_ligneTheme(c, modeIdx), _ligneSons(c), _ligneNotifs(c)]),
+        _groupe(c, [
+          _ligne(
+            c,
+            'moon',
+            'Apparence',
+            'Thème, sons, vibrations et notifications',
+            onTap: () async {
+              Fx.tick();
+              await _push(const SubPage(
+                'Apparence',
+                child: AppearanceSettingsPage(),
+              ));
+            },
+          ),
+        ]),
         /* groupe Diagnostic et maintenance */
         _groupe(c, [
           _ligne(
