@@ -216,7 +216,18 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
 
       if (!mounted) return;
       setState(() => _ready = true);
-      if (Store.isDegraded) {
+      if (Store.vaultReset) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            kToast(
+              context,
+              "Le coffre sécurisé a été réinitialisé (clé Android devenue "
+              "inutilisable) : resaisissez votre jeton GitHub dans Réglages.",
+              bad: true,
+            );
+          }
+        });
+      } else if (Store.isDegraded) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             kToast(

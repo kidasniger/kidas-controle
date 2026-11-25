@@ -7,8 +7,11 @@ Design « Noir & blanc + » validé en maquette : fond noir (ou blanc selon le r
 Système/Clair/Sombre), accents bleu Facebook `#1877F2` réservés aux actions principales,
 navigation en pilule flottante, retour tactile (vibration + tic de 40 ms, désactivable).
 
-- Le jeton GitHub est saisi dans l'application, chiffré (Android Keystore via flutter_secure_storage)
-  et verrouillé par le code ou l'empreinte de l'écran. Migration automatique du coffre de la v1 Java.
+- Le jeton GitHub est saisi dans l'application, chiffré par un coffre AES-GCM natif
+  dont la clé reste dans Android Keystore, et l'accès est verrouillé par le code ou
+  l'empreinte de l'écran. Si la clé devient inutilisable (mise à jour du système,
+  restauration…), le coffre se réinitialise tout seul et le jeton est simplement
+  ressaisi. Migration automatique du coffre de la v1 Java.
 - Aucun secret dans ce dépôt. L'APK est compilé par GitHub Actions et publié dans les Releases.
 - Secrets requis pour compiler : `KEYSTORE_B64`, `KEYSTORE_PASSWORD` (alias de clé : `kidas`).
 
