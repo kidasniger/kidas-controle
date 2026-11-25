@@ -162,44 +162,99 @@ class AiChatScreenState extends State<AiChatScreen> {
   Widget build(BuildContext context) {
     final c = context.p;
     if (_loading) {
-      return ListView(
-        padding: const EdgeInsets.all(12),
-        children: const [
-          KSkeleton(60),
-          SizedBox(height: 10),
-          KSkeleton(40, radius: 14),
-          SizedBox(height: 10),
-          KSkeleton(60),
-        ],
+      return Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: const [
+            KSkeleton(74),
+            SizedBox(height: 12),
+            KSkeleton(52),
+            SizedBox(height: 9),
+            KSkeleton(64),
+            Spacer(),
+            KSkeleton(42),
+          ],
+        ),
       );
     }
     return Column(
       children: [
+        _conversationBar(c),
         Expanded(
           child: ListView(
             controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
             children: [
               if (_msgs.isEmpty) _accueil(c),
               for (var i = 0; i < _msgs.length; i++)
                 _bubble(
                   c,
                   _msgs[i],
-                  relances:
-                      !_thinking &&
-                      !_failed &&
-                      !_msgs[i].me &&
-                      i == _msgs.length - 1,
+                  relances: !_thinking && !_failed && !_msgs[i].me && i == _msgs.length - 1,
                 ),
               if (_thinking) _typing(c),
               if (_failed && !_thinking) _retryChip(c),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
             ],
           ),
         ),
         _suggBar(c),
         _input(c),
       ],
+    );
+  }
+
+  Widget _conversationBar(Palette c) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: c.card,
+        border: Border(bottom: BorderSide(color: c.line)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: c.accent.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.auto_awesome_rounded, color: c.accent, size: 19),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Assistant IA', style: T.strong(c).copyWith(fontSize: 13.5)),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
+                    const SizedBox(width: 5),
+                    Text(_thinking ? 'Réflexion en cours…' : 'Assistant connecté', style: T.caption(c)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (_msgs.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(color: c.soft, borderRadius: BorderRadius.circular(20)),
+              child: Text('${_msgs.length} messages', style: T.caption(c)),
+            ),
+          const SizedBox(width: 5),
+          Press(
+            onTap: _thinking ? null : () { Fx.tick(); reload(); },
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Icon(Icons.refresh_rounded, size: 19, color: c.muted),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -224,23 +279,64 @@ class AiChatScreenState extends State<AiChatScreen> {
   }
 
   Widget _accueil(Palette c) {
+    final avis = Bus.avis.value;
+    final messages = Bus.msg.value;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _bubble(c, _Msg(false, _bonjour(), 0)),
-        const SizedBox(height: 18),
-        Text('Pour commencer', style: T.title(c)),
-        const SizedBox(height: 8),
-        for (final (label, prompt) in _sugg)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Press(
-              onTap: () => _send(prompt),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: c.line),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: c.accent.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(Icons.waving_hand_outlined, color: c.accent, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Bonjour 👋', style: T.title(c))),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(_bonjour(), style: T.body(c).copyWith(height: 1.5)),
+              if (avis > 0 || messages > 0) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    if (avis > 0) _contextPill(c, Icons.rate_review_outlined, '$avis avis en attente'),
+                    if (messages > 0) _contextPill(c, Icons.mark_unread_chat_alt_outlined, '$messages messages non lus'),
+                  ],
                 ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text('Que voulez-vous faire ?', style: T.title(c)),
+        const SizedBox(height: 4),
+        Text('Choisissez un raccourci ou écrivez votre demande.', style: T.caption(c)),
+        const SizedBox(height: 10),
+        for (var i = 0; i < _sugg.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Press(
+              onTap: _thinking ? null : () => _send(_sugg[i].$2),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
                 decoration: BoxDecoration(
                   color: c.card,
                   borderRadius: BorderRadius.circular(14),
@@ -248,15 +344,40 @@ class AiChatScreenState extends State<AiChatScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.auto_awesome, size: 15, color: c.accent),
-                    const SizedBox(width: 9),
-                    Expanded(child: Text(label, style: T.body(c))),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(color: c.soft, borderRadius: BorderRadius.circular(11)),
+                      child: Icon(
+                        [Icons.edit_note_rounded, Icons.lightbulb_outline_rounded, Icons.insights_rounded][i],
+                        size: 18,
+                        color: c.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(child: Text(_sugg[i].$1, style: T.strong(c).copyWith(fontSize: 13))),
+                    Icon(Icons.arrow_forward_rounded, size: 17, color: c.muted),
                   ],
                 ),
               ),
             ),
           ),
       ],
+    );
+  }
+
+  Widget _contextPill(Palette c, IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(color: c.soft, borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: c.accent),
+          const SizedBox(width: 5),
+          Text(label, style: T.caption(c).copyWith(fontSize: 10.5)),
+        ],
+      ),
     );
   }
 
@@ -308,72 +429,82 @@ class AiChatScreenState extends State<AiChatScreen> {
   /* ---------- bulles ---------- */
 
   Widget _bubble(Palette c, _Msg m, {bool relances = false}) {
-    return Container(
-      margin: EdgeInsets.only(
-        top: 8,
-        left: m.me ? 44 : 0,
-        right: m.me ? 0 : 44,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      decoration: BoxDecoration(
-        color: m.me ? c.accent : c.card2,
-        borderRadius: BorderRadius.circular(16).copyWith(
-          topLeft: m.me ? const Radius.circular(16) : const Radius.circular(4),
-          topRight: m.me ? const Radius.circular(4) : const Radius.circular(16),
-        ),
-        border: m.me ? null : Border.all(color: c.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: EdgeInsets.only(top: 10, left: m.me ? 42 : 0, right: m.me ? 0 : 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: m.me ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
-          SelectableText(
-            m.t,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.55,
-              color: m.me ? c.onAccent : c.ink,
+          if (!m.me) ...[
+            Container(
+              width: 27,
+              height: 27,
+              decoration: BoxDecoration(color: c.accent.withValues(alpha: .12), borderRadius: BorderRadius.circular(9)),
+              child: Icon(Icons.auto_awesome_rounded, size: 15, color: c.accent),
             ),
-          ),
-          if (m.at > 0) ...[
-            const SizedBox(height: 3),
-            Text(
-              relMs(m.at),
-              style: TextStyle(
-                fontSize: 10.5,
-                color: m.me ? c.onAccent.withValues(alpha: .8) : c.muted,
-              ),
-            ),
+            const SizedBox(width: 7),
           ],
-          if (relances) ...[
-            const SizedBox(height: 9),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final (label, prompt) in _relances)
-                  Press(
-                    onTap: _thinking ? null : () => _send(prompt),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: c.card,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: c.line),
-                      ),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+              decoration: BoxDecoration(
+                color: m.me ? c.accent : c.card,
+                borderRadius: BorderRadius.circular(16).copyWith(
+                  bottomRight: m.me ? const Radius.circular(4) : const Radius.circular(16),
+                  bottomLeft: m.me ? const Radius.circular(16) : const Radius.circular(4),
+                ),
+                border: m.me ? null : Border.all(color: c.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SelectableText(
+                    m.t,
+                    style: TextStyle(fontSize: 13, height: 1.55, color: m.me ? c.onAccent : c.ink),
+                  ),
+                  if (m.at > 0) ...[
+                    const SizedBox(height: 5),
+                    Align(
+                      alignment: Alignment.bottomRight,
                       child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: c.ink,
-                        ),
+                        relMs(m.at),
+                        style: TextStyle(fontSize: 10, color: m.me ? c.onAccent.withValues(alpha: .78) : c.muted),
                       ),
                     ),
-                  ),
-              ],
+                  ],
+                  if (relances) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final (label, prompt) in _relances)
+                          Press(
+                            onTap: _thinking ? null : () => _send(prompt),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: c.soft,
+                                borderRadius: BorderRadius.circular(99),
+                                border: Border.all(color: c.line),
+                              ),
+                              child: Text(label, style: T.caption(c).copyWith(color: c.ink, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (m.me) ...[
+            const SizedBox(width: 7),
+            Container(
+              width: 25,
+              height: 25,
+              decoration: BoxDecoration(color: c.soft, shape: BoxShape.circle),
+              child: Icon(Icons.person_outline_rounded, size: 15, color: c.muted),
             ),
           ],
         ],
@@ -435,61 +566,64 @@ class AiChatScreenState extends State<AiChatScreen> {
 
   Widget _input(Palette c) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      padding: const EdgeInsets.fromLTRB(6, 5, 5, 5),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: c.line),
+        border: Border(top: BorderSide(color: c.line)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _ta,
-              minLines: 1,
-              maxLines: 4,
-              style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
-              cursorColor: c.accent,
-              decoration: InputDecoration(
-                isDense: true,
-                filled: false,
-                counterText: '',
-                hintText: "Écrire à l'IA…",
-                hintStyle: TextStyle(fontSize: 13.5, color: c.muted),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
+          decoration: BoxDecoration(
+            color: c.bg,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.line),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ta,
+                  minLines: 1,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: _thinking ? null : _send,
+                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
+                  cursorColor: c.accent,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    hintText: "Posez votre question à l'IA…",
+                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Press(
-            onTap: _thinking ? null : () => _send(_ta.text),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _thinking ? c.muted : c.accent,
-                shape: BoxShape.circle,
+              const SizedBox(width: 8),
+              Press(
+                onTap: _thinking ? null : () => _send(_ta.text),
+                child: Container(
+                  width: 39,
+                  height: 39,
+                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
+                  child: _thinking
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
+                        )
+                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
+                ),
               ),
-              child: _thinking
-                  ? Padding(
-                      padding: const EdgeInsets.all(9),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(c.onAccent),
-                      ),
-                    )
-                  : Icon(Icons.send_rounded, size: 16, color: c.onAccent),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
 }
 
 /* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
