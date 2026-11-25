@@ -1289,7 +1289,7 @@ class _Msg {
       final token = match.group(0)!;
       final code = token.startsWith(tick);
       final bold = token.startsWith('**') || token.startsWith('__');
-      final content = token.substring(bold || code ? 2 : 1, token.length - (bold || code ? 2 : 1));
+      final content = token.substring(bold ? 2 : 1, token.length - (bold ? 2 : 1));
       out.add(TextSpan(text: content, style: TextStyle(
         fontWeight: bold ? FontWeight.w800 : weight,
         fontStyle: (!bold && !code) || italic ? FontStyle.italic : FontStyle.normal,
