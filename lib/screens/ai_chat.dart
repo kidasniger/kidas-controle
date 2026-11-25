@@ -459,10 +459,7 @@ class AiChatScreenState extends State<AiChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (m.me)
-                    SelectableText(
-                      m.t,
-                      style: TextStyle(fontSize: 13, height: 1.5, color: c.onAccent),
-                    )
+                    SelectableText(m.t, style: TextStyle(fontSize: 13, height: 1.5, color: c.onAccent))
                   else
                     _markdown(c, m.t),
                   if (m.at > 0) ...[
@@ -515,736 +512,79 @@ class AiChatScreenState extends State<AiChatScreen> {
     );
   }
 
-  /// Affiche les réponses de l'IA avec une mise en forme Markdown légère.
-  /// Gère les titres, paragraphes, listes, gras, italique et code inline.
   Widget _markdown(Palette c, String source) {
-    final widgets = <Widget>[];
-    final lines = source.replaceAll('\r\n', '\n').split('\n');
-    final paragraph = <String>[];
-
-    void flushParagraph() {
-      if (paragraph.isEmpty) return;
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 7),
-          child: SelectableText.rich(
-            TextSpan(
-              style: TextStyle(fontSize: 13, height: 1.5, color: c.ink),
-              children: _inlineMarkdown(paragraph.join(' '), c),
-            ),
-          ),
-        ),
-      );
-      paragraph.clear();
+    final children = <Widget>[];
+    final paragraphs = <String>[];
+    void flush() {
+      if (paragraphs.isEmpty) return;
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: 7),
+        child: SelectableText.rich(TextSpan(
+          style: TextStyle(fontSize: 13, height: 1.5, color: c.ink),
+          children: _inlineMarkdown(paragraphs.join(' '), c),
+        )),
+      ));
+      paragraphs.clear();
     }
-
-    for (final raw in lines) {
-      final trimmed = raw.trim();
-      if (trimmed.isEmpty) {
-        flushParagraph();
-        continue;
-      }
-
-      final heading = RegExp(r'^(#{1,3})\s+(.+)
-    return Container(
-      margin: const EdgeInsets.only(top: 8, right: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      decoration: BoxDecoration(
-        color: c.card2,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(4),
-          topRight: Radius.circular(16),
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
-        border: Border.all(color: c.line),
-      ),
-      child: const _Dots(),
-    );
-  }
-
-  Widget _retryChip(Palette c) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Press(
-        onTap: _retry,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.refresh, size: 14, color: c.ink),
-              const SizedBox(width: 6),
-              Text(
-                'Réessayer',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: c.ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
-
-  Widget _input(Palette c) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
-      decoration: BoxDecoration(
-        color: c.card,
-        border: Border(top: BorderSide(color: c.line)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
-          decoration: BoxDecoration(
-            color: c.bg,
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _ta,
-                  minLines: 1,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: _thinking ? null : _send,
-                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
-                  cursorColor: c.accent,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    filled: false,
-                    hintText: "Posez votre question à l'IA…",
-                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Press(
-                onTap: _thinking ? null : () => _send(_ta.text),
-                child: Container(
-                  width: 39,
-                  height: 39,
-                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
-                  child: _thinking
-                      ? Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
-                        )
-                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-}
-
-/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
-
-class _Dots extends StatefulWidget {
-  const _Dots();
-  @override
-  State<_Dots> createState() => _DotsState();
-}
-
-class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
-  late final AnimationController _a = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
-  @override
-  void dispose() {
-    _a.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.p;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(width: 4),
-          FadeTransition(
-            opacity: Tween(begin: .25, end: 1.0).animate(
-              CurvedAnimation(
-                parent: _a,
-                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
-              ),
-            ),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/* ---------- bordure pointillée des chips de suggestion ---------- */
-
-class _DashedLine extends CustomPainter {
-  final Color color;
-  _DashedLine(this.color);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(99),
-    );
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = color;
-    final path = Path()..addRRect(rrect);
-    for (final m in path.computeMetrics()) {
-      var d = 0.0;
-      while (d < m.length) {
-        final e = (d + 4).clamp(0.0, m.length);
-        canvas.drawPath(m.extractPath(d, e), paint);
-        d = e + 3;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedLine old) => old.color != color;
-}
-
-/// Un message de la discussion (local ou chargé du dépôt).
-class _Msg {
-  final bool me;
-  final String t;
-  final int at;
-  const _Msg(this.me, this.t, this.at);
-}
-).firstMatch(trimmed);
+    for (final raw in source.replaceAll('\r\n', '\n').split('\n')) {
+      final line = raw.trim();
+      if (line.isEmpty) { flush(); continue; }
+      final heading = RegExp(r'^(#{1,3})\s+(.+)$').firstMatch(line);
       if (heading != null) {
-        flushParagraph();
+        flush();
         final level = heading.group(1)!.length;
-        widgets.add(
-          Padding(
-            padding: EdgeInsets.only(top: widgets.isEmpty ? 0 : 7, bottom: 5),
-            child: SelectableText.rich(
-              TextSpan(
-                style: TextStyle(
-                  color: c.ink,
-                  fontSize: level == 1 ? 16 : (level == 2 ? 14.5 : 13.5),
-                  fontWeight: FontWeight.w800,
-                  height: 1.35,
-                ),
-                children: _inlineMarkdown(heading.group(2)!, c),
-              ),
-            ),
-          ),
-        );
+        children.add(Padding(
+          padding: const EdgeInsets.only(top: 7, bottom: 5),
+          child: SelectableText.rich(TextSpan(
+            style: TextStyle(color: c.ink, fontSize: level == 1 ? 16 : 14, fontWeight: FontWeight.w800),
+            children: _inlineMarkdown(heading.group(2)!, c),
+          )),
+        ));
         continue;
       }
-
-      final bullet = RegExp(r'^(?:[-*•])\s+(.+)
-    return Container(
-      margin: const EdgeInsets.only(top: 8, right: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      decoration: BoxDecoration(
-        color: c.card2,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(4),
-          topRight: Radius.circular(16),
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
-        border: Border.all(color: c.line),
-      ),
-      child: const _Dots(),
-    );
-  }
-
-  Widget _retryChip(Palette c) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Press(
-        onTap: _retry,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.refresh, size: 14, color: c.ink),
-              const SizedBox(width: 6),
-              Text(
-                'Réessayer',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: c.ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
-
-  Widget _input(Palette c) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
-      decoration: BoxDecoration(
-        color: c.card,
-        border: Border(top: BorderSide(color: c.line)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
-          decoration: BoxDecoration(
-            color: c.bg,
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _ta,
-                  minLines: 1,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: _thinking ? null : _send,
-                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
-                  cursorColor: c.accent,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    filled: false,
-                    hintText: "Posez votre question à l'IA…",
-                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Press(
-                onTap: _thinking ? null : () => _send(_ta.text),
-                child: Container(
-                  width: 39,
-                  height: 39,
-                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
-                  child: _thinking
-                      ? Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
-                        )
-                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-}
-
-/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
-
-class _Dots extends StatefulWidget {
-  const _Dots();
-  @override
-  State<_Dots> createState() => _DotsState();
-}
-
-class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
-  late final AnimationController _a = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
-  @override
-  void dispose() {
-    _a.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.p;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(width: 4),
-          FadeTransition(
-            opacity: Tween(begin: .25, end: 1.0).animate(
-              CurvedAnimation(
-                parent: _a,
-                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
-              ),
-            ),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/* ---------- bordure pointillée des chips de suggestion ---------- */
-
-class _DashedLine extends CustomPainter {
-  final Color color;
-  _DashedLine(this.color);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(99),
-    );
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = color;
-    final path = Path()..addRRect(rrect);
-    for (final m in path.computeMetrics()) {
-      var d = 0.0;
-      while (d < m.length) {
-        final e = (d + 4).clamp(0.0, m.length);
-        canvas.drawPath(m.extractPath(d, e), paint);
-        d = e + 3;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedLine old) => old.color != color;
-}
-
-/// Un message de la discussion (local ou chargé du dépôt).
-class _Msg {
-  final bool me;
-  final String t;
-  final int at;
-  const _Msg(this.me, this.t, this.at);
-}
-).firstMatch(trimmed);
-      final numbered = RegExp(r'^(\d+)[.)]\s+(.+)
-    return Container(
-      margin: const EdgeInsets.only(top: 8, right: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      decoration: BoxDecoration(
-        color: c.card2,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(4),
-          topRight: Radius.circular(16),
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
-        border: Border.all(color: c.line),
-      ),
-      child: const _Dots(),
-    );
-  }
-
-  Widget _retryChip(Palette c) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Press(
-        onTap: _retry,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: c.soft,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.refresh, size: 14, color: c.ink),
-              const SizedBox(width: 6),
-              Text(
-                'Réessayer',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: c.ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /* ---------- barre de saisie en pilule (maquette chatbar) ---------- */
-
-  Widget _input(Palette c) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
-      decoration: BoxDecoration(
-        color: c.card,
-        border: Border(top: BorderSide(color: c.line)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
-          decoration: BoxDecoration(
-            color: c.bg,
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _ta,
-                  minLines: 1,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: _thinking ? null : _send,
-                  style: TextStyle(fontSize: 13.5, height: 1.4, color: c.ink),
-                  cursorColor: c.accent,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    filled: false,
-                    hintText: "Posez votre question à l'IA…",
-                    hintStyle: TextStyle(fontSize: 13, color: c.muted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Press(
-                onTap: _thinking ? null : () => _send(_ta.text),
-                child: Container(
-                  width: 39,
-                  height: 39,
-                  decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
-                  child: _thinking
-                      ? Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(c.onAccent)),
-                        )
-                      : Icon(Icons.arrow_upward_rounded, size: 19, color: c.onAccent),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-}
-
-/* ---------- indicateur « l'IA écrit » : trois points (maquette dots) ---------- */
-
-class _Dots extends StatefulWidget {
-  const _Dots();
-  @override
-  State<_Dots> createState() => _DotsState();
-}
-
-class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
-  late final AnimationController _a = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
-  @override
-  void dispose() {
-    _a.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.p;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(width: 4),
-          FadeTransition(
-            opacity: Tween(begin: .25, end: 1.0).animate(
-              CurvedAnimation(
-                parent: _a,
-                curve: Interval(i * .2, i * .2 + .5, curve: Curves.easeInOut),
-              ),
-            ),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(color: c.muted, shape: BoxShape.circle),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/* ---------- bordure pointillée des chips de suggestion ---------- */
-
-class _DashedLine extends CustomPainter {
-  final Color color;
-  _DashedLine(this.color);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(99),
-    );
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = color;
-    final path = Path()..addRRect(rrect);
-    for (final m in path.computeMetrics()) {
-      var d = 0.0;
-      while (d < m.length) {
-        final e = (d + 4).clamp(0.0, m.length);
-        canvas.drawPath(m.extractPath(d, e), paint);
-        d = e + 3;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedLine old) => old.color != color;
-}
-
-/// Un message de la discussion (local ou chargé du dépôt).
-class _Msg {
-  final bool me;
-  final String t;
-  final int at;
-  const _Msg(this.me, this.t, this.at);
-}
-).firstMatch(trimmed);
+      final bullet = RegExp(r'^[-*•]\s+(.+)$').firstMatch(line);
+      final numbered = RegExp(r'^(\d+)[.)]\s+(.+)$').firstMatch(line);
       if (bullet != null || numbered != null) {
-        flushParagraph();
-        final text = bullet?.group(1) ?? numbered!.group(2)!;
-        final marker = bullet != null ? '•' : '\${numbered!.group(1)}.';
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 22,
-                  child: Text(
-                    marker,
-                    style: TextStyle(
-                      color: c.accent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: SelectableText.rich(
-                    TextSpan(
-                      style: TextStyle(fontSize: 13, height: 1.45, color: c.ink),
-                      children: _inlineMarkdown(text, c),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        flush();
+        final label = bullet?.group(1) ?? numbered!.group(2)!;
+        final marker = bullet != null ? '•' : '${numbered!.group(1)}.';
+        children.add(Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 4),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 22, child: Text(marker, style: TextStyle(color: c.accent, fontWeight: FontWeight.w800))),
+            Expanded(child: SelectableText.rich(TextSpan(
+              style: TextStyle(fontSize: 13, height: 1.45, color: c.ink),
+              children: _inlineMarkdown(label, c),
+            ))),
+          ]),
+        ));
         continue;
       }
-
-      paragraph.add(trimmed);
+      paragraphs.add(line);
     }
-    flushParagraph();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: widgets,
-    );
+    flush();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);
   }
 
   List<InlineSpan> _inlineMarkdown(String text, Palette c) {
     final spans = <InlineSpan>[];
-    final pattern = RegExp(r'(\*\*.+?\*\*|__.+?__|\`[^\`]+\`|\*[^*]+\*|_[^_]+_)');
-    var cursor = 0;
+    final pattern = RegExp(r'(\*\*.+?\*\*|__.+?__|`[^`]+`|\*[^*]+\*|_[^_]+_)');
+    var offset = 0;
     for (final match in pattern.allMatches(text)) {
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, match.start)));
-      }
+      if (match.start > offset) spans.add(TextSpan(text: text.substring(offset, match.start)));
       final token = match.group(0)!;
       if (token.startsWith('**') || token.startsWith('__')) {
-        spans.add(TextSpan(
-          text: token.substring(2, token.length - 2),
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ));
-      } else if (token.startsWith('\`')) {
-        spans.add(TextSpan(
-          text: token.substring(1, token.length - 1),
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: c.accent,
-            backgroundColor: c.soft,
-          ),
-        ));
+        spans.add(TextSpan(text: token.substring(2, token.length - 2), style: const TextStyle(fontWeight: FontWeight.w800)));
+      } else if (token.startsWith('`')) {
+        spans.add(TextSpan(text: token.substring(1, token.length - 1), style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: c.accent, backgroundColor: c.soft)));
       } else {
-        spans.add(TextSpan(
-          text: token.substring(1, token.length - 1),
-          style: const TextStyle(fontStyle: FontStyle.italic),
-        ));
+        spans.add(TextSpan(text: token.substring(1, token.length - 1), style: const TextStyle(fontStyle: FontStyle.italic)));
       }
-      cursor = match.end;
+      offset = match.end;
     }
-    if (cursor < text.length) {
-      spans.add(TextSpan(text: text.substring(cursor)));
-    }
+    if (offset < text.length) spans.add(TextSpan(text: text.substring(offset)));
     return spans;
   }
-
   Widget _typing(Palette c) {
     return Container(
       margin: const EdgeInsets.only(top: 8, right: 44),
