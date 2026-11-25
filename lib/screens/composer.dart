@@ -549,11 +549,13 @@ class _ComposerScreenState extends State<ComposerScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.p;
+    final hasContent = _ed.text.trim().isNotEmpty || PublishDraft.media.isNotEmpty;
+    final scheduled = PublishDraft.whenMs > 0;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 96),
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
       children: [
         _pageHead(c),
-        const SizedBox(height: 10),
+        const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: _editeur(c),
@@ -563,35 +565,68 @@ class _ComposerScreenState extends State<ComposerScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: _options(c),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: KSection('Aperçu Facebook'),
+          child: _sectionTitle(c, 'Aperçu', 'Rendu estimé de votre publication'),
         ),
+        const SizedBox(height: 9),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: _apercu(c),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: KSection("File d'attente"),
+          child: Row(
+            children: [
+              Expanded(child: _sectionTitle(c, "File d'attente", 'Publications en attente et programmées')),
+              if (_fileItems != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(color: c.soft, borderRadius: BorderRadius.circular(20)),
+                  child: Text('${_fileItems!.length}', style: T.strong(c).copyWith(fontSize: 12)),
+                ),
+            ],
+          ),
         ),
+        const SizedBox(height: 9),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: _fileAttente(c),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: ActionBtn(
-            PublishDraft.whenMs > 0
-                ? 'Programmer ce post'
-                : 'Publier maintenant',
-            height: 50,
+            scheduled ? 'Confirmer la programmation' : 'Ajouter à la file de publication',
+            icon: scheduled ? Icons.schedule_send_outlined : Icons.send_rounded,
+            height: 54,
             job: _submit,
           ),
         ),
+        const SizedBox(height: 5),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            hasContent
+                ? 'Votre contenu sera transmis au bot pour publication.'
+                : 'Ajoutez un texte ou un média pour commencer.',
+            textAlign: TextAlign.center,
+            style: T.caption(c),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionTitle(Palette c, String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: T.strong(c).copyWith(fontSize: 16)),
+        const SizedBox(height: 2),
+        Text(subtitle, style: T.caption(c)),
       ],
     );
   }
@@ -600,23 +635,47 @@ class _ComposerScreenState extends State<ComposerScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text('Composer', style: T.hero(c)),
-          const Spacer(),
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: c.soft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.edit_note_rounded, color: c.accent, size: 24),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Nouvelle publication', style: T.hero(c).copyWith(fontSize: 21)),
+                const SizedBox(height: 2),
+                Text('Préparez, prévisualisez et planifiez', style: T.caption(c)),
+              ],
+            ),
+          ),
           Press(
             onTap: () {
               Fx.tick();
               _feuilleBrouillons(c);
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              child: Text(
-                'Brouillons',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: c.accent,
-                ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: c.soft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.line),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bookmarks_outlined, size: 16, color: c.accent),
+                  const SizedBox(width: 5),
+                  Text('Brouillons', style: T.strong(c).copyWith(fontSize: 12)),
+                ],
               ),
             ),
           ),
@@ -628,26 +687,96 @@ class _ComposerScreenState extends State<ComposerScreen> {
   /* ---------- éditeur : texte + vignette du média joint ---------- */
 
   Widget _editeur(Palette c) {
+    final count = _ed.text.characters.length;
     return KCard(
-      pad: const EdgeInsets.all(12),
+      pad: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          KEdit(
-            controller: _ed,
-            hint: 'Texte du post...',
-            minLines: 4,
-            maxLines: 10,
+          Row(
+            children: [
+              Icon(Icons.article_outlined, size: 17, color: c.accent),
+              const SizedBox(width: 7),
+              Text('Votre contenu', style: T.strong(c).copyWith(fontSize: 14)),
+              const Spacer(),
+              Text('$count caractères', style: T.caption(c)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: c.bg,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: c.line),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            child: KEdit(
+              controller: _ed,
+              hint: 'Que souhaitez-vous partager avec votre audience ?',
+              minLines: 5,
+              maxLines: 12,
+            ),
           ),
           if (_status.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(_status, style: T.caption(c)),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 1.7)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_status, style: T.caption(c))),
+              ],
+            ),
           ],
           if (PublishDraft.media.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _vignetteMedia(c),
           ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _editorAction(
+                  c,
+                  Icons.add_photo_alternate_outlined,
+                  'Ajouter un média',
+                  () => _feuilleMedia(c),
+                  active: PublishDraft.media.isNotEmpty,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _editorAction(
+                  c,
+                  Icons.bookmark_add_outlined,
+                  'Enregistrer',
+                  () async => _sauverBrouillon(),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _editorAction(Palette c, IconData icon, String label, VoidCallback onTap, {bool active = false}) {
+    return Press(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? c.accent.withValues(alpha: .09) : c.soft,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: active ? c.accent.withValues(alpha: .35) : c.line),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: active ? c.accent : c.ink),
+            const SizedBox(width: 6),
+            Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: T.strong(c).copyWith(fontSize: 11.5))),
+          ],
+        ),
       ),
     );
   }
@@ -711,33 +840,37 @@ class _ComposerScreenState extends State<ComposerScreen> {
   /* ---------- options : média, programmation, audience ---------- */
 
   Widget _options(Palette c) {
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.line),
-      ),
+    return KCard(
+      pad: EdgeInsets.zero,
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(13, 12, 13, 8),
+            child: Row(
+              children: [
+                Icon(Icons.tune_rounded, size: 17, color: c.accent),
+                const SizedBox(width: 7),
+                Text('Options de publication', style: T.strong(c).copyWith(fontSize: 13)),
+              ],
+            ),
+          ),
           _optRow(
             c,
-            Icons.image_outlined,
-            'Photo ou vidéo',
-            PublishDraft.media.isEmpty ? 'Aucun fichier joint' : _mediaName,
+            Icons.perm_media_outlined,
+            'Média',
+            PublishDraft.media.isEmpty ? 'Photo ou vidéo à joindre' : _mediaName,
             () => _feuilleMedia(c),
           ),
-          Divider(height: 1, thickness: 1, color: c.line, indent: 52),
+          Divider(height: 1, thickness: 1, color: c.line, indent: 54),
           _optRow(
             c,
-            Icons.event_outlined,
-            'Programmer',
-            PublishDraft.whenMs > 0
-                ? 'Pour le ${fdate(PublishDraft.whenMs)}'
-                : 'Publication immédiate',
+            Icons.calendar_month_outlined,
+            'Date de publication',
+            PublishDraft.whenMs > 0 ? fdate(PublishDraft.whenMs) : 'Publier dès que possible',
             () => _feuilleProg(c),
           ),
-          Divider(height: 1, thickness: 1, color: c.line, indent: 52),
-          _optRow(c, Icons.public, 'Audience', 'Public', () {
+          Divider(height: 1, thickness: 1, color: c.line, indent: 54),
+          _optRow(c, Icons.public_rounded, 'Audience', 'Public · visible par tous', () {
             Fx.tick();
             kToast(context, 'Le bot publie toujours en public.');
           }),
