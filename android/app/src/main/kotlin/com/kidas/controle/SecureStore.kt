@@ -11,6 +11,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import java.util.UUID
 
 /**
  * Coffre AES-GCM natif.
@@ -24,44 +25,38 @@ internal class SecureStore(context: Context) {
         "kidas_secure_native", Context.MODE_PRIVATE
     )
 
-    private fun key(createIfMissing: Boolean): SecretKey {
+    private fun key(alias: String, createIfMissing: Boolean): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore")
         ks.load(null)
-        val existing = ks.getKey(ALIAS, null) as? SecretKey
+        val existing = ks.getKey(alias, null) as? SecretKey
         if (existing != null) return existing
         if (!createIfMissing) {
             throw IllegalStateException(
-                "Clé Android Keystore absente. Les données chiffrées ont été conservées."
+                "Clé Android Keystore absente ($alias). Les données chiffrées ont été conservées."
             )
         }
 
-        try {
-            val generator = KeyGenerator.getInstance(
-                KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
+        val generator = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
+        )
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                alias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
             )
-            generator.init(
-                KeyGenParameterSpec.Builder(
-                    ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .build()
-            )
-            return generator.generateKey()
-        } catch (e: Exception) {
-            throw IllegalStateException(
-                "Android Keystore ne peut pas créer la clé. Aucune donnée du coffre n'a été effacée.",
-                e
-            )
-        }
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .build()
+        )
+        return generator.generateKey()
     }
 
     fun get(name: String): String = synchronized(LOCK) {
         val encoded = prefs.getString(name, null) ?: return@synchronized ""
         try {
-            decrypt(encoded)
+            val alias = prefs.getString(aliasName(name), ALIAS) ?: ALIAS
+            decrypt(encoded, alias)
         } catch (e: Exception) {
             val detail = if (e is AEADBadTagException) {
                 "Authentification AES-GCM refusée."
@@ -76,14 +71,19 @@ internal class SecureStore(context: Context) {
     }
 
     fun set(name: String, value: String) = synchronized(LOCK) {
-        // La création est autorisée ici car l'utilisateur fournit explicitement
-        // une nouvelle valeur. L'ancienne valeur chiffrée n'est remplacée
-        // qu'après chiffrement réussi et commit confirmé.
-        val encrypted = encrypt(value)
+        // Une nouvelle clé est créée à chaque remplacement explicite du secret.
+        // Cela permet de récupérer d'une ancienne clé Keystore devenue inutilisable
+        // sans la supprimer ni toucher au ciphertext précédent avant le commit.
+        val newAlias = "${ALIAS}_${UUID.randomUUID().toString().replace("-", "")}"
+        val encrypted = encrypt(value, newAlias)
         val encoded = Base64.encodeToString(encrypted, Base64.NO_WRAP)
-        if (!prefs.edit().putString(name, encoded).commit()) {
+        val saved = prefs.edit()
+            .putString(name, encoded)
+            .putString(aliasName(name), newAlias)
+            .commit()
+        if (!saved) {
             throw IllegalStateException(
-                "Android n'a pas confirmé l'enregistrement sécurisé. L'ancienne donnée est conservée."
+                "Android n'a pas confirmé l'enregistrement sécurisé. L'ancienne donnée et sa clé sont conservées."
             )
         }
     }
@@ -94,13 +94,13 @@ internal class SecureStore(context: Context) {
         }
     }
 
-    private fun encrypt(value: String): ByteArray {
+    private fun encrypt(value: String, alias: String): ByteArray {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, key(createIfMissing = true))
+        cipher.init(Cipher.ENCRYPT_MODE, key(alias, createIfMissing = true))
         return cipher.iv + cipher.doFinal(value.toByteArray(StandardCharsets.UTF_8))
     }
 
-    private fun decrypt(encoded: String): String {
+    private fun decrypt(encoded: String, alias: String): String {
         val all = Base64.decode(encoded, Base64.NO_WRAP)
         if (all.size <= IV_LENGTH) {
             throw IllegalStateException("Donnée chiffrée incomplète.")
@@ -109,7 +109,7 @@ internal class SecureStore(context: Context) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(
             Cipher.DECRYPT_MODE,
-            key(createIfMissing = false),
+            key(alias, createIfMissing = false),
             GCMParameterSpec(TAG_BITS, iv)
         )
         return String(
@@ -122,6 +122,7 @@ internal class SecureStore(context: Context) {
         // Verrou commun à toutes les instances créées par MainActivity.
         val LOCK = Any()
         const val ALIAS = "kidas_controle_flutter_aes"
+        fun aliasName(name: String) = "${name}__key_alias"
         const val IV_LENGTH = 12
         const val TAG_BITS = 128
         const val TRANSFORMATION = "AES/GCM/NoPadding"
