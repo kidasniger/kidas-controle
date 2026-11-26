@@ -143,10 +143,24 @@ class BotNotificationSync {
       final errors = raw['erreurs'] is List
           ? (raw['erreurs'] as List).whereType<Map>().toList()
           : <Map>[];
-      final knownRaw = await Store.get(_errorsKey);
+        final knownRaw = await Store.get(_errorsKey);
       final known = knownRaw.isEmpty
           ? <String>{}
           : (jsonDecode(knownRaw) as List).whereType<String>().toSet();
+
+      // Au premier démarrage, établir une référence silencieuse : les erreurs
+      // déjà présentes dans sante.json sont de l'historique, pas de nouvelles alertes.
+      if (knownRaw.isEmpty) {
+        for (final error in errors) {
+          final at = error['at']?.toString() ?? '';
+          final origin = error['origine']?.toString() ?? 'bot';
+          final detail = error['detail']?.toString() ?? 'Erreur non détaillée';
+          known.add('$at|$origin|$detail');
+        }
+        await Store.set(_errorsKey, jsonEncode(known.toList()));
+        return;
+      }
+
       final fresh = <Map>[];
       for (final error in errors) {
         final at = error['at']?.toString() ?? '';
