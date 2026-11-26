@@ -32,15 +32,12 @@ class MainActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "secureGet" -> try {
                     result.success(SecureStore(this).get(call.argument<String>("key") ?: ""))
-                } catch (e: SecureStore.VaultReset) {
+                } catch (e: Exception) {
                     result.error(
-                        "secure_reset",
-                        "Le coffre sécurisé a été réinitialisé : clé Android inutilisable, " +
-                            "jeton à ressaisir.",
+                        "secure_get",
+                        e.message ?: "Lecture sécurisée impossible. Les données ont été conservées.",
                         null
                     )
-                } catch (e: Exception) {
-                    result.error("secure_get", e.message ?: "Lecture sécurisée impossible.", null)
                 }
                 "secureSet" -> try {
                     SecureStore(this).set(
