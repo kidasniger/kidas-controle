@@ -648,34 +648,6 @@ class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
 
 /* ---------- bordure pointillée des chips de suggestion ---------- */
 
-class _DashedLine extends CustomPainter {
-  final Color color;
-  _DashedLine(this.color);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(99),
-    );
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = color;
-    final path = Path()..addRRect(rrect);
-    for (final m in path.computeMetrics()) {
-      var d = 0.0;
-      while (d < m.length) {
-        final e = (d + 4).clamp(0.0, m.length);
-        canvas.drawPath(m.extractPath(d, e), paint);
-        d = e + 3;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedLine old) => old.color != color;
-}
-
 /// Un message de la discussion (local ou chargé du dépôt).
 class _Msg {
   final bool me;
