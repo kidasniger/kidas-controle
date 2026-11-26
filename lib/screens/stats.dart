@@ -190,11 +190,20 @@ class _StatsScreenState extends State<StatsScreen> {
     final vues = _metrique('page_views_total');
     final cont = _metrique('page_media_view');
     final pg = <String, dynamic>{};
-    final p1 = d.st?['page'];
-    if (p1 is Map<String, dynamic>) pg.addAll(p1);
-    if (pg.isEmpty) {
-      final p2 = d.cm?['page'];
-      if (p2 is Map<String, dynamic>) pg.addAll(p2);
+    final statsPage = d.st?['page'];
+    final commentsPage = d.cm?['page'];
+    final statsDate = DateTime.tryParse(d.st?['date']?.toString() ?? '');
+    final commentsDate = DateTime.tryParse(d.cm?['updated']?.toString() ?? '');
+    // Les fichiers ne sont pas synchronisés au même moment : utiliser le
+    // compteur de Page provenant de la source la plus récemment actualisée.
+    final commentsAreNewer = commentsPage is Map<String, dynamic> &&
+        (statsDate == null ||
+            (commentsDate != null && commentsDate.isAfter(statsDate)));
+    final preferredPage = commentsAreNewer ? commentsPage : statsPage;
+    if (preferredPage is Map<String, dynamic>) {
+      pg.addAll(preferredPage);
+    } else if (commentsPage is Map<String, dynamic>) {
+      pg.addAll(commentsPage);
     }
 
     final kids = <Widget>[_pageHead(c)];
@@ -496,6 +505,13 @@ class _StatsScreenState extends State<StatsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('CROISSANCE · $_periode JOURS', style: T.micro(c)),
+          if (_d?.st?['date'] != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Données collectées le ${DateTime.tryParse(_d!.st!['date'].toString())?.toLocal().toString().substring(0, 16) ?? _d!.st!['date']}',
+              style: T.micro(c).copyWith(color: c.muted),
+            ),
+          ],
           const SizedBox(height: 10),
           LineChart(v, labs: labs, color: c.accent),
         ],
@@ -613,7 +629,19 @@ class _StatsScreenState extends State<StatsScreen> {
       (value) => value is Map && value['like'] == 'pending',
     ).length;
     final errorsRaw = _health?['erreurs'];
-    final errors = errorsRaw is List ? errorsRaw.length : 0;
+    final errorItems = errorsRaw is List
+        ? errorsRaw.whereType<Map>().toList()
+        : <Map>[];
+    final now = DateTime.now().toUtc();
+    final recentErrors = errorItems.where((item) {
+      final at = DateTime.tryParse(item['at']?.toString() ?? '');
+      if (at == null) return false;
+      final age = now.difference(at.toUtc());
+      return age.inMinutes >= -2 && age.inHours < 24;
+    }).length;
+    final undatedErrors = errorItems.where(
+      (item) => DateTime.tryParse(item['at']?.toString() ?? '') == null,
+    ).length;
     final fileRaw = _health?['file'];
     final queuedRaw = fileRaw is Map ? fileRaw['en_attente'] : 0;
     final queued = queuedRaw is num ? queuedRaw.toInt() : 0;
@@ -641,7 +669,9 @@ class _StatsScreenState extends State<StatsScreen> {
           _ligneRapport(c, 'Réponses visibles sur Facebook', nf(replies)),
           _ligneRapport(c, 'J’aime confirmés', nf(likesConfirmed)),
           _ligneRapport(c, 'J’aime en attente', nf(likesPending)),
-          _ligneRapport(c, 'Erreurs récentes', nf(errors)),
+          _ligneRapport(c, 'Erreurs des dernières 24 h', nf(recentErrors)),
+          if (undatedErrors > 0)
+            _ligneRapport(c, 'Erreurs sans date', nf(undatedErrors)),
           _ligneRapport(c, 'Actions en attente', nf(queued)),
         ],
       ),
