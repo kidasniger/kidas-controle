@@ -154,11 +154,20 @@ class Diagnostics {
         final errorItems = health['erreurs'] is List
             ? (health['erreurs'] as List).whereType<Map>().toList()
             : <Map>[];
-        final errors = errorItems.length;
+        // Le rapport conserve un historique : ne pas compter comme actives
+        // les erreurs anciennes lors de l'évaluation de la santé courante.
+        final now = DateTime.now().toUtc();
+        final recentErrors = errorItems.where((item) {
+          final at = DateTime.tryParse(item['at']?.toString() ?? '');
+          if (at == null) return false;
+          final age = now.difference(at.toUtc());
+          return age.inMinutes >= -2 && age.inHours < 24;
+        }).toList();
+        final errors = recentErrors.length;
         final pending = health['file'] is Map
             ? ((health['file'] as Map)['en_attente'] ?? 0)
             : 0;
-        final latest = errorItems.isEmpty ? null : errorItems.last;
+        final latest = recentErrors.isEmpty ? null : recentErrors.last;
         final rawDetail = (latest?['detail'] ?? '').toString();
         final latestDetail = latest == null
             ? ''
@@ -168,7 +177,7 @@ class Diagnostics {
           id: 'bot_activity',
           title: 'Erreurs et file d’attente',
           level: errors > 0 ? CheckLevel.warning : CheckLevel.success,
-          detail: '$errors erreur(s) récente(s) · $pending élément(s) en attente.$latestDetail',
+          detail: '$errors erreur(s) des dernières 24 h · $pending élément(s) en attente.$latestDetail',
         ));
       } else {
         checks.add(const DiagnosticCheck(
