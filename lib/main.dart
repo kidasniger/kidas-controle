@@ -141,6 +141,7 @@ class Boot extends StatefulWidget {
 class _BootState extends State<Boot> with WidgetsBindingObserver {
   bool _ready = false, _locked = true, _autoChecked = false;
   DateTime? _bgAt;
+  Timer? _botSyncTimer;
   final LocalAuthentication _la = LocalAuthentication();
 
   @override
@@ -154,8 +155,19 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _botSyncTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _startBotSync() {
+    _botSyncTimer?.cancel();
+    // Le rapport du bot est publié chaque minute : maintenir les notifications
+    // et l'état de synchronisation à jour tant que l'application est ouverte.
+    _botSyncTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => unawaited(BotNotificationSync.sync()),
+    );
   }
 
   Future<void> _boot() async {
@@ -256,6 +268,7 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
             .timeout(const Duration(seconds: 20))
             .catchError((Object _) {}),
       );
+      _startBotSync();
 
       await _checkLock();
     } on TimeoutException {
@@ -352,6 +365,9 @@ class _BootState extends State<Boot> with WidgetsBindingObserver {
         _checkLock();
       }
       Bus.external = false;
+      if (_ready && Api.tok.isNotEmpty) {
+        unawaited(BotNotificationSync.sync());
+      }
     }
   }
 
