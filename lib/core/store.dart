@@ -63,7 +63,37 @@ class Store {
         }
       }
       if (failure != null) throw failure;
-      final saved = value ?? '';
+      var saved = value ?? '';
+
+      // Migration non destructive de l'ancien coffre v1 : l'ancienne entrée
+      // n'est jamais supprimée, même après copie réussie dans le coffre AES-GCM.
+      if (key == 'gh_token' && saved.isEmpty) {
+        try {
+          final legacyKeys = await Native.legacyKeys();
+          if (legacyKeys.contains(key)) {
+            final legacy = await Native.legacyGet(key);
+            if (legacy != null && legacy.isNotEmpty) {
+              try {
+                await Native.secureSet(key, legacy);
+                final verified = await Native.secureGet(key);
+                if (verified != legacy) {
+                  throw StateError('Migration du jeton non confirmée.');
+                }
+                saved = legacy;
+              } catch (error) {
+                // Le jeton historique reste utilisable en mémoire pour cette
+                // session, sans prétendre que sa migration est persistée.
+                _session[key] = legacy;
+                _markDegraded(error);
+                return legacy;
+              }
+            }
+          }
+        } catch (error) {
+          _lastError = error.toString();
+        }
+      }
+
       _session[key] = saved;
       _degraded = false;
       _lastError = null;
