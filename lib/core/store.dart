@@ -6,10 +6,9 @@ import 'native.dart';
 /// - préférences ordinaires dans SharedPreferences Android,
 /// - secrets dans un coffre AES-GCM natif dont la clé reste dans Android Keystore.
 ///
-/// Le coffre utilise une clé AES symétrique. Si le Keystore rend cette clé
-/// inutilisable (mise à jour du système, restauration…), le coffre natif se
-/// réinitialise tout seul : le secret est perdu (il faut ressaisir le jeton
-/// GitHub) mais l'application ne reste jamais bloquée sur une erreur.
+/// Le coffre utilise une clé AES symétrique. Une erreur du Keystore ne
+/// déclenche jamais de réinitialisation automatique : les données chiffrées
+/// restent conservées et l'application peut continuer en mode dégradé.
 class Store {
   static const Set<String> _secureKeys = {'gh_token'};
 
@@ -21,8 +20,8 @@ class Store {
   static bool get isDegraded => _degraded;
   static String? get lastError => _lastError;
 
-  /// Vrai quand le coffre a dû être réinitialisé (clé Keystore inutilisable) :
-  /// le jeton GitHub doit être ressaisi dans Réglages.
+  /// Conservé pour compatibilité avec l'interface de démarrage.
+  /// Le coffre n'effectue plus aucune réinitialisation automatique.
   static bool get vaultReset => _vaultReset;
 
   static bool _isSecure(String key) => _secureKeys.contains(key);
@@ -53,13 +52,8 @@ class Store {
       _lastError = null;
       return value;
     } on PlatformException catch (error) {
-      if (error.code == 'secure_reset') {
-        // Coffre réinitialisé côté natif : le secret est perdu,
-        // l'application continue de fonctionner normalement.
-        _vaultReset = true;
-        _session.remove(key);
-        return '';
-      }
+      // Une indisponibilité du Keystore n'est pas une absence de token.
+      // Garder la dernière valeur de session et surtout ne jamais l'effacer.
       _markDegraded(error);
       return _session[key] ?? '';
     } catch (error) {
