@@ -179,7 +179,6 @@ class AiChatScreenState extends State<AiChatScreen> {
     }
     return Column(
       children: [
-        _conversationBar(c),
         Expanded(
           child: ListView(
             controller: _scroll,
@@ -198,7 +197,6 @@ class AiChatScreenState extends State<AiChatScreen> {
             ],
           ),
         ),
-        if (_msgs.isNotEmpty) _suggBar(c),
         _input(c),
       ],
     );
@@ -639,15 +637,15 @@ class AiChatScreenState extends State<AiChatScreen> {
 
   Widget _input(Palette c) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
       decoration: BoxDecoration(
-        color: c.card,
-        border: Border(top: BorderSide(color: c.line)),
+        color: c.bg,
+        border: Border(top: BorderSide(color: c.line.withValues(alpha: .65))),
       ),
       child: SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(13, 5, 5, 5),
+          padding: const EdgeInsets.fromLTRB(15, 6, 6, 6),
           decoration: BoxDecoration(
             color: c.bg,
             borderRadius: BorderRadius.circular(25),
@@ -679,8 +677,8 @@ class AiChatScreenState extends State<AiChatScreen> {
               Press(
                 onTap: _thinking ? null : () => _send(_ta.text),
                 child: Container(
-                  width: 39,
-                  height: 39,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(color: _thinking ? c.muted : c.accent, shape: BoxShape.circle),
                   child: _thinking
                       ? Padding(
