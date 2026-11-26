@@ -538,19 +538,40 @@ class _ConnexionPageState extends State<ConnexionPage> {
     final d = _dr.text.trim();
     final m = _mr.text.trim();
     if (t.isEmpty) throw Exception('Colle ton jeton.');
+
+    // Écrire d'abord la configuration, puis le secret en dernier.
+    // Api.tok ne change qu'après confirmation durable du coffre.
+    final oldData = Api.data;
+    final oldMgr = Api.mgr;
+    final oldExpiry = Api.exp;
+    try {
+      await Store.set('cfg_data', d.isNotEmpty ? d : oldData);
+      await Store.set('cfg_mgr', m.isNotEmpty ? m : oldMgr);
+      if (_expiry.isEmpty) {
+        await Store.del('cfg_exp');
+      } else {
+        await Store.set('cfg_exp', _expiry);
+      }
+      await Store.set('gh_token', t);
+    } catch (_) {
+      // Restaurer les réglages précédents si l'enregistrement du token échoue.
+      try { await Store.set('cfg_data', oldData); } catch (_) {}
+      try { await Store.set('cfg_mgr', oldMgr); } catch (_) {}
+      try {
+        if (oldExpiry.isEmpty) {
+          await Store.del('cfg_exp');
+        } else {
+          await Store.set('cfg_exp', oldExpiry);
+        }
+      } catch (_) {}
+      rethrow;
+    }
+
     Api.tok = t;
     if (d.isNotEmpty) Api.data = d;
     if (m.isNotEmpty) Api.mgr = m;
     Api.exp = _expiry;
     Api.resetCache();
-    await Store.set('gh_token', Api.tok);
-    await Store.set('cfg_data', Api.data);
-    await Store.set('cfg_mgr', Api.mgr);
-    if (_expiry.isEmpty) {
-      await Store.del('cfg_exp');
-    } else {
-      await Store.set('cfg_exp', _expiry);
-    }
     await _tests();
     if (!mounted) return;
     final echecs = _checks.where((o) => o['msg']!.isNotEmpty).length;
@@ -558,7 +579,7 @@ class _ConnexionPageState extends State<ConnexionPage> {
       context,
       echecs == 0
           ? 'Connexion enregistrée et testée.'
-          : 'Enregistré, mais $echecs test(s) en échec — détail en haut de page.',
+          : 'Jeton enregistré, mais $echecs test(s) en échec — détail en haut de page.',
       bad: echecs > 0,
     );
   }
@@ -600,16 +621,30 @@ class _ConnexionPageState extends State<ConnexionPage> {
     Fx.tick();
     final t = _nouveau.text.trim();
     if (t.isEmpty) throw Exception('Colle le nouveau jeton.');
+
+    final oldExpiry = Api.exp;
+    try {
+      if (_expiry.isEmpty) {
+        await Store.del('cfg_exp');
+      } else {
+        await Store.set('cfg_exp', _expiry);
+      }
+      await Store.set('gh_token', t);
+    } catch (_) {
+      try {
+        if (oldExpiry.isEmpty) {
+          await Store.del('cfg_exp');
+        } else {
+          await Store.set('cfg_exp', oldExpiry);
+        }
+      } catch (_) {}
+      rethrow;
+    }
+
     Api.tok = t;
-    _tok.text = t;
     Api.exp = _expiry;
     Api.resetCache();
-    await Store.set('gh_token', Api.tok);
-    if (_expiry.isEmpty) {
-      await Store.del('cfg_exp');
-    } else {
-      await Store.set('cfg_exp', _expiry);
-    }
+    _tok.text = t;
     await _tests();
     await Journal.ajoute('app', 'Jeton GitHub renouvelé');
     if (!mounted) return;
@@ -619,7 +654,7 @@ class _ConnexionPageState extends State<ConnexionPage> {
       context,
       echecs == 0
           ? 'Nouveau jeton opérationnel — dépôts et réglages conservés.'
-          : 'Jeton remplacé, mais $echecs test(s) en échec — détail en haut de page.',
+          : 'Jeton enregistré, mais $echecs test(s) en échec — détail en haut de page.',
       bad: echecs > 0,
     );
   }
