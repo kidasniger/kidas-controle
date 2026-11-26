@@ -46,11 +46,28 @@ class Store {
     }
 
     try {
-      final value = await Native.secureGet(key);
-      _session[key] = value;
+      String? value;
+      Object? failure;
+      // Trois lectures bornées pour absorber une indisponibilité transitoire
+      // du canal natif/Keystore, sans jamais réinitialiser le coffre.
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          value = await Native.secureGet(key);
+          failure = null;
+          break;
+        } catch (error) {
+          failure = error;
+          if (attempt < 2) {
+            await Future.delayed(Duration(milliseconds: 250 * (attempt + 1)));
+          }
+        }
+      }
+      if (failure != null) throw failure;
+      final saved = value ?? '';
+      _session[key] = saved;
       _degraded = false;
       _lastError = null;
-      return value;
+      return saved;
     } on PlatformException catch (error) {
       // Une indisponibilité du Keystore n'est pas une absence de token.
       // Garder la dernière valeur de session et surtout ne jamais l'effacer.
