@@ -89,7 +89,7 @@ internal class SecureStore(context: Context) {
     }
 
     fun delete(name: String) = synchronized(LOCK) {
-        if (!prefs.edit().remove(name).commit()) {
+        if (!prefs.edit().remove(name).remove(aliasName(name)).commit()) {
             throw IllegalStateException("Android n'a pas confirmé la suppression sécurisée.")
         }
     }
