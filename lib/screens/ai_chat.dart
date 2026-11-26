@@ -202,60 +202,6 @@ class AiChatScreenState extends State<AiChatScreen> {
     );
   }
 
-  Widget _conversationBar(Palette c) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: c.card,
-        border: Border(bottom: BorderSide(color: c.line)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.auto_awesome_rounded, color: c.accent, size: 19),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Assistant IA', style: T.strong(c).copyWith(fontSize: 13.5)),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(width: 6, height: 6, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
-                    const SizedBox(width: 5),
-                    Text(_thinking ? 'Réponse en préparation…' : 'Prêt à vous aider', style: T.caption(c)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (_msgs.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(color: c.soft, borderRadius: BorderRadius.circular(20)),
-              child: Text('${_msgs.length} messages', style: T.caption(c)),
-            ),
-          const SizedBox(width: 5),
-          Press(
-            onTap: _thinking ? null : () { Fx.tick(); reload(); },
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(Icons.refresh_rounded, size: 19, color: c.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /* ---------- accueil : bulle + compteurs réels (maquette) ---------- */
 
   String _bonjour() {
@@ -380,49 +326,6 @@ class AiChatScreenState extends State<AiChatScreen> {
   }
 
   /* ---------- chips de suggestion pointillées (maquette sugg) ---------- */
-
-  Widget _suggBar(Palette c) {
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        shrinkWrap: true,
-        children: [
-          for (final (label, prompt) in _sugg)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Press(
-                onTap: _thinking ? null : () => _send(prompt),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: c.card,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: CustomPaint(
-                    painter: _DashedLine(c.line),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 13,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: c.ink,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   /* ---------- bulles ---------- */
 
